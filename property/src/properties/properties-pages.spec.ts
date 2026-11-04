@@ -36,7 +36,20 @@ describe('list endpoints', () => {
       offset: 0,
       sort: 'saved',
     });
-    expect(owned.page).toHaveBeenCalledWith('u', { limit: 20, offset: 40 });
+    expect(owned.page).toHaveBeenCalledWith(
+      'u',
+      { limit: 20, offset: 40 },
+      undefined,
+    );
+  });
+
+  it('pass the statuses of a tab on to the page', async () => {
+    await controller.findAll('u', { limit: 20, status: ['Draft', 'Expired'] });
+
+    expect(owned.page).toHaveBeenCalledWith('u', { limit: 20, offset: 0 }, [
+      'Draft',
+      'Expired',
+    ]);
   });
 });
 

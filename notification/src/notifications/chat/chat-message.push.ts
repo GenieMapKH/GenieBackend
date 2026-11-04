@@ -22,11 +22,11 @@ export const MAX_SEALED_PUSH_LENGTH = 3000;
  * "Dara · New message". One notification per sender: a newer message from
  * the same person replaces the previous one instead of piling up.
  *
- * Android also gets the sealed message in a push with no notification of its
- * own: the app opens it with the keys on the phone and writes the notification
- * itself, with the message text. The server never reads the text, and Google
- * only carries what the server stores anyway. iOS and browsers cannot do that
- * while the app is closed, so they get the generic notification.
+ * Every device gets this generic notification, shown by the system even
+ * when the app is closed. Android also gets the sealed message with it: when
+ * the app can start, it opens it with the keys on the phone and replaces the
+ * notification (same tag) with one showing the text. The server never reads
+ * the text, and Google only carries what the server stores anyway.
  */
 export function chatMessagePush(
   event: ChatMessageEvent,
@@ -36,6 +36,10 @@ export function chatMessagePush(
     channel: 'chat_messages' as const,
     tag: `chat:${event.senderId}`,
     urgent: true,
+    alert: {
+      title: event.senderName,
+      body: inLocale(texts.newMessage, target.locale),
+    },
   };
   const data = {
     type: 'chat_message',
@@ -60,14 +64,7 @@ export function chatMessagePush(
       },
     };
   }
-  return {
-    ...common,
-    alert: {
-      title: event.senderName,
-      body: inLocale(texts.newMessage, target.locale),
-    },
-    data,
-  };
+  return { ...common, data };
 }
 
 function fitsInPush(ciphertext: string, nonce: string): boolean {

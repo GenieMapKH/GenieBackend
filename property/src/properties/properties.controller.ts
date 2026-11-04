@@ -21,7 +21,7 @@ import { ImageFileNamesDto } from './dto/image-file-names.dto';
 import { ImageUrlsDto } from './dto/image-urls.dto';
 import { LeadDto } from './dto/lead.dto';
 import { MapBoundsQuery } from './dto/map-bounds.query';
-import { PageQuery } from './dto/page.query';
+import { OwnListingsPageQuery } from './dto/own-listings-page.query';
 import { PinDto } from './dto/pin.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { FavoriteListingsService } from './services/favorite-listings.service';
@@ -54,15 +54,20 @@ export class PropertiesController {
 
   /**
    * The user's own listings, newest first. With `limit`: one page
-   * `{ items, nextOffset }`; without: all of them, as an array.
+   * `{ items, nextOffset, countByStatus }`, only of the statuses in `status`
+   * when given (`Draft,Expired`); without: all of them, as an array.
    */
   @Get()
-  findAll(@CurrentUserId() userId: string, @Query() page: PageQuery) {
+  findAll(
+    @CurrentUserId() userId: string,
+    @Query() page: OwnListingsPageQuery,
+  ) {
     if (page.limit === undefined) return this.owned.all(userId);
-    return this.owned.page(userId, {
-      limit: page.limit,
-      offset: page.offset ?? 0,
-    });
+    return this.owned.page(
+      userId,
+      { limit: page.limit, offset: page.offset ?? 0 },
+      page.status,
+    );
   }
 
   /** The user's own listings (drafts too) inside a map area, newest 500. */

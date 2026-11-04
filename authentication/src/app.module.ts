@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@tilomnov/shared';
+import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 import { AuthModule } from './auth/auth.module';
 import { FirebaseModule } from './firebase/firebase.module';
-import { SupabaseModule } from './supabase/supabase.module';
-import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 
 @Module({
-  imports: [SentryErrorsModule, SupabaseModule, FirebaseModule, AuthModule],
+  imports: [SentryErrorsModule, PrismaModule, FirebaseModule, AuthModule],
 })
 export class AppModule {}

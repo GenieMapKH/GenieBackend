@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { JsonCache, PrismaService } from '@tilomnov/shared';
 import { followingIdsKey } from '../follows/following-ids-key';
+import { ChatBlockNotice } from './chat-block-notice';
 
 /** Block and unblock drop the entry; this is only the safety net if Redis missed that. */
 const RELATED_IDS_TTL_SECONDS = 600;
@@ -45,6 +46,7 @@ export class BlocksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: JsonCache,
+    private readonly chat: ChatBlockNotice,
   ) {}
 
   /** Blocks `targetId`. Blocking twice changes nothing. */
@@ -69,6 +71,7 @@ export class BlocksService {
       }),
     ]);
     await this.forget(viewerId, targetId);
+    await this.chat.blocked(viewerId, targetId);
     return this.status(viewerId, targetId);
   }
 

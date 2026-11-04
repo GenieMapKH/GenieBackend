@@ -16,7 +16,10 @@ describe('PaymentCheckoutService', () => {
     property.begin.mockResolvedValue({ previousStatus: 'Draft' });
     property.revert.mockResolvedValue(undefined);
     transactionTable.create.mockResolvedValue({ id: 'tx-1' });
-    provider.initiateCheckout.mockResolvedValue('https://pay.test/checkout');
+    provider.initiateCheckout.mockResolvedValue({
+      checkoutUrl: 'https://pay.test/checkout',
+      abapayDeeplink: 'abamobilebank://pay',
+    });
     service = new PaymentCheckoutService(
       prisma as never,
       provider as never,
@@ -25,7 +28,7 @@ describe('PaymentCheckoutService', () => {
   });
 
   it('records a Pending transaction and returns where to pay', async () => {
-    const result = await service.initiate(ME, LISTING);
+    const result = await service.initiate(ME, LISTING, 'aba_khqr');
 
     expect(property.begin).toHaveBeenCalledWith(ME, LISTING);
     expect(transactionTable.create).toHaveBeenCalledWith({
@@ -37,10 +40,15 @@ describe('PaymentCheckoutService', () => {
         status: 'Pending',
       },
     });
-    expect(provider.initiateCheckout).toHaveBeenCalledWith('tx-1', 50);
-    expect(result).toEqual({
-      checkoutUrl: 'https://pay.test/checkout',
+    expect(provider.initiateCheckout).toHaveBeenCalledWith({
       transactionId: 'tx-1',
+      amount: 50,
+      method: 'aba_khqr',
+    });
+    expect(result).toEqual({
+      transactionId: 'tx-1',
+      checkoutUrl: 'https://pay.test/checkout',
+      abapayDeeplink: 'abamobilebank://pay',
     });
   });
 
@@ -49,7 +57,7 @@ describe('PaymentCheckoutService', () => {
       new BadRequestException('Cannot publish a property with status Active'),
     );
 
-    await expect(service.initiate(ME, LISTING)).rejects.toThrow(
+    await expect(service.initiate(ME, LISTING, 'aba_khqr')).rejects.toThrow(
       'Cannot publish',
     );
     expect(transactionTable.create).not.toHaveBeenCalled();
@@ -60,7 +68,9 @@ describe('PaymentCheckoutService', () => {
     property.begin.mockResolvedValue({ previousStatus: 'Expired' });
     transactionTable.create.mockRejectedValue(new Error('db down'));
 
-    await expect(service.initiate(ME, LISTING)).rejects.toThrow('db down');
+    await expect(service.initiate(ME, LISTING, 'aba_khqr')).rejects.toThrow(
+      'db down',
+    );
 
     expect(property.revert).toHaveBeenCalledWith(LISTING, 'Expired');
     expect(provider.initiateCheckout).not.toHaveBeenCalled();
@@ -70,6 +80,8 @@ describe('PaymentCheckoutService', () => {
     transactionTable.create.mockRejectedValue(new Error('db down'));
     property.revert.mockRejectedValue(new Error('property down'));
 
-    await expect(service.initiate(ME, LISTING)).rejects.toThrow('db down');
+    await expect(service.initiate(ME, LISTING, 'aba_khqr')).rejects.toThrow(
+      'db down',
+    );
   });
 });

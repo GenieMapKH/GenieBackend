@@ -1,3 +1,6 @@
+import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
+import { KnownLoginDevices } from './login-protection/known-login-devices.store';
+import { LoginThrottle } from './login-protection/login-throttle.service';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { RejectNullBytesPipe } from '@tilomnov/shared';
@@ -26,6 +29,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
     register: jest.fn(),
     login: jest.fn(),
   };
+  const phoneReset = { reset: jest.fn() };
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -36,7 +40,16 @@ describe('sign-up and sign-in input (HTTP)', () => {
         { provide: FirebaseLoginService, useValue: {} },
         { provide: SessionService, useValue: {} },
         { provide: PasswordResetService, useValue: {} },
+        { provide: PhonePasswordResetService, useValue: phoneReset },
         AuthAttemptLimits,
+        LoginThrottle,
+        {
+          provide: KnownLoginDevices,
+          useValue: {
+            isKnown: () => Promise.resolve(false),
+            remember: () => Promise.resolve(),
+          },
+        },
       ],
     }).compile();
     app = moduleRef.createNestApplication();
@@ -120,5 +133,32 @@ describe('sign-up and sign-in input (HTTP)', () => {
   ])('refuses sign-in body %j', async (body) => {
     await login(body).expect(400);
     expect(credentials.login).not.toHaveBeenCalled();
+  });
+
+  describe('phone password reset', () => {
+    const resetByPhone = (body: object) =>
+      request(app.getHttpServer())
+        .post('/auth/reset-password/phone')
+        .send(body);
+
+    it('passes the token and the new password on', async () => {
+      phoneReset.reset.mockResolvedValue({ message: 'ok' });
+
+      await resetByPhone({
+        idToken: 'id-token',
+        newPassword: 'new-password',
+      }).expect(200);
+      expect(phoneReset.reset).toHaveBeenCalledWith('id-token', 'new-password');
+    });
+
+    it.each([
+      { newPassword: 'new-password' },
+      { idToken: 'id-token', newPassword: 'short' },
+      { idToken: 'x'.repeat(5000), newPassword: 'new-password' },
+      { idToken: ['id-token'], newPassword: 'new-password' },
+    ])('refuses %j before it reaches the service', async (body) => {
+      await resetByPhone(body).expect(400);
+      expect(phoneReset.reset).not.toHaveBeenCalled();
+    });
   });
 });

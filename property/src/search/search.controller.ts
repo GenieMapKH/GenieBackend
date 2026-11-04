@@ -18,7 +18,7 @@ import {
   PlaceSessionQuery,
   SearchQuery,
 } from './dto/search.query';
-import { GuestContactInterceptor } from '../properties/guest-contact';
+import { ContactDetailsInterceptor } from '../properties/contact-details';
 import { SearchService } from './search.service';
 
 type MaybeSignedIn = { user?: { userId: string } | null };
@@ -31,7 +31,7 @@ type MaybeSignedIn = { user?: { userId: string } | null };
 @ApiTags('search')
 @Controller('public/search')
 @UseGuards(OptionalJwtAuthGuard)
-@UseInterceptors(GuestContactInterceptor)
+@UseInterceptors(ContactDetailsInterceptor)
 export class SearchController {
   /**
    * The app waits for a pause in typing before it asks, so a person rarely

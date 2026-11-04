@@ -6,6 +6,7 @@ import {
 import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { AttemptLimiter, AuthAttemptLimits } from './attempt-limiter';
 import { AuthController } from './auth.controller';
+import { LoginThrottle } from './login-protection/login-throttle.service';
 
 // The Firebase SDK is not needed here and cannot be loaded by Jest.
 jest.mock('./social/firebase-login.service', () => ({
@@ -51,6 +52,7 @@ describe('AttemptLimiter', () => {
   it('does not mistake a broken limiter for "too many attempts"', async () => {
     const broken = new AttemptLimiter({
       consume: () => Promise.reject(new Error('limiter crashed')),
+      reward: () => Promise.resolve(),
       delete: () => Promise.resolve(true),
     });
 
@@ -68,14 +70,22 @@ describe('AuthController attempt limits', () => {
   const client = { deviceName: null, platform: null, ipAddress: null };
   let controller: AuthController;
 
-  const newController = () =>
-    new AuthController(
+  const newController = () => {
+    const limits = new AuthAttemptLimits();
+    const knownDevices = {
+      isKnown: () => Promise.resolve(false),
+      remember: () => Promise.resolve(),
+    };
+    return new AuthController(
       credentials as never,
       {} as never,
       {} as never,
       passwordReset as never,
-      new AuthAttemptLimits(),
+      limits,
+      new LoginThrottle(limits, knownDevices as never),
+      {} as never,
     );
+  };
 
   const tooMany = async (run: () => Promise<unknown>) => {
     const tooManyRequests: number = HttpStatus.TOO_MANY_REQUESTS;
@@ -102,66 +112,56 @@ describe('AuthController attempt limits', () => {
     jest.useRealTimers();
   });
 
-  it('stops password guessing on one account after 10 wrong tries', async () => {
+  it('pauses guessing on one account, however the address is typed', async () => {
     for (let i = 0; i < 10; i++) {
       await expect(
         controller.login(
           { email: 'Dara@Example.com', password: `guess-${i}` },
           client,
+          undefined,
         ),
       ).rejects.toThrow(UnauthorizedException);
     }
 
-    // Same account, typed differently: still blocked, and the password is not even checked.
     await expect(
       controller.login(
         { email: ' dara@example.com ', password: 'guess-11' },
         client,
+        undefined,
       ),
-    ).rejects.toMatchObject({
-      status: HttpStatus.TOO_MANY_REQUESTS,
-    });
+    ).rejects.toMatchObject({ status: HttpStatus.TOO_MANY_REQUESTS });
     expect(credentials.login).toHaveBeenCalledTimes(10);
   });
 
-  it('does not let one locked account lock another', async () => {
-    for (let i = 0; i < 11; i++) {
+  it('counts only accounts actually made against a network', async () => {
+    const fromNetwork = { ...client, ipAddress: '203.0.113.9' };
+    credentials.register.mockRejectedValue(new Error('Email already exists'));
+    for (let i = 0; i < 25; i++) {
       await controller
-        .login({ email: 'dara@example.com', password: 'x' }, client)
+        .register({ phone: '+85512345678', password: 'pw' }, fromNetwork)
         .catch(() => undefined);
     }
 
-    await expect(
-      controller.login({ email: 'sok@example.com', password: 'x' }, client),
-    ).rejects.toThrow(UnauthorizedException);
-  });
-
-  it('forgets earlier typos after a successful login', async () => {
-    for (let i = 0; i < 9; i++) {
-      await controller
-        .login({ email: 'dara@example.com', password: 'typo' }, client)
-        .catch(() => undefined);
+    credentials.register.mockResolvedValue(undefined);
+    for (let i = 0; i < 20; i++) {
+      await controller.register(
+        { phone: '+85512345678', password: 'pw' },
+        fromNetwork,
+      );
     }
-    credentials.login.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-    });
-    await controller.login(
-      { email: 'dara@example.com', password: 'right' },
-      client,
-    );
-
-    credentials.login.mockRejectedValue(
-      new UnauthorizedException('Invalid credentials'),
-    );
-    for (let i = 0; i < 10; i++) {
-      await expect(
-        controller.login(
-          { email: 'dara@example.com', password: 'typo' },
-          client,
+    expect(
+      await tooMany(() =>
+        controller.register(
+          { phone: '+85512345678', password: 'pw' },
+          fromNetwork,
         ),
-      ).rejects.toThrow(UnauthorizedException);
-    }
+      ),
+    ).toBe(true);
+    // Another network is not affected.
+    await controller.register(
+      { phone: '+85512345678', password: 'pw' },
+      { ...client, ipAddress: '198.51.100.1' },
+    );
   });
 
   it('allows 5 guesses at a reset code per address, across verify and reset', async () => {

@@ -6,6 +6,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  /// One schema per service (migration 34). Each service's database login may
+  /// only use its own schema; see docs/DATABASE_SCHEMAS.md.
+  schemas  = ["account", "listing", "chat", "payment", "notification"]
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
@@ -34,6 +37,7 @@ model RefreshToken {
   @@index([userId], map: "idx_refresh_tokens_user_id")
   @@index([sessionId], map: "idx_refresh_tokens_session_id")
   @@map("refresh_tokens")
+  @@schema("account")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -105,6 +109,7 @@ model User {
   @@index([phone], map: "idx_users_phone", where: raw("(phone IS NOT NULL)"))
   @@index([firebaseUid], map: "idx_users_firebase_uid", where: raw("(firebase_uid IS NOT NULL)"))
   @@map("users")
+  @@schema("account")
 }
 
 model Property {
@@ -189,6 +194,7 @@ model Property {
   /// The feed: followed owners' live listings, newest published first (migration 27).
   @@index([userId, publishedAt(sort: Desc), id], map: "properties_active_owner_published_idx", where: raw("(status = 'Active'::text)"))
   @@map("properties")
+  @@schema("listing")
 }
 
 /// The features a listing can be tagged with ("road_access", ...). Seeded by
@@ -198,6 +204,7 @@ model Keyword {
   properties PropertyKeyword[]
 
   @@map("keywords")
+  @@schema("listing")
 }
 
 /// The nearest markets, hospitals or schools of a listing tagged near_market,
@@ -219,6 +226,7 @@ model PropertyNearbyPlace {
 
   @@id([propertyId, category, rank])
   @@map("property_nearby_places")
+  @@schema("listing")
 }
 
 model PropertyKeyword {
@@ -230,6 +238,7 @@ model PropertyKeyword {
   @@id([propertyId, keyword])
   @@index([keyword, propertyId])
   @@map("property_keywords")
+  @@schema("listing")
 }
 
 model PropertyImage {
@@ -244,6 +253,7 @@ model PropertyImage {
 
   @@index([propertyId])
   @@map("property_images")
+  @@schema("listing")
 }
 
 model PropertyLike {
@@ -256,6 +266,7 @@ model PropertyLike {
   @@id([userId, propertyId])
   @@index([propertyId])
   @@map("property_likes")
+  @@schema("listing")
 }
 
 model PropertyFavorite {
@@ -268,6 +279,7 @@ model PropertyFavorite {
   @@id([userId, propertyId])
   @@index([propertyId])
   @@map("property_favorites")
+  @@schema("listing")
 }
 
 model PropertyView {
@@ -280,6 +292,7 @@ model PropertyView {
   @@id([userId, propertyId])
   @@index([propertyId])
   @@map("property_views")
+  @@schema("listing")
 }
 
 model PropertyContact {
@@ -297,6 +310,7 @@ model PropertyContact {
   @@index([propertyId])
   @@index([userId])
   @@map("property_contacts")
+  @@schema("listing")
 }
 
 model PaymentTransaction {
@@ -315,6 +329,7 @@ model PaymentTransaction {
   @@index([userId])
   @@index([propertyId])
   @@map("payment_transactions")
+  @@schema("payment")
 }
 
 model GuestSession {
@@ -324,6 +339,7 @@ model GuestSession {
   lastSeen  DateTime @default(now()) @map("last_seen") @db.Timestamptz(6)
 
   @@map("guest_sessions")
+  @@schema("listing")
 }
 
 model password_reset_otps {
@@ -335,6 +351,7 @@ model password_reset_otps {
   created_at DateTime @default(now()) @db.Timestamptz(6)
 
   @@index([email], map: "idx_password_reset_otps_email")
+  @@schema("account")
 }
 
 /// A user's chat key, encrypted on their device with a key made from their PIN.
@@ -358,6 +375,7 @@ model ChatKeyBackup {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("chat_key_backups")
+  @@schema("chat")
 }
 
 /// One person's own view of a conversation with `partnerId`. A missing row
@@ -377,6 +395,7 @@ model ChatConversationState {
   @@id([userId, partnerId])
   @@index([partnerId])
   @@map("chat_conversation_states")
+  @@schema("chat")
 }
 
 model Message {
@@ -404,6 +423,7 @@ model Message {
   @@index([recipientId, senderId])
   @@index([replyToId])
   @@map("messages")
+  @@schema("chat")
 }
 
 /// One message "deleted for me": hidden from `userId` only. The other
@@ -419,6 +439,7 @@ model ChatHiddenMessage {
   @@id([userId, messageId])
   @@index([messageId])
   @@map("chat_hidden_messages")
+  @@schema("chat")
 }
 
 /// A text the user searched on the home screen. Shown on every device they
@@ -439,6 +460,7 @@ model SearchHistoryEntry {
   @@index([userId, searchedAt(sort: Desc)])
   @@index([searchedAt])
   @@map("search_history")
+  @@schema("listing")
 }
 
 /// Where to reach one signed-in device with push notifications (Firebase
@@ -463,6 +485,7 @@ model PushDevice {
   @@index([userId])
   @@index([sessionId])
   @@map("push_devices")
+  @@schema("notification")
 }
 
 /// What a user wants to be told about. No row means the defaults. Security
@@ -482,6 +505,7 @@ model NotificationPreferences {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+  @@schema("notification")
 }
 
 /// A promotion an admin sent to everyone who allows promotions.
@@ -509,6 +533,7 @@ model Promotion {
 
   @@index([createdAt])
   @@map("promotions")
+  @@schema("notification")
 }
 
 /// One voice call between two people, for tracing it. The audio goes
@@ -532,6 +557,7 @@ model CallLog {
   @@index([callerId, createdAt])
   @@index([calleeId, createdAt])
   @@map("call_logs")
+  @@schema("chat")
 }
 
 /// Who follows whom (migration 26). The pair is the key, so following twice
@@ -547,6 +573,7 @@ model Follow {
   @@id([followerId, followingId])
   @@index([followingId])
   @@map("follows")
+  @@schema("account")
 }
 
 /// Who has blocked whom (migration 30). Blocking removes follows both ways and
@@ -562,6 +589,7 @@ model UserBlock {
   @@id([blockerId, blockedId])
   @@index([blockedId])
   @@map("user_blocks")
+  @@schema("account")
 }
 
 /// A report of a listing or an account for an admin to review (migration 30).
@@ -589,6 +617,7 @@ model Report {
 
   @@index([status, createdAt])
   @@map("reports")
+  @@schema("account")
 }
 
 /// Someone who called or opened a chat about a listing from its page
@@ -606,6 +635,7 @@ model PropertyLead {
   @@id([propertyId, userId, channel])
   @@index([propertyId, createdAt])
   @@map("property_leads")
+  @@schema("listing")
 }
 
 /// A map search someone saved (migration 32): an area plus the map filter.
@@ -633,6 +663,7 @@ model SavedSearch {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("saved_searches")
+  @@schema("listing")
 }
 
 /// A listing a saved search already alerted about (migration 32).
@@ -646,4 +677,5 @@ model SavedSearchMatch {
 
   @@id([savedSearchId, propertyId])
   @@map("saved_search_matches")
+  @@schema("listing")
 }

@@ -45,6 +45,8 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4001"
+      # Its own database login (migration 34); the shared one until that is set.
+      DATABASE_URL: ${AUTHENTICATION_DATABASE_URL:-${DATABASE_URL}}
 
   user:
     <<: *service
@@ -52,6 +54,7 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4002"
+      DATABASE_URL: ${USER_DATABASE_URL:-${DATABASE_URL}}
 
   property:
     <<: *service
@@ -59,6 +62,7 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4003"
+      DATABASE_URL: ${PROPERTY_DATABASE_URL:-${DATABASE_URL}}
 
   chat:
     <<: *service
@@ -66,6 +70,7 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4004"
+      DATABASE_URL: ${CHAT_DATABASE_URL:-${DATABASE_URL}}
 
   payment:
     <<: *service
@@ -73,6 +78,7 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4005"
+      DATABASE_URL: ${PAYMENT_DATABASE_URL:-${DATABASE_URL}}
 
   notification:
     <<: *service
@@ -80,6 +86,7 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4006"
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:-${DATABASE_URL}}
 
   api-gateway:
     <<: *service

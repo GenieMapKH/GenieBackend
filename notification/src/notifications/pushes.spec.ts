@@ -62,10 +62,10 @@ describe('what each push says', () => {
       ...sealed,
     };
 
-    it('goes to Android with no notification of its own, for the app to open and show', () => {
+    it('goes to Android with the generic notification, shown even when the app is closed, and the sealed text for the app to replace it', () => {
       const push = chatMessagePush(event, device('android'));
 
-      expect(push.alert).toBeUndefined();
+      expect(push.alert).toEqual({ title: 'Alice', body: 'New message' });
       expect(push.data).toEqual({
         type: 'chat_message',
         senderId: 'alice',
@@ -107,10 +107,13 @@ describe('what each push says', () => {
         chatMessagePush(biggest, device('android')),
       );
 
-      expect(Buffer.byteLength(JSON.stringify(message.data))).toBeLessThan(
-        4096,
-      );
-      expect(message.notification).toBeUndefined();
+      // Firebase's limit counts the notification along with the data.
+      expect(
+        Buffer.byteLength(
+          JSON.stringify({ data: message.data, n: message.notification }),
+        ),
+      ).toBeLessThan(4096);
+      expect(message.android?.notification?.tag).toBe('chat:alice');
       expect(message.android?.priority).toBe('high');
     });
 
@@ -149,11 +152,13 @@ describe('what each push says', () => {
     expect(push.alert!.body.startsWith('ឧបករណ៍ថ្មីមួយ')).toBe(true);
   });
 
-  it('an incoming call rings silently on Android, visibly elsewhere, and expires', () => {
+  it('an incoming call is shown on every device, even with the app closed, and expires', () => {
     const android = incomingCallPush(call, device('android'));
     const ios = incomingCallPush(call, device('ios'));
 
-    expect(android.alert).toBeUndefined();
+    expect(android.alert).toEqual(ios.alert);
+    expect(android.tag).toBe('call:c1');
+    expect(android.channel).toBe('calls');
     expect(android.data).toMatchObject({
       type: 'call_incoming',
       callId: 'c1',
@@ -167,10 +172,23 @@ describe('what each push says', () => {
     expect(android.urgent).toBe(true);
   });
 
-  it('an ended call stops Android ringing; elsewhere only a missed call is told', () => {
-    expect(
-      callEndedPush({ ...call, missed: false }, device('android'))!.data.type,
-    ).toBe('call_ended');
+  it('an ended call stops Android ringing; a missed one is told everywhere, quietly, in place of the ringing one', () => {
+    const answered = callEndedPush(
+      { ...call, missed: false },
+      device('android'),
+    )!;
+    expect(answered.data.type).toBe('call_ended');
+    expect(answered.alert).toBeUndefined();
+
+    const missed = callEndedPush({ ...call, missed: true }, device('android'))!;
+    expect(missed.alert).toEqual({
+      title: 'Missed call',
+      body: 'Alice called you',
+    });
+    expect(missed.channel).toBe('missed_calls');
+    expect(missed.tag).toBe('call:c1');
+    expect(missed.urgent).toBe(true);
+
     expect(callEndedPush({ ...call, missed: false }, device('web'))).toBeNull();
     expect(
       callEndedPush({ ...call, missed: true }, device('web'))!.alert,

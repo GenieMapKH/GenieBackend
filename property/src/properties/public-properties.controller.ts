@@ -16,7 +16,7 @@ import { ClosestListingsQuery } from './dto/closest-listings.query';
 import { GuestSessionDto } from './dto/guest-session.dto';
 import { MapPriceHistogramQuery } from './dto/map-price-histogram.query';
 import { MapSearchQuery } from './dto/map-search.query';
-import { GuestContactInterceptor } from './guest-contact';
+import { ContactDetailsInterceptor } from './contact-details';
 import { ClosestListingsService } from './services/closest-listings.service';
 import { GuestSessionService } from './services/guest-session.service';
 import { PropertyQueryService } from './services/property-query.service';
@@ -30,7 +30,7 @@ const CLOSEST_PAGE_SIZE = 20;
  */
 @ApiTags('public-properties')
 @Controller('public/properties')
-@UseInterceptors(GuestContactInterceptor)
+@UseInterceptors(ContactDetailsInterceptor)
 export class PublicPropertiesController {
   constructor(
     private readonly query: PropertyQueryService,

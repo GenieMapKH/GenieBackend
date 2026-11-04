@@ -4,8 +4,8 @@ import { AccountController } from './account/account.controller';
 import { AuthController } from './auth.controller';
 import { AuthModule } from './auth.module';
 import { SessionsController } from './sessions/sessions.controller';
+import { PrismaService } from '@tilomnov/shared';
 import { FirebaseService } from '../firebase/firebase.service';
-import { SUPABASE_CLIENT } from '../supabase/supabase.module';
 
 // firebase-admin pulls in ESM-only packages Jest cannot load.
 jest.mock('../firebase/firebase.service', () => ({
@@ -15,10 +15,10 @@ jest.mock('../firebase/firebase.service', () => ({
 @Global()
 @Module({
   providers: [
-    { provide: SUPABASE_CLIENT, useValue: {} },
+    { provide: PrismaService, useValue: {} },
     { provide: FirebaseService, useValue: {} },
   ],
-  exports: [SUPABASE_CLIENT, FirebaseService],
+  exports: [PrismaService, FirebaseService],
 })
 class FakeInfrastructureModule {}
 

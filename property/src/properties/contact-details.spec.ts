@@ -1,10 +1,12 @@
 import { ExecutionContext } from '@nestjs/common';
 import { Prisma } from '@tilomnov/prisma-client';
+import { RateLimiterMemory } from 'rate-limiter-flexible';
 import { lastValueFrom, of } from 'rxjs';
 import {
-  GuestContactInterceptor,
+  ContactDetailsInterceptor,
+  hasContactDetails,
   withoutContactDetails,
-} from './guest-contact';
+} from './contact-details';
 
 const listing = () => ({
   id: 'p1',
@@ -53,18 +55,41 @@ describe('withoutContactDetails', () => {
   });
 });
 
-describe('GuestContactInterceptor', () => {
+describe('hasContactDetails', () => {
+  it('finds a phone or email at any depth', () => {
+    expect(hasContactDetails(listing())).toBe(true);
+    expect(hasContactDetails({ items: [{ user: { phone: '1' } }] })).toBe(true);
+  });
+
+  it('ignores empty ones and lists without them', () => {
+    expect(
+      hasContactDetails({ contactPhone: null, user: { id: 'u1', phone: '' } }),
+    ).toBe(false);
+    expect(hasContactDetails([{ id: 'p1', user: { id: 'u1' } }])).toBe(false);
+  });
+});
+
+describe('ContactDetailsInterceptor', () => {
+  /** In-memory limits with the real behaviour: refusing past `points`. */
+  const rateLimits = {
+    create: (_name: string, points: number, duration: number) =>
+      new RateLimiterMemory({ points, duration }),
+  };
+  let interceptor: ContactDetailsInterceptor;
+
   const contextFor = (user: { userId: string } | null) =>
     ({
       switchToHttp: () => ({ getRequest: () => ({ user }) }),
     }) as unknown as ExecutionContext;
 
-  const run = (user: { userId: string } | null) =>
+  const run = (user: { userId: string } | null, body: unknown = listing()) =>
     lastValueFrom(
-      new GuestContactInterceptor().intercept(contextFor(user), {
-        handle: () => of(listing()),
-      }),
+      interceptor.intercept(contextFor(user), { handle: () => of(body) }),
     ) as Promise<ReturnType<typeof listing>>;
+
+  beforeEach(() => {
+    interceptor = new ContactDetailsInterceptor(rateLimits as never);
+  });
 
   it('hides contact details from a guest', async () => {
     const body = await run(null);
@@ -76,5 +101,27 @@ describe('GuestContactInterceptor', () => {
     const body = await run({ userId: 'u2' });
     expect(body.user.phone).toBe('099');
     expect(body.contactPhone).toBe('012 345 678');
+  });
+
+  it('stops showing them to an account that opens too many in an hour', async () => {
+    for (let i = 0; i < 100; i++) {
+      expect((await run({ userId: 'u2' })).contactPhone).toBe('012 345 678');
+    }
+
+    const over = await run({ userId: 'u2' });
+    expect(over).not.toHaveProperty('contactPhone');
+    expect(over.title).toBe('Villa');
+    // Someone else is not affected.
+    expect((await run({ userId: 'u3' })).contactPhone).toBe('012 345 678');
+  });
+
+  it("does not count answers without contact details, or the caller's own", async () => {
+    const card = { id: 'p2', title: 'Flat', user: { id: 'u1' } };
+    for (let i = 0; i < 150; i++) {
+      await run({ userId: 'u2' }, [card]);
+      await run({ userId: 'u1' });
+    }
+
+    expect((await run({ userId: 'u2' })).contactPhone).toBe('012 345 678');
   });
 });

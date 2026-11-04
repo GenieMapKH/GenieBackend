@@ -42,10 +42,10 @@ export class PropertyEngagementCounts {
       (EngagementCount & { id: string })[]
     >`
       SELECT p.id::text AS id,
-        (SELECT count(*)::int FROM property_favorites f WHERE f.property_id = p.id) AS favorites,
-        (SELECT count(*)::int FROM property_views v WHERE v.property_id = p.id) AS views,
-        (SELECT count(DISTINCT l.user_id)::int FROM property_leads l WHERE l.property_id = p.id)
-          + (SELECT count(*)::int FROM property_contacts c WHERE c.property_id = p.id) AS contacts
+        (SELECT count(*)::int FROM listing.property_favorites f WHERE f.property_id = p.id) AS favorites,
+        (SELECT count(*)::int FROM listing.property_views v WHERE v.property_id = p.id) AS views,
+        (SELECT count(DISTINCT l.user_id)::int FROM listing.property_leads l WHERE l.property_id = p.id)
+          + (SELECT count(*)::int FROM listing.property_contacts c WHERE c.property_id = p.id) AS contacts
       FROM unnest(${unique}::uuid[]) AS p(id)`;
     return new Map(
       rows.map(({ id, favorites, views, contacts }) => [

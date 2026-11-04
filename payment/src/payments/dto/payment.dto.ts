@@ -1,8 +1,17 @@
 import { IsIn, IsNumber, IsOptional, IsUUID } from 'class-validator';
+import {
+  PAYMENT_METHODS,
+  type PaymentMethod,
+} from '../payment-provider.interface';
 
 export class CheckoutDto {
   @IsUUID()
   propertyId: string;
+
+  /** How the user pays; KHQR when not said (any banking app can pay it). */
+  @IsOptional()
+  @IsIn(PAYMENT_METHODS)
+  method?: PaymentMethod;
 }
 
 export class PaymentWebhookDto {

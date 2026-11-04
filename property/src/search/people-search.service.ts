@@ -16,9 +16,10 @@ export interface PublisherSummary {
 
 /**
  * Someone's own profile page (opened from search or from a chat) adds how to
- * reach them, but only for publishers: their listings already show the same
- * email and phone. Someone who has published nothing keeps theirs private.
- * Never in result lists, so a search cannot collect contact details in bulk.
+ * reach them, but only for publishers. Someone who has published nothing
+ * keeps theirs private. Never in result lists, so a search cannot collect
+ * contact details in bulk; and only a limited number of pages a day show them
+ * (`ContactDetailsInterceptor`).
  */
 export interface PublisherProfile extends PublisherSummary {
   email: string | null;

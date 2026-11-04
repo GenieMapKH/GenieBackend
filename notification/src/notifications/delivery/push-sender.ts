@@ -13,6 +13,8 @@ export type PushChannel =
   | 'security'
   | 'promotions'
   | 'calls'
+  /** Quiet, unlike `calls`, whose sound is the ringtone. */
+  | 'missed_calls'
   /** New listings someone asked to hear about: saved searches, people followed, price drops. */
   | 'listing_alerts';
 

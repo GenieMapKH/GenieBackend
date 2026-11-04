@@ -81,7 +81,7 @@ export class SavedSearchMatcher implements ListingEventListener, OnModuleInit {
     const keywords = listing.keywords.map((k) => k.keyword);
     return this.prisma.$queryRaw<SearchHit[]>`
       SELECT s.id::text AS id, s.user_id::text AS "userId", s.name
-      FROM saved_searches s
+      FROM listing.saved_searches s
       WHERE s.alerts
         AND s.user_id <> ${listing.userId}::uuid
         AND ${listing.lat} BETWEEN s.min_lat AND s.max_lat
@@ -103,7 +103,7 @@ export class SavedSearchMatcher implements ListingEventListener, OnModuleInit {
     hits: SearchHit[],
   ): Promise<SearchHit[]> {
     const claimed = await this.prisma.$queryRaw<{ id: string }[]>`
-      INSERT INTO saved_search_matches (saved_search_id, property_id)
+      INSERT INTO listing.saved_search_matches (saved_search_id, property_id)
       SELECT unnest(${hits.map((hit) => hit.id)}::uuid[]), ${propertyId}::uuid
       ON CONFLICT DO NOTHING
       RETURNING saved_search_id::text AS id`;

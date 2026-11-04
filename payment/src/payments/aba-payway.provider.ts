@@ -1,9 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
-import { PaymentProvider, ProviderWebhook } from './payment-provider.interface';
+import {
+  CheckoutRequest,
+  PaymentProvider,
+  ProviderCheckout,
+  ProviderTransactionState,
+  ProviderWebhook,
+} from './payment-provider.interface';
 
 /**
- * MOCK adapter for ABA PayWay. The real API is not integrated yet.
+ * MOCK adapter for ABA PayWay. The real API is not integrated yet: the
+ * PayWay purchase / check-transaction calls it must make are written up in
+ * docs/ABA_PAYWAY_INTEGRATION.md.
  *
  * The webhook is authenticated with a shared secret so the mock flow cannot be
  * abused: the caller must send `x-signature` = HMAC-SHA256(secret, "<transactionId>|<status>")
@@ -12,10 +20,16 @@ import { PaymentProvider, ProviderWebhook } from './payment-provider.interface';
  */
 @Injectable()
 export class AbaPaywayProvider implements PaymentProvider {
-  initiateCheckout(transactionId: string, amount: number): Promise<string> {
-    return Promise.resolve(
-      `https://payway.aba.com/checkout?id=${transactionId}&amount=${amount}`,
-    );
+  initiateCheckout(request: CheckoutRequest): Promise<ProviderCheckout> {
+    const { transactionId, amount } = request;
+    return Promise.resolve({
+      checkoutUrl: `https://payway.aba.com/checkout?id=${transactionId}&amount=${amount}`,
+    });
+  }
+
+  /** The mock cannot ask PayWay: only the signed webhook settles a payment. */
+  checkTransaction(): Promise<ProviderTransactionState> {
+    return Promise.resolve('PENDING');
   }
 
   verifyWebhook(webhook: ProviderWebhook, signature: string): boolean {

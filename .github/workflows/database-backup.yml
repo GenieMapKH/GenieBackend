@@ -72,7 +72,7 @@ jobs:
         run: |
           bash scripts/restore-database.sh "$RUNNER_TEMP/tilomnov.dump"
           url=$(sed -E 's/([?&])pgbouncer=[^&]*(&|$)/\1/; s/[?&]$//' <<<"$DATABASE_URL")
-          tables="SELECT count(*) FROM pg_tables WHERE schemaname = 'public'"
+          tables="SELECT count(*) FROM pg_tables WHERE schemaname IN ('public', 'account', 'listing', 'chat', 'payment', 'notification')"
           live=$(PGSSLMODE=require psql "$url" -tAc "$tables")
           restored=$(psql "$TARGET_DATABASE_URL" -tAc "$tables")
           if [ "$live" != "$restored" ]; then
