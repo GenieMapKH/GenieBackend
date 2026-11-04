@@ -3,7 +3,8 @@
 The database is a Supabase project on the Free plan, which keeps **no backup you can restore**.
 So a GitHub Action makes one every night (`.github/workflows/database-backup.yml`):
 
-1. `pg_dump` (Postgres 17) of the `public` schema: every table the app uses, its indexes,
+1. `pg_dump` (Postgres 17) of the app's schemas (`account`, `listing`, `chat`, `payment`,
+   `notification`, and `public` for Prisma's bookkeeping): every table the app uses, its indexes,
    constraints and row level security. Over SSL only.
 2. The dump is **restored into an empty Postgres 17 in the same job**, and the job fails unless every
    table came back. A backup that cannot be restored is not a backup.
@@ -19,7 +20,9 @@ nightly states can be restored.
 - **Files in Supabase Storage**: listing photos, avatars, chat attachments. The database only holds
   their names. Losing the project loses them.
 - The schemas Supabase manages itself (`auth`, `storage`, ...). The app keeps its own users and
-  sessions in `public`, so nothing of the app's lives there.
+  sessions in `account`, so nothing of the app's lives there.
+- The service logins' passwords. A restore recreates the logins (migration 34) without
+  passwords: set them again (docs/DATABASE_SCHEMAS.md).
 - Anything older than 90 days.
 
 ## Setting it up (once)
@@ -61,11 +64,12 @@ overwrite live data.
      scripts/restore-database.sh tilomnov-db-2026-10-20T1900Z.dump.age tilomnov-backup-key.txt
    ```
 
-   It decrypts to a temporary file (deleted afterwards), creates `pg_trgm`, restores every table and
-   prints the row count of each.
-3. Point `DATABASE_URL` / `DIRECT_URL` of every service at the new database and restart them.
+   It decrypts to a temporary file (deleted afterwards), creates `pg_trgm`, restores every table,
+   recreates the service logins and their access, and prints the row count of each table.
+3. Give the service logins passwords and point each service's `DATABASE_URL` at its own login on
+   the new database (docs/DATABASE_SCHEMAS.md), then restart them.
 
-Supabase serves `public` through its REST API to anyone with the anon key. The restored tables
+Supabase's REST API only serves `public`, which holds no app data. The restored tables still
 keep row level security on, as the live ones have it; a database built from the migrations alone
 gets it from migration `24_row_level_security_everywhere`.
 

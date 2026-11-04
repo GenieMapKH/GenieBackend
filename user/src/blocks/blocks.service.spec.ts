@@ -17,6 +17,7 @@ describe('BlocksService', () => {
     },
     follow: { deleteMany: jest.fn() },
   };
+  const chat = { blocked: jest.fn().mockResolvedValue(undefined) };
   const cache = {
     delete: jest.fn(),
     remember: jest.fn(
@@ -42,7 +43,7 @@ describe('BlocksService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new BlocksService(prisma as never, cache as never);
+    service = new BlocksService(prisma as never, cache as never, chat as never);
     prisma.user.findUnique.mockResolvedValue({ id: THEM });
     blockRows([]);
   });
@@ -73,6 +74,17 @@ describe('BlocksService', () => {
           `follows:following-ids:${id}`,
         );
       }
+    });
+
+    it('tells chat, so the two stop seeing each other online', async () => {
+      await service.block(ME, THEM);
+      expect(chat.blocked).toHaveBeenCalledWith(ME, THEM);
+    });
+
+    it('does not tell chat about an unblock', async () => {
+      chat.blocked.mockClear();
+      await service.unblock(ME, THEM);
+      expect(chat.blocked).not.toHaveBeenCalled();
     });
 
     it('refuses yourself', async () => {

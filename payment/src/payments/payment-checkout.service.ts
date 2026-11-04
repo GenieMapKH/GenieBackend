@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { AbaPaywayProvider } from './aba-payway.provider';
+import { PaymentMethod } from './payment-provider.interface';
 import { PaymentStatus, PUBLISH_FEE } from './payment-status';
 import { PropertyPublishingClient } from './property/property-publishing.client';
 
@@ -15,7 +16,7 @@ export class PaymentCheckoutService {
     private readonly property: PropertyPublishingClient,
   ) {}
 
-  async initiate(userId: string, propertyId: string) {
+  async initiate(userId: string, propertyId: string, method: PaymentMethod) {
     // Only the owner may pay to publish, and only from a publishable status:
     // the property service decides, and parks the listing as Pending.
     const { previousStatus } = await this.property.begin(userId, propertyId);
@@ -43,10 +44,15 @@ export class PaymentCheckoutService {
       throw error;
     }
 
-    const checkoutUrl = await this.provider.initiateCheckout(
-      transaction.id,
-      PUBLISH_FEE,
-    );
-    return { checkoutUrl, transactionId: transaction.id };
+    const checkout = await this.provider.initiateCheckout({
+      transactionId: transaction.id,
+      amount: PUBLISH_FEE,
+      method,
+    });
+    return {
+      transactionId: transaction.id,
+      checkoutUrl: checkout.checkoutUrl,
+      abapayDeeplink: checkout.abapayDeeplink ?? null,
+    };
   }
 }

@@ -34,7 +34,7 @@ export async function nextFeedPositions(
   return prisma.$queryRaw<FeedPosition[]>`
     SELECT p.id::text AS id, p.feed_at AS "feedAt"
     FROM unnest(${ownerIds}::uuid[]) AS f(owner_id)
-    JOIN users u ON u.id = f.owner_id AND u.deactivated_at IS NULL
+    JOIN account.users u ON u.id = f.owner_id AND u.deactivated_at IS NULL
     CROSS JOIN LATERAL (
       SELECT id, feed_at
       FROM (
@@ -44,7 +44,7 @@ export async function nextFeedPositions(
                 (row_number() OVER (ORDER BY published_at DESC, id ASC) - 1)
                 * ${spreadHours}::float8
               ) AS feed_at
-        FROM properties
+        FROM listing.properties
         WHERE user_id = f.owner_id
           AND status = 'Active'
           AND published_at IS NOT NULL

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Dumps the app's data (the "public" schema) from DATABASE_URL into one file.
+# Dumps the app's data from DATABASE_URL into one file: the five service
+# schemas (migration 34) and "public" (Prisma's bookkeeping table).
 #
 #   DATABASE_URL=postgresql://... scripts/backup-database.sh <output.dump>
 #
@@ -24,6 +25,11 @@ pg_dump "$url" \
   --format=custom \
   --compress=9 \
   --schema=public \
+  --schema=account \
+  --schema=listing \
+  --schema=chat \
+  --schema=payment \
+  --schema=notification \
   --no-owner \
   --no-privileges \
   --file="$out"

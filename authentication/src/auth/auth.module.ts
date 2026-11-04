@@ -11,11 +11,14 @@ import { AuthAttemptLimits } from './attempt-limiter';
 import { AuthController } from './auth.controller';
 import { CredentialsAuthService } from './credentials/credentials-auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { KnownLoginDevices } from './login-protection/known-login-devices.store';
+import { LoginThrottle } from './login-protection/login-throttle.service';
 import { EmailDeliveryService } from './mail/email-delivery.service';
 import { OtpEmailService } from './mail/otp-email.service';
 import { NotificationClient } from './notifications/notification.client';
 import { PasswordResetOtpRepository } from './password-reset/password-reset-otp.repository';
 import { PasswordResetService } from './password-reset/password-reset.service';
+import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
 import { EstablishedDeviceService } from './sessions/established-device.service';
 import {
   IpLocationProvider,
@@ -44,6 +47,8 @@ import { UserRepository } from './users/user.repository';
   providers: [
     RedisConnection,
     AuthAttemptLimits,
+    KnownLoginDevices,
+    LoginThrottle,
     RevokedSessionStore,
     JwtStrategy,
     UserRepository,
@@ -63,6 +68,7 @@ import { UserRepository } from './users/user.repository';
     CredentialsAuthService,
     FirebaseLoginService,
     PasswordResetService,
+    PhonePasswordResetService,
     EmailDeliveryService,
     OtpEmailService,
     NotificationClient,

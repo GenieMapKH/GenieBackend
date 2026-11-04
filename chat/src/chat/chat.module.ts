@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RevokedSessions, SupabaseModule } from '@tilomnov/shared';
 import { BlockChecker } from './block-checker';
+import { InternalBlocksController } from './internal-blocks.controller';
 import { ChatAttachmentService } from './chat-attachment.service';
 import { ChatBackupService } from './chat-backup.service';
 import { ChatController } from './chat.controller';
@@ -19,6 +20,7 @@ import { PresenceService } from './presence.service';
     ChatController,
     MessageActionsController,
     InternalAccountsController,
+    InternalBlocksController,
   ],
   providers: [
     ChatService,

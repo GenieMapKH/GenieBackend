@@ -3,6 +3,7 @@ import { Prisma } from '@tilomnov/prisma-client';
 import { PrismaService } from '@tilomnov/shared';
 import { FavoriteSort } from '../dto/favorites-page.query';
 import { toPage } from '../dto/page.query';
+import { withoutContactDetails } from '../contact-details';
 import { PROPERTY_WITH_RELATIONS } from '../property-includes';
 import { PropertyEngagementCounts } from './property-engagement-counts.service';
 
@@ -24,6 +25,10 @@ const ORDER: Record<
  * The listings a user saved. One whose owner deactivated their account is
  * left out until they return, and so is one its owner took back to a draft
  * or deleted since it was saved.
+ *
+ * Lists carry no phone numbers: saving every listing would otherwise be a way
+ * round the limit on how many numbers one account may see. Opening a listing
+ * shows its number.
  */
 @Injectable()
 export class FavoriteListingsService {
@@ -39,7 +44,9 @@ export class FavoriteListingsService {
       include: { property: { include: PROPERTY_WITH_RELATIONS } },
       orderBy: ORDER.saved,
     });
-    return this.counts.attach(favorites.map((favorite) => favorite.property));
+    return withoutContactDetails(
+      await this.counts.attach(favorites.map((favorite) => favorite.property)),
+    );
   }
 
   /** One page of them, in `sort` order. */
@@ -57,8 +64,10 @@ export class FavoriteListingsService {
     const listed = toPage(favorites, page.offset, page.limit);
     return {
       ...listed,
-      items: await this.counts.attach(
-        listed.items.map((favorite) => favorite.property),
+      items: withoutContactDetails(
+        await this.counts.attach(
+          listed.items.map((favorite) => favorite.property),
+        ),
       ),
     };
   }

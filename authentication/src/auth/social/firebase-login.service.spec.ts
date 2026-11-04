@@ -51,6 +51,21 @@ describe('FirebaseLoginService', () => {
     );
   });
 
+  it('refuses an SMS confirmation: it only resets a password, never signs in', async () => {
+    firebase.verifyIdToken.mockResolvedValue({
+      uid: 'fb-phone',
+      phone_number: '+85512345678',
+      firebase: { sign_in_provider: 'phone' },
+    });
+
+    await expect(service.login('id-token', client)).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(users.findByPhone).not.toHaveBeenCalled();
+    expect(users.update).not.toHaveBeenCalled();
+    expect(signIn.complete).not.toHaveBeenCalled();
+  });
+
   it('signs in a user already linked to the Firebase uid', async () => {
     firebase.verifyIdToken.mockResolvedValue(googleToken);
     users.findByFirebaseUid.mockResolvedValue(linkedUser);

@@ -4,6 +4,7 @@ import {
   BlocksController,
 } from './blocks.controller';
 import { BlocksService } from './blocks.service';
+import { ChatBlockNotice } from './chat-block-notice';
 import { InternalBlocksController } from './internal-blocks.controller';
 
 /** Who blocked whom: what stops two people following, messaging and calling each other. */
@@ -13,7 +14,7 @@ import { InternalBlocksController } from './internal-blocks.controller';
     BlocksController,
     InternalBlocksController,
   ],
-  providers: [BlocksService],
+  providers: [BlocksService, ChatBlockNotice],
   exports: [BlocksService],
 })
 export class BlocksModule {}

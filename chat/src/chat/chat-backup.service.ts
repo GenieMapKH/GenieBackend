@@ -240,7 +240,7 @@ export class ChatBackupService {
     // The row lock makes simultaneous guesses wait for each other, so none escapes the count.
     const [row] = await tx.$queryRaw<BackupRow[]>`
       SELECT blob, nonce, verifier, failed_attempts AS "failedAttempts", locked_until AS "lockedUntil"
-      FROM chat_key_backups
+      FROM chat.chat_key_backups
       WHERE user_id = ${userId}::uuid
       FOR UPDATE`;
     if (!row) return { kind: 'missing' };

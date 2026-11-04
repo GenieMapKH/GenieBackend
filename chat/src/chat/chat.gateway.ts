@@ -11,7 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Namespace, Socket } from 'socket.io';
 import { RateLimit, RateLimits, RevokedSessions } from '@tilomnov/shared';
-import { BlockedException } from './block-checker';
+import { BlockChecker, BlockedException } from './block-checker';
 import { ChatService } from './chat.service';
 import { PresenceTargetDto, SendMessageDto } from './dto/chat.dto';
 import { PresenceService } from './presence.service';
@@ -56,6 +56,7 @@ export class ChatGateway
     private readonly presenceService: PresenceService,
     private readonly revokedSessions: RevokedSessions,
     rateLimits: RateLimits,
+    private readonly blocks: BlockChecker,
   ) {
     this.sendRateLimiter = rateLimits.create('chat-send', 30, 10);
   }
@@ -168,7 +169,11 @@ export class ChatGateway
     }
   }
 
-  /** Replies with the user's current presence and keeps this socket updated. */
+  /**
+   * Replies with the user's current presence and keeps this socket updated.
+   * Between two people where either blocked the other, the user just looks
+   * offline with no last seen, as a hidden one does: the block is not told.
+   */
   @UseGuards(WsJwtGuard)
   @SubscribeMessage('watchPresence')
   async handleWatchPresence(
@@ -178,6 +183,14 @@ export class ChatGateway
     const dto = parsePayload(PresenceTargetDto, payload);
     if (!dto) {
       return { status: 'error', message: 'Invalid user' };
+    }
+    if (
+      await this.blocks.eitherBlocked(socketUser(client).userId, dto.userId)
+    ) {
+      return {
+        status: 'ok',
+        presence: { userId: dto.userId, online: false, lastSeenAt: null },
+      };
     }
 
     await client.join(presenceRoom(dto.userId));
@@ -241,6 +254,15 @@ export class ChatGateway
         .to(userRoom(partnerId))
         .emit('conversationChanged', { participantId: userId, historyCleared });
     }
+  }
+
+  /**
+   * One of the two blocked the other: neither hears the other come online or
+   * go offline any more, on any instance, from presence watched before.
+   */
+  separatePresence(userId: string, otherId: string) {
+    this.server.in(userRoom(userId)).socketsLeave(presenceRoom(otherId));
+    this.server.in(userRoom(otherId)).socketsLeave(presenceRoom(userId));
   }
 
   /** Both people's devices replace the text of an edited message. */

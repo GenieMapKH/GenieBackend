@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Headers,
   HttpCode,
   HttpStatus,
   Inject,
@@ -15,9 +16,16 @@ import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { PhoneResetPasswordDto } from './dto/phone-reset-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import {
+  DEVICE_KEY_HEADER,
+  readDeviceKey,
+} from './login-protection/device-key';
+import { LoginThrottle } from './login-protection/login-throttle.service';
 import { PasswordResetService } from './password-reset/password-reset.service';
+import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
 import { Client, ClientContext } from './sessions/client-context';
 import { SessionService } from './sessions/session.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
@@ -39,6 +47,9 @@ export class AuthController {
     @Inject(PasswordResetService)
     private readonly passwordReset: PasswordResetService,
     @Inject(AuthAttemptLimits) private readonly limits: AuthAttemptLimits,
+    @Inject(LoginThrottle) private readonly loginThrottle: LoginThrottle,
+    @Inject(PhonePasswordResetService)
+    private readonly phonePasswordReset: PhonePasswordResetService,
   ) {}
 
   @Post('register')
@@ -46,8 +57,23 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'Email or phone already exists' })
-  async register(@Body() dto: RegisterDto) {
-    await this.credentials.register(dto);
+  @ApiResponse({
+    status: 429,
+    description: 'Too many new accounts from this network',
+  })
+  async register(@Body() dto: RegisterDto, @Client() client: ClientContext) {
+    // Only accounts actually made count: a refused sign-up is given back.
+    const network = client.ipAddress ?? 'unknown';
+    await this.limits.registrationsPerNetwork.consumeOrReject(
+      network,
+      'in an hour',
+    );
+    try {
+      await this.credentials.register(dto);
+    } catch (error) {
+      await this.limits.registrationsPerNetwork.refund(network);
+      throw error;
+    }
     return { message: 'User registered successfully' };
   }
 
@@ -59,14 +85,24 @@ export class AuthController {
     description: 'Successfully logged in, returns tokens',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
-  async login(@Body() dto: LoginDto, @Client() client: ClientContext) {
-    const account = accountKey(dto.email ?? dto.phone);
-    await this.limits.login.consumeOrReject(account);
-
-    const tokens = await this.credentials.login(dto, client);
-    // Only failures count: a successful login clears the slate.
-    await this.limits.login.reset(account);
-    return tokens;
+  @ApiResponse({
+    status: 429,
+    description:
+      'Too many wrong passwords from this network or device, or `code: ACCOUNT_UNDER_ATTACK`: only devices that signed in to the account before may try now',
+  })
+  login(
+    @Body() dto: LoginDto,
+    @Client() client: ClientContext,
+    @Headers(DEVICE_KEY_HEADER) deviceKey: string | undefined,
+  ) {
+    return this.loginThrottle.guard(
+      {
+        account: accountKey(dto.email ?? dto.phone),
+        ipAddress: client.ipAddress,
+        deviceKey: readDeviceKey(deviceKey),
+      },
+      () => this.credentials.login(dto, client),
+    );
   }
 
   @Post('firebase-login')
@@ -142,6 +178,22 @@ export class AuthController {
       dto.otp,
       dto.newPassword,
     );
+  }
+
+  @Post('reset-password/phone')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Reset the password of the account with this phone number, proven by an SMS code',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'The token is not a fresh SMS confirmation',
+  })
+  @ApiResponse({ status: 404, description: 'No account uses this number' })
+  @ApiResponse({ status: 429, description: '5 resets per number a day' })
+  resetPasswordWithPhone(@Body() dto: PhoneResetPasswordDto) {
+    return this.phonePasswordReset.reset(dto.idToken, dto.newPassword);
   }
 
   /**

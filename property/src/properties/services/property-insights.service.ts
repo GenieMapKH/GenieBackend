@@ -60,10 +60,10 @@ export class PropertyInsightsService {
   private async totals(propertyId: string): Promise<InsightTotals> {
     const [row] = await this.prisma.$queryRaw<InsightTotals[]>`
       SELECT
-        (SELECT count(*)::int FROM property_views WHERE property_id = ${propertyId}::uuid) AS views,
-        (SELECT count(*)::int FROM property_favorites WHERE property_id = ${propertyId}::uuid) AS saves,
-        (SELECT count(*)::int FROM property_leads WHERE property_id = ${propertyId}::uuid AND channel = 'call') AS calls,
-        (SELECT count(*)::int FROM property_leads WHERE property_id = ${propertyId}::uuid AND channel = 'chat') AS chats`;
+        (SELECT count(*)::int FROM listing.property_views WHERE property_id = ${propertyId}::uuid) AS views,
+        (SELECT count(*)::int FROM listing.property_favorites WHERE property_id = ${propertyId}::uuid) AS saves,
+        (SELECT count(*)::int FROM listing.property_leads WHERE property_id = ${propertyId}::uuid AND channel = 'call') AS calls,
+        (SELECT count(*)::int FROM listing.property_leads WHERE property_id = ${propertyId}::uuid AND channel = 'chat') AS chats`;
     return row;
   }
 
@@ -83,19 +83,19 @@ export class PropertyInsightsService {
       ),
       views AS (
         SELECT (created_at AT TIME ZONE ${zone}::text)::date AS day, count(*)::int AS n
-        FROM property_views, since
+        FROM listing.property_views, since
         WHERE property_id = ${propertyId}::uuid AND created_at >= since.at
         GROUP BY 1
       ),
       saves AS (
         SELECT (created_at AT TIME ZONE ${zone}::text)::date AS day, count(*)::int AS n
-        FROM property_favorites, since
+        FROM listing.property_favorites, since
         WHERE property_id = ${propertyId}::uuid AND created_at >= since.at
         GROUP BY 1
       ),
       leads AS (
         SELECT (created_at AT TIME ZONE ${zone}::text)::date AS day, count(*)::int AS n
-        FROM property_leads, since
+        FROM listing.property_leads, since
         WHERE property_id = ${propertyId}::uuid AND created_at >= since.at
         GROUP BY 1
       ),

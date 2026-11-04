@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@tilomnov/prisma-client';
 import { PrismaService } from '@tilomnov/shared';
+import { OwnListingStatus } from '../dto/own-listings-page.query';
 import { toPage } from '../dto/page.query';
 import { PROPERTY_WITH_RELATIONS } from '../property-includes';
 import { PropertyEngagementCounts } from './property-engagement-counts.service';
@@ -34,13 +35,20 @@ export class OwnerListingsService {
   }
 
   /**
-   * One page of them, newest first: the My Properties screen. With how many
-   * there are in each status, for its tabs, which count all of them.
+   * One page of them, newest first: the My Properties screen; with
+   * `statuses`, only those in one of them (a tab). With how many there are in
+   * each status, for its tabs, which count all of them.
    */
-  async page(userId: string, page: { limit: number; offset: number }) {
+  async page(
+    userId: string,
+    page: { limit: number; offset: number },
+    statuses?: readonly OwnListingStatus[],
+  ) {
     const [properties, byStatus] = await Promise.all([
       this.prisma.property.findMany({
-        where: this.ownedBy(userId),
+        where: statuses?.length
+          ? { userId, status: { in: [...statuses] } }
+          : this.ownedBy(userId),
         include: PROPERTY_WITH_RELATIONS,
         orderBy: NEWEST_FIRST,
         skip: page.offset,

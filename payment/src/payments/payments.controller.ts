@@ -24,7 +24,11 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @Post('checkout')
   initiateCheckout(@CurrentUserId() userId: string, @Body() dto: CheckoutDto) {
-    return this.checkout.initiate(userId, dto.propertyId);
+    return this.checkout.initiate(
+      userId,
+      dto.propertyId,
+      dto.method ?? 'aba_khqr',
+    );
   }
 
   /** Called by the payment provider, not by users. Authenticated by signature. */

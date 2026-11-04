@@ -17,25 +17,20 @@ export interface CallEndedEvent extends CallEvent {
 }
 
 /**
- * Android gets a silent, urgent data message and rings full screen itself.
- * iOS (no CallKit yet) and the web show an ordinary notification that opens
- * the app on the incoming call.
+ * An ordinary "Dara is calling" notification on every device, shown by the
+ * system even when the app is closed; it opens the app on the call. On
+ * Android the app, when it can start, replaces it (same tag) with one that
+ * rings full screen.
  */
 export function incomingCallPush(
   event: CallEvent,
   target: PushTarget,
 ): PushContent {
   return {
-    alert:
-      target.platform === 'android'
-        ? undefined
-        : {
-            title: inLocale(
-              texts.incomingCall,
-              target.locale,
-            )(event.callerName),
-            body: inLocale(texts.tapToAnswer, target.locale),
-          },
+    alert: {
+      title: inLocale(texts.incomingCall, target.locale)(event.callerName),
+      body: inLocale(texts.tapToAnswer, target.locale),
+    },
     data: {
       type: 'call_incoming',
       callId: event.callId,
@@ -51,8 +46,9 @@ export function incomingCallPush(
 }
 
 /**
- * Stops the ringing on Android. A missed call is also announced; elsewhere
- * an ended call that was answered or cancelled needs nothing.
+ * A missed call is announced on every device, replacing the ringing
+ * notification (same tag). On Android a call answered or cancelled still
+ * gets a silent push, so the app stops ringing; elsewhere it needs nothing.
  */
 export function callEndedPush(
   event: CallEndedEvent,
@@ -65,24 +61,25 @@ export function callEndedPush(
     callerName: event.callerName,
     missed: String(event.missed),
   };
-  if (target.platform === 'android') {
+  if (event.missed) {
     return {
+      alert: {
+        title: inLocale(texts.missedCall, target.locale),
+        body: inLocale(texts.missedCallFrom, target.locale)(event.callerName),
+      },
       data,
-      channel: 'calls',
+      channel: 'missed_calls',
       tag: `call:${event.callId}`,
-      urgent: true,
-      timeToLiveSeconds: RING_SECONDS,
+      // Android: at once, so the ringing stops when the caller gives up.
+      urgent: target.platform === 'android',
     };
   }
-  if (!event.missed) return null;
+  if (target.platform !== 'android') return null;
   return {
-    alert: {
-      title: inLocale(texts.missedCall, target.locale),
-      body: inLocale(texts.missedCallFrom, target.locale)(event.callerName),
-    },
     data,
     channel: 'calls',
     tag: `call:${event.callId}`,
-    urgent: false,
+    urgent: true,
+    timeToLiveSeconds: RING_SECONDS,
   };
 }

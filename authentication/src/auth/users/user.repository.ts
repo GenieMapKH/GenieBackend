@@ -1,15 +1,13 @@
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@tilomnov/prisma-client';
+import { PrismaService, phoneNumberVariants } from '@tilomnov/shared';
 import {
-  ConflictException,
-  Inject,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { phoneNumberVariants } from '@tilomnov/shared';
-import { SUPABASE_CLIENT } from '../../supabase/supabase.module';
+  databaseCall,
+  databaseFailure,
+  isUniqueViolation,
+} from '../database-call';
 
-/** A row of the `users` table (column names are the database's snake_case). */
+/** A row of the `account.users` table (column names are the database's snake_case). */
 export interface UserRecord {
   id: string;
   email: string | null;
@@ -27,18 +25,13 @@ export interface UserRecord {
   name: string | null;
   avatar_url: string | null;
   firebase_uid: string | null;
-  /** Set while the owner has switched the account off. */
+  /** ISO time, set while the owner has switched the account off. */
   deactivated_at: string | null;
 }
 
 export type NewUser = Partial<Omit<UserRecord, 'id' | 'username'>> &
   Pick<UserRecord, 'password_hash'>;
 export type UserPatch = Partial<Omit<UserRecord, 'id'>>;
-
-const UNIQUE_VIOLATION = '23505';
-
-/** The unique index on `users.username` (migration 7); it names itself in a violation. */
-const USERNAME_INDEX = 'users_username_key';
 
 /**
  * How many times a new account is tried with a freshly generated handle. A
@@ -47,14 +40,25 @@ const USERNAME_INDEX = 'users_username_key';
  */
 const MAX_CREATE_ATTEMPTS = 5;
 
+const USER_COLUMNS = {
+  id: true,
+  email: true,
+  phone: true,
+  passwordHash: true,
+  hasPassword: true,
+  role: true,
+  username: true,
+  name: true,
+  avatarUrl: true,
+  firebaseUid: true,
+  deactivatedAt: true,
+} satisfies Prisma.UserSelect;
+
+type UserRow = Prisma.UserGetPayload<{ select: typeof USER_COLUMNS }>;
+
 /** The form an email is stored and looked up in. */
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
-}
-
-/** `%` and `_` are wildcards in a LIKE pattern, and both occur in real email addresses. */
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 /** All reads and writes of the `users` table for the auth module. */
@@ -62,12 +66,10 @@ function escapeLikePattern(value: string): string {
 export class UserRepository {
   private readonly logger = new Logger(UserRepository.name);
 
-  constructor(
-    @Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   findById(id: string): Promise<UserRecord | null> {
-    return this.findOneBy('id', id);
+    return this.findOne({ id });
   }
 
   /**
@@ -77,8 +79,8 @@ export class UserRepository {
   async findByEmail(email: string): Promise<UserRecord | null> {
     const normalized = normalizeEmail(email);
     return (
-      (await this.findOneBy('email', normalized)) ??
-      this.findOneIgnoringCase('email', normalized)
+      (await this.findOne({ email: normalized })) ??
+      this.findByEmailIgnoringCase(normalized)
     );
   }
 
@@ -86,23 +88,12 @@ export class UserRepository {
    * `phone` is E.164 (see `normalizePhoneNumber`). An account made before
    * numbers were normalized may hold another spelling of it, so those match too.
    */
-  async findByPhone(phone: string): Promise<UserRecord | null> {
-    const { data, error } = await this.supabase
-      .from('users')
-      .select('*')
-      .in('phone', phoneNumberVariants(phone))
-      .limit(1)
-      .maybeSingle<UserRecord>();
-
-    if (error) {
-      this.logger.error(`Failed to look up user by phone: ${error.message}`);
-      throw new InternalServerErrorException('Failed to look up user');
-    }
-    return data ?? null;
+  findByPhone(phone: string): Promise<UserRecord | null> {
+    return this.findOne({ phone: { in: phoneNumberVariants(phone) } });
   }
 
   findByFirebaseUid(uid: string): Promise<UserRecord | null> {
-    return this.findOneBy('firebase_uid', uid);
+    return this.findOne({ firebaseUid: uid });
   }
 
   /**
@@ -113,41 +104,43 @@ export class UserRepository {
    * a new one, instead of failing the sign-up as if the email were in use.
    */
   async create(user: NewUser): Promise<UserRecord> {
-    const row = {
+    const data = toUserData({
       ...user,
       ...(user.email ? { email: normalizeEmail(user.email) } : {}),
-    };
+    }) as Prisma.UserCreateInput;
     for (let attempt = 1; ; attempt++) {
-      const { data, error } = await this.supabase
-        .from('users')
-        .insert([row])
-        .select()
-        .single<UserRecord>();
-      if (!error) return data;
-
-      if (error.code === UNIQUE_VIOLATION) {
-        const handleCollided =
-          `${error.message} ${error.details ?? ''}`.includes(USERNAME_INDEX);
-        if (!handleCollided)
+      try {
+        const row = await this.prisma.user.create({
+          data,
+          select: USER_COLUMNS,
+        });
+        return toUserRecord(row);
+      } catch (error) {
+        if (!isUniqueViolation(error)) {
+          throw databaseFailure(this.logger, 'Failed to create user', error);
+        }
+        if (await this.identityTaken(data)) {
           throw new ConflictException('Email or phone already exists');
-        if (attempt < MAX_CREATE_ATTEMPTS) continue;
+        }
+        // Only the generated handle can have collided: draw another.
+        if (attempt >= MAX_CREATE_ATTEMPTS) {
+          throw databaseFailure(this.logger, 'Failed to create user', error);
+        }
       }
-      this.logger.error(`Failed to create user: ${error.message}`);
-      throw new InternalServerErrorException('Failed to create user');
     }
   }
 
   async update(id: string, patch: UserPatch): Promise<void> {
-    const { error } = await this.supabase
-      .from('users')
-      .update(patch)
-      .eq('id', id);
-    if (error?.code === UNIQUE_VIOLATION) {
-      throw new ConflictException('Email or phone already exists');
-    }
-    if (error) {
-      this.logger.error(`Failed to update user ${id}: ${error.message}`);
-      throw new InternalServerErrorException('Failed to update user');
+    try {
+      await this.prisma.user.updateMany({
+        where: { id },
+        data: toUserData(patch),
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Email or phone already exists');
+      }
+      throw databaseFailure(this.logger, 'Failed to update user', error);
     }
   }
 
@@ -156,50 +149,82 @@ export class UserRepository {
    * to it with the row: sessions, listings, favourites, chat messages and keys.
    */
   async delete(id: string): Promise<void> {
-    const { error } = await this.supabase.from('users').delete().eq('id', id);
-    if (error) {
-      this.logger.error(`Failed to delete user ${id}: ${error.message}`);
-      throw new InternalServerErrorException('Failed to delete account');
-    }
+    await databaseCall(this.logger, 'Failed to delete account', () =>
+      this.prisma.user.deleteMany({ where: { id } }),
+    );
   }
 
-  private async findOneIgnoringCase(
-    column: string,
-    value: string,
+  /** Whether another account already has this email, phone or Google identity. */
+  private async identityTaken(data: Prisma.UserCreateInput): Promise<boolean> {
+    const owners: Prisma.UserWhereInput[] = [];
+    if (data.email) owners.push({ email: data.email });
+    if (data.phone) owners.push({ phone: data.phone });
+    if (data.firebaseUid) owners.push({ firebaseUid: data.firebaseUid });
+    if (owners.length === 0) return false;
+    const count = await databaseCall(this.logger, 'Failed to create user', () =>
+      this.prisma.user.count({ where: { OR: owners } }),
+    );
+    return count > 0;
+  }
+
+  /** Exact match ignoring case. LIKE patterns are avoided: `_` occurs in real addresses. */
+  private async findByEmailIgnoringCase(
+    normalized: string,
   ): Promise<UserRecord | null> {
-    const { data, error } = await this.supabase
-      .from('users')
-      .select('*')
-      .ilike(column, escapeLikePattern(value))
-      .limit(1)
-      .maybeSingle<UserRecord>();
-
-    if (error) {
-      this.logger.error(
-        `Failed to look up user by ${column}: ${error.message}`,
-      );
-      throw new InternalServerErrorException('Failed to look up user');
-    }
-    return data ?? null;
+    const rows = await databaseCall(
+      this.logger,
+      'Failed to look up user',
+      () =>
+        this.prisma.$queryRaw<{ id: string }[]>`
+          SELECT id::text AS id FROM account.users
+          WHERE lower(email) = ${normalized}
+          LIMIT 1`,
+    );
+    return rows.length > 0 ? this.findById(rows[0].id) : null;
   }
 
-  private async findOneBy(
-    column: string,
-    value: string,
+  private async findOne(
+    where: Prisma.UserWhereInput,
   ): Promise<UserRecord | null> {
-    const { data, error } = await this.supabase
-      .from('users')
-      .select('*')
-      .eq(column, value)
-      .limit(1)
-      .maybeSingle<UserRecord>();
-
-    if (error) {
-      this.logger.error(
-        `Failed to look up user by ${column}: ${error.message}`,
-      );
-      throw new InternalServerErrorException('Failed to look up user');
-    }
-    return data ?? null;
+    const row = await databaseCall(this.logger, 'Failed to look up user', () =>
+      this.prisma.user.findFirst({ where, select: USER_COLUMNS }),
+    );
+    return row ? toUserRecord(row) : null;
   }
+}
+
+function toUserRecord(row: UserRow): UserRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    phone: row.phone,
+    password_hash: row.passwordHash,
+    has_password: row.hasPassword,
+    role: row.role,
+    username: row.username,
+    name: row.name,
+    avatar_url: row.avatarUrl,
+    firebase_uid: row.firebaseUid,
+    deactivated_at: row.deactivatedAt?.toISOString() ?? null,
+  };
+}
+
+/** The Prisma fields of a patch. A key left out stays as it is; `null` clears it. */
+function toUserData(patch: UserPatch): Prisma.UserUpdateManyMutationInput {
+  const data: Prisma.UserUpdateManyMutationInput = {};
+  if (patch.email !== undefined) data.email = patch.email;
+  if (patch.phone !== undefined) data.phone = patch.phone;
+  if (patch.password_hash !== undefined)
+    data.passwordHash = patch.password_hash;
+  if (patch.has_password !== undefined) data.hasPassword = patch.has_password;
+  if (patch.role !== undefined) data.role = patch.role;
+  if (patch.username !== undefined) data.username = patch.username;
+  if (patch.name !== undefined) data.name = patch.name;
+  if (patch.avatar_url !== undefined) data.avatarUrl = patch.avatar_url;
+  if (patch.firebase_uid !== undefined) data.firebaseUid = patch.firebase_uid;
+  if (patch.deactivated_at !== undefined) {
+    data.deactivatedAt =
+      patch.deactivated_at === null ? null : new Date(patch.deactivated_at);
+  }
+  return data;
 }

@@ -20,6 +20,7 @@ export const ALLOWED_REQUEST_HEADERS = [
   'X-Guest-Session-ID', // guest browsing
   'X-Device-Name', // sign-in: "Logged-in devices"
   'X-Device-Platform',
+  'X-Device-Key', // sign-in: recognises a device that signed in before
   'If-None-Match', // asks again for a cached answer
 ];
 

@@ -285,19 +285,19 @@ export class ChatService {
   ): Promise<Conversation[]> {
     const lastMessages = await this.prisma.$queryRaw<LastMessageRow[]>`
       WITH RECURSIVE sent AS (
-        (SELECT recipient_id AS id FROM messages WHERE sender_id = ${userId}::uuid ORDER BY recipient_id LIMIT 1)
+        (SELECT recipient_id AS id FROM chat.messages WHERE sender_id = ${userId}::uuid ORDER BY recipient_id LIMIT 1)
         UNION ALL
         SELECT (
-          SELECT recipient_id FROM messages
+          SELECT recipient_id FROM chat.messages
           WHERE sender_id = ${userId}::uuid AND recipient_id > sent.id
           ORDER BY recipient_id LIMIT 1
         )
         FROM sent WHERE sent.id IS NOT NULL
       ), received AS (
-        (SELECT sender_id AS id FROM messages WHERE recipient_id = ${userId}::uuid ORDER BY sender_id LIMIT 1)
+        (SELECT sender_id AS id FROM chat.messages WHERE recipient_id = ${userId}::uuid ORDER BY sender_id LIMIT 1)
         UNION ALL
         SELECT (
-          SELECT sender_id FROM messages
+          SELECT sender_id FROM chat.messages
           WHERE recipient_id = ${userId}::uuid AND sender_id > received.id
           ORDER BY sender_id LIMIT 1
         )
@@ -318,21 +318,21 @@ export class ChatService {
         state.archived_at AS "archivedAt",
         state.cleared_at AS "clearedAt"
       FROM partners p
-      LEFT JOIN chat_conversation_states state
+      LEFT JOIN chat.chat_conversation_states state
         ON state.user_id = ${userId}::uuid AND state.partner_id = p.partner_id
       CROSS JOIN LATERAL (
         SELECT * FROM (
-          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM messages m
+          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM chat.messages m
             WHERE sender_id = ${userId}::uuid AND recipient_id = p.partner_id
               AND NOT EXISTS (
-                SELECT 1 FROM chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+                SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
               )
             ORDER BY created_at DESC LIMIT 1)
           UNION ALL
-          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM messages m
+          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM chat.messages m
             WHERE sender_id = p.partner_id AND recipient_id = ${userId}::uuid
               AND NOT EXISTS (
-                SELECT 1 FROM chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+                SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
               )
             ORDER BY created_at DESC LIMIT 1)
         ) both_directions
@@ -350,14 +350,14 @@ export class ChatService {
       // Messages hidden by "delete for me" (the chat or one message) do not count as unread.
       this.prisma.$queryRaw<{ senderId: string; count: number }[]>`
         SELECT m.sender_id AS "senderId", count(*)::int AS count
-        FROM messages m
-        LEFT JOIN chat_conversation_states state
+        FROM chat.messages m
+        LEFT JOIN chat.chat_conversation_states state
           ON state.user_id = ${userId}::uuid AND state.partner_id = m.sender_id
         WHERE m.recipient_id = ${userId}::uuid
           AND m.read_at IS NULL
           AND (state.cleared_at IS NULL OR m.created_at > state.cleared_at)
           AND NOT EXISTS (
-            SELECT 1 FROM chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+            SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
           )
         GROUP BY m.sender_id`,
     ]);

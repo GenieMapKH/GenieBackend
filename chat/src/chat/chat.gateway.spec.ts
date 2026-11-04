@@ -12,6 +12,8 @@ const LAST_SEEN = new Date('2026-01-01T10:00:00Z');
 describe('ChatGateway', () => {
   const chatService = { sendMessage: jest.fn() };
   const presenceService = { markLastSeen: jest.fn(), getLastSeen: jest.fn() };
+  const blocks = { eitherBlocked: jest.fn() };
+  let socketsLeft: [string, string][];
   /** Stands in for the list of signed-out sessions; `signOut` is what the gateway registered. */
   const revokedSessions = {
     has: jest.fn(),
@@ -71,17 +73,21 @@ describe('ChatGateway', () => {
     presenceService.getLastSeen.mockResolvedValue(LAST_SEEN);
 
     revokedSessions.has.mockResolvedValue(false);
+    blocks.eitherBlocked.mockResolvedValue(false);
+    socketsLeft = [];
 
     gateway = new ChatGateway(
       chatService as never,
       presenceService as never,
       revokedSessions as never,
       memoryRateLimits,
+      blocks as never,
     );
     (gateway as unknown as { server: unknown }).server = {
       adapter: { rooms },
       in: (room: string) => ({
         fetchSockets: () => Promise.resolve([...(rooms.get(room) ?? [])]),
+        socketsLeave: (left: string) => socketsLeft.push([room, left]),
       }),
       to: (room: string | string[]) => ({
         emit: (event: string, data: unknown) =>
@@ -232,6 +238,33 @@ describe('ChatGateway', () => {
         presence: { userId: BOB, online: true, lastSeenAt: null },
       });
       expect(presenceService.getLastSeen).not.toHaveBeenCalled();
+    });
+
+    it('shows someone blocked either way as offline, and never updates the watcher', async () => {
+      await gateway.handleConnection(socketFor(BOB) as never);
+      blocks.eitherBlocked.mockResolvedValue(true);
+      const watcher = socketFor(ALICE);
+
+      const ack = await gateway.handleWatchPresence(watcher as never, {
+        userId: BOB,
+      });
+
+      expect(blocks.eitherBlocked).toHaveBeenCalledWith(ALICE, BOB);
+      expect(watcher.join).not.toHaveBeenCalledWith(`presence:${BOB}`);
+      expect(ack).toEqual({
+        status: 'ok',
+        presence: { userId: BOB, online: false, lastSeenAt: null },
+      });
+      expect(presenceService.getLastSeen).not.toHaveBeenCalled();
+    });
+
+    it('stops presence watched before a block, both ways', () => {
+      gateway.separatePresence(ALICE, BOB);
+
+      expect(socketsLeft).toEqual([
+        [`user:${ALICE}`, `presence:${BOB}`],
+        [`user:${BOB}`, `presence:${ALICE}`],
+      ]);
     });
 
     it('tells a watcher when an offline user was last seen', async () => {
