@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { generateKeyPairSync } from 'crypto';
+import { fakeAuthKeys, FakeAuthKeys } from '@tilomnov/shared/testing';
 import * as jwt from 'jsonwebtoken';
 import { requirePasswordProof } from './password-proof';
 
@@ -7,31 +7,20 @@ const ALICE = '11111111-1111-4111-8111-111111111111';
 const BOB = '22222222-2222-4222-8222-222222222222';
 
 describe('requirePasswordProof', () => {
-  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: 'spki', format: 'pem' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-  });
-  const originalKey = process.env.JWT_PUBLIC_KEY;
+  let keys: FakeAuthKeys;
   const sign = (
     typ: string,
     sub = ALICE,
     expiresIn: jwt.SignOptions['expiresIn'] = '5m',
-  ) => jwt.sign({ sub, typ }, privateKey, { algorithm: 'RS256', expiresIn });
+  ) => keys.sign({ sub, typ }, { expiresIn });
 
-  beforeAll(() => {
-    process.env.JWT_PUBLIC_KEY = publicKey;
-  });
+  beforeAll(() => (keys = fakeAuthKeys()));
+  afterAll(() => keys.restore());
 
-  afterAll(() => {
-    if (originalKey === undefined) delete process.env.JWT_PUBLIC_KEY;
-    else process.env.JWT_PUBLIC_KEY = originalKey;
-  });
-
-  it('passes for the user who typed their password', () => {
-    expect(() =>
+  it('passes for the user who typed their password', async () => {
+    await expect(
       requirePasswordProof(ALICE, sign('password-proof')),
-    ).not.toThrow();
+    ).resolves.toBeUndefined();
   });
 
   it.each([
@@ -42,13 +31,15 @@ describe('requirePasswordProof', () => {
     [
       'a forged token',
       () =>
-        jwt.sign({ sub: ALICE, typ: 'password-proof' }, publicKey, {
-          algorithm: 'HS256',
-        }),
+        jwt.sign(
+          { sub: ALICE, typ: 'password-proof' },
+          keys.publicKey.export({ type: 'spki', format: 'pem' }).toString(),
+          { algorithm: 'HS256', keyid: keys.kid },
+        ),
     ],
     ['nonsense', () => 'not-a-token'],
-  ])('refuses %s', (_case, token) => {
-    expect(() => requirePasswordProof(ALICE, token())).toThrow(
+  ])('refuses %s', async (_case, token) => {
+    await expect(requirePasswordProof(ALICE, token())).rejects.toThrow(
       ForbiddenException,
     );
   });

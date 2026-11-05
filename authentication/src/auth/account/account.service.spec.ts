@@ -134,7 +134,7 @@ describe('PasswordProofService', () => {
     // Its own type: nothing that accepts an access token will take it, and the other way round.
     expect(jwt.sign).toHaveBeenCalledWith(
       { sub: 'u1', typ: 'password-proof' },
-      { expiresIn: 300 },
+      300,
     );
   });
 
@@ -393,10 +393,7 @@ describe('UserContentClient', () => {
 
     await client.eraseFiles('u1');
 
-    expect(jwt.sign).toHaveBeenCalledWith(
-      { sub: 'u1', typ: 'internal' },
-      { expiresIn: 60 },
-    );
+    expect(jwt.sign).toHaveBeenCalledWith({ sub: 'u1', typ: 'internal' }, 60);
     const [url, request] = fetchMock.mock.calls[0];
     expect(url).toMatch(/\/internal\/accounts\/u1\/files$/);
     expect(request).toMatchObject({

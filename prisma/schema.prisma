@@ -576,6 +576,22 @@ model Follow {
   @@schema("account")
 }
 
+/// The keys the authentication service signs tokens with (migration 35). It
+/// creates, rotates and deletes them itself; other services fetch the public
+/// halves from its JWKS endpoint. `privateKeyEncrypted` is AES-256-GCM under
+/// JWT_KEY_ENCRYPTION_KEY, and NULL for the imported pre-rotation key.
+model JwtSigningKey {
+  kid                 String    @id
+  publicKey           String    @map("public_key")
+  privateKeyEncrypted String?   @map("private_key_encrypted")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  activatesAt         DateTime  @map("activates_at") @db.Timestamptz(6)
+  retiredAt           DateTime? @map("retired_at") @db.Timestamptz(6)
+
+  @@map("jwt_signing_keys")
+  @@schema("account")
+}
+
 /// Who has blocked whom (migration 30). Blocking removes follows both ways and
 /// stops the two from following, messaging or calling each other.
 model UserBlock {

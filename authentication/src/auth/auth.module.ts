@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
 import { RedisConnection } from '../redis/redis-connection';
 import { AccountController } from './account/account.controller';
 import { AccountEmailService } from './account/account-email.service';
@@ -31,20 +30,26 @@ import { SessionService } from './sessions/session.service';
 import { SessionsController } from './sessions/sessions.controller';
 import { SignInService } from './sessions/sign-in.service';
 import { TokenIssuerService } from './sessions/token-issuer.service';
+import { JwksController } from './signing-keys/jwks.controller';
+import { SigningKeyRotationService } from './signing-keys/signing-key-rotation.service';
+import { SigningKeyRepository } from './signing-keys/signing-key.repository';
+import { SigningKeyStore } from './signing-keys/signing-key.store';
+import { TokenSigner } from './signing-keys/token-signer.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
 import { UserRepository } from './users/user.repository';
 
 @Module({
-  imports: [
-    JwtModule.register({
-      privateKey: process.env.JWT_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      publicKey: process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, '\n'),
-      signOptions: { algorithm: 'RS256' },
-      verifyOptions: { algorithms: ['RS256'] },
-    }),
+  controllers: [
+    AuthController,
+    SessionsController,
+    AccountController,
+    JwksController,
   ],
-  controllers: [AuthController, SessionsController, AccountController],
   providers: [
+    SigningKeyRepository,
+    SigningKeyStore,
+    SigningKeyRotationService,
+    TokenSigner,
     RedisConnection,
     AuthAttemptLimits,
     KnownLoginDevices,

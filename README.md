@@ -66,7 +66,7 @@ repositories (or Prisma/Supabase calls) hold persistence.
 ```bash
 cp .env.example .env            # then fill in the values
 npm ci
-node scripts/generate-jwt-keys.js   # paste the output into .env
+npm run keys:generate          # paste the output into .env
 npm run build                   # prisma generate + shared + every service
 npm run start:auth & npm run start:user & npm run start:property &   npm run start:chat & npm run start:payment & npm run start:gateway
 ```

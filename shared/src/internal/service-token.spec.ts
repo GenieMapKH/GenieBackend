@@ -32,6 +32,38 @@ describe('calls between services', () => {
       expect(verifyServiceToken(signServiceToken('payment'))).toBe('payment');
     });
 
+    describe('while the secret is being replaced', () => {
+      const NEW_SECRET = 'the-replacement-secret-also-thirty-two-plus-chars';
+      afterEach(() => delete process.env.INTERNAL_SERVICE_SECRET_PREVIOUS);
+
+      it('accept tokens signed with the previous secret too', () => {
+        const oldToken = signServiceToken('payment');
+        process.env.INTERNAL_SERVICE_SECRET = NEW_SECRET;
+        process.env.INTERNAL_SERVICE_SECRET_PREVIOUS = SECRET;
+
+        expect(verifyServiceToken(oldToken)).toBe('payment');
+        expect(verifyServiceToken(signServiceToken('chat'))).toBe('chat');
+      });
+
+      it('refuse the old secret once INTERNAL_SERVICE_SECRET_PREVIOUS is removed', () => {
+        const oldToken = signServiceToken('payment');
+        process.env.INTERNAL_SERVICE_SECRET = NEW_SECRET;
+
+        expect(() => verifyServiceToken(oldToken)).toThrow('invalid signature');
+      });
+
+      it('do not retry an expired token with the previous secret', () => {
+        process.env.INTERNAL_SERVICE_SECRET_PREVIOUS = NEW_SECRET;
+        const expired = jwt.sign(
+          { iss: 'payment', typ: 'service', exp: 1 },
+          SECRET,
+          { algorithm: 'HS256' },
+        );
+
+        expect(() => verifyServiceToken(expired)).toThrow('jwt expired');
+      });
+    });
+
     it('cannot be signed or checked without the shared secret', () => {
       delete process.env.INTERNAL_SERVICE_SECRET;
 

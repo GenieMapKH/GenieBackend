@@ -51,7 +51,7 @@ Shared (add to every service that lists them below):
 |---|---|
 | `DATABASE_URL` | **different in every service**: that service's own database login, which can only reach its own schema (docs/DATABASE_SCHEMAS.md). Until a service is given one, the `postgres` pooler URL still works |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | as today |
-| `JWT_PUBLIC_KEY` | as today (newlines as `\n`) |
+| `AUTH_SERVICE_URL` | `http://authentication.railway.internal:4001`: every service fetches the token signing keys from there (docs/SECRET_ROTATION.md) |
 | `INTERNAL_SERVICE_SECRET` | **new**, 32+ random characters: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` |
 | `SENTRY_DSN` | optional, every service: the DSN of the Sentry project for the backend. Unset, nothing is reported. `SENTRY_ENVIRONMENT` (default `production`; e.g. `staging`) and `SENTRY_TRACES_SAMPLE_RATE` (default 0, performance tracing off) are optional too. The release is Railway's `RAILWAY_GIT_COMMIT_SHA`. |
@@ -61,17 +61,17 @@ Per service (everything else comes from the shared list):
 | Service | Variables |
 |---|---|
 | all seven | `SERVICE=<its name>`, `PORT=<its port>`, `HOST=::` (see the note below) |
-| `api-gateway` | `JWT_PUBLIC_KEY`, `REDIS_URL`, `CORS_ORIGINS`, and the six addresses: `AUTH_SERVICE_URL=http://authentication.railway.internal:4001`, `USER_SERVICE_URL=http://user.railway.internal:4002`, `PROPERTY_SERVICE_URL=http://property.railway.internal:4003`, `CHAT_SERVICE_URL=http://chat.railway.internal:4004`, `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005`, `NOTIFICATION_SERVICE_URL=http://notification.railway.internal:4006` |
-| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=3`, `JWT_PRIVATE_KEY`, `JWT_PUBLIC_KEY`, `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push) |
-| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `SUPABASE_*`, `JWT_PUBLIC_KEY`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL` |
-| `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `JWT_PUBLIC_KEY`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
-| `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `JWT_PUBLIC_KEY`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_BACKUP_SECRET`, `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
-| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `JWT_PUBLIC_KEY`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
-| `notification` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `JWT_PUBLIC_KEY`, `REDIS_URL` (to hear sign-outs), `INTERNAL_SERVICE_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` (the same as `authentication`; without it nothing is pushed) |
+| `api-gateway` | `REDIS_URL`, `CORS_ORIGINS`, and the six addresses: `AUTH_SERVICE_URL=http://authentication.railway.internal:4001`, `USER_SERVICE_URL=http://user.railway.internal:4002`, `PROPERTY_SERVICE_URL=http://property.railway.internal:4003`, `CHAT_SERVICE_URL=http://chat.railway.internal:4004`, `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005`, `NOTIFICATION_SERVICE_URL=http://notification.railway.internal:4006` |
+| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=3`, `JWT_KEY_ENCRYPTION_KEY` (its signing keys rotate by themselves; `JWT_PUBLIC_KEY` only during the switch, see docs/SECRET_ROTATION.md), `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push) |
+| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL` |
+| `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
+| `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_BACKUP_SECRET`, `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
+| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
+| `notification` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `AUTH_SERVICE_URL`, `REDIS_URL` (to hear sign-outs), `INTERNAL_SERVICE_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` (the same as `authentication`; without it nothing is pushed) |
 
 Rules that matter:
 
-- `JWT_PRIVATE_KEY` goes **only** on `authentication`.
+- `JWT_KEY_ENCRYPTION_KEY` goes **only** on `authentication`. `JWT_PRIVATE_KEY` is no longer read: delete it.
 - `SERVICE` is also a Docker build argument: Railway passes variables to the build, and the `Dockerfile`
   picks the service to build from it. A missing `SERVICE` fails the build with a clear message.
 - **Connection budget.** Each service opens its own database pool. Supabase's pooler allows few
@@ -159,7 +159,7 @@ hidden account. If the engine is down or slow (over 1.5 s), search answers from 
 
 | Down | The app still | Fails with |
 |---|---|---|
-| `authentication` | everything for signed-in users until their 15-minute token expires | login, register, refresh, password reset |
+| `authentication` | everything for signed-in users until their 15-minute token expires (the other services keep its public keys cached; one that restarts meanwhile answers `503` until it is back) | login, register, refresh, password reset |
 | `user` | browsing, search, chat, payments | own profile, profile picture, username check |
 | `property` | profile, chat, login | listings, map, search; checkout and webhooks answer `503` so the provider retries |
 | `chat` | everything else | messages; account deletion is refused (`503`) so no files are left behind |

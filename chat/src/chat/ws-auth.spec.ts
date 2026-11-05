@@ -1,65 +1,55 @@
-import { generateKeyPairSync } from 'crypto';
+import { fakeAuthKeys, FakeAuthKeys } from '@tilomnov/shared/testing';
 import * as jwt from 'jsonwebtoken';
 import { authenticateSocket, verifyAccessToken } from './ws-auth';
 
 describe('verifyAccessToken', () => {
-  const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: 'spki', format: 'pem' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-  });
-  const originalKey = process.env.JWT_PUBLIC_KEY;
+  let keys: FakeAuthKeys;
   const sign = (
     claims: object,
     expiresIn: jwt.SignOptions['expiresIn'] = '5m',
-  ) =>
-    jwt.sign({ sub: 'user-1', ...claims }, privateKey, {
-      algorithm: 'RS256',
-      expiresIn,
-    });
+  ) => keys.sign(claims, { expiresIn });
 
-  beforeAll(() => {
-    process.env.JWT_PUBLIC_KEY = publicKey;
-  });
+  beforeAll(() => (keys = fakeAuthKeys()));
+  afterAll(() => keys.restore());
 
-  afterAll(() => {
-    if (originalKey === undefined) delete process.env.JWT_PUBLIC_KEY;
-    else process.env.JWT_PUBLIC_KEY = originalKey;
-  });
-
-  it('returns the user and the session an access token was issued to', () => {
-    expect(
+  it('returns the user and the session an access token was issued to', async () => {
+    await expect(
       verifyAccessToken(sign({ typ: 'access', sid: 'session-1' })),
-    ).toEqual({
-      userId: 'user-1',
-      sessionId: 'session-1',
-    });
+    ).resolves.toEqual({ userId: 'user-1', sessionId: 'session-1' });
     // A token from before sessions existed.
-    expect(verifyAccessToken(sign({ typ: 'access' }))).toEqual({
+    await expect(verifyAccessToken(sign({ typ: 'access' }))).resolves.toEqual({
       userId: 'user-1',
       sessionId: null,
     });
   });
 
-  it('refuses a refresh token, which lives 30 days and may have been revoked', () => {
-    expect(() =>
+  it('refuses a refresh token, which lives 30 days and may have been revoked', async () => {
+    await expect(
       verifyAccessToken(sign({ typ: 'refresh', jti: 'token-1' }, '30d')),
-    ).toThrow('Not a token of type');
-    expect(() => verifyAccessToken(sign({}))).toThrow('Not a token of type');
-    expect(() => verifyAccessToken(sign({ typ: 'password-proof' }))).toThrow(
+    ).rejects.toThrow('Not a token of type');
+    await expect(verifyAccessToken(sign({}))).rejects.toThrow(
       'Not a token of type',
     );
+    await expect(
+      verifyAccessToken(sign({ typ: 'password-proof' })),
+    ).rejects.toThrow('Not a token of type');
   });
 
-  it('refuses an expired token and one signed with another key', () => {
-    expect(() => verifyAccessToken(sign({ typ: 'access' }, -10))).toThrow();
-    expect(() =>
+  it('refuses an expired token and one signed with another key', async () => {
+    await expect(
+      verifyAccessToken(sign({ typ: 'access' }, -10)),
+    ).rejects.toThrow();
+    const pem = keys.publicKey
+      .export({ type: 'spki', format: 'pem' })
+      .toString();
+    await expect(
       verifyAccessToken(
-        jwt.sign({ sub: 'user-1', typ: 'access' }, publicKey, {
+        jwt.sign({ sub: 'user-1', typ: 'access' }, pem, {
           algorithm: 'HS256',
+          keyid: keys.kid,
         }),
       ),
-    ).toThrow();
+    ).rejects.toThrow();
   });
 
   describe('authenticateSocket', () => {

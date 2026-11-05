@@ -1,19 +1,36 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { tokenKeyId } from '@tilomnov/shared';
+import { KeyObject } from 'crypto';
 import { ACCESS_TOKEN_TYPE } from './auth.constants';
 import { AuthenticatedUser } from './decorators/current-user.decorator';
 import { RevokedSessionStore } from './sessions/revoked-session.store';
+import { SigningKeyStore } from './signing-keys/signing-key.store';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     @Inject(RevokedSessionStore) private readonly revoked: RevokedSessionStore,
+    @Inject(SigningKeyStore) keys: SigningKeyStore,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, '\n') || '',
+      // Published keys only: an access token never verifies with a key kept just for refresh tokens.
+      secretOrKeyProvider: (
+        _request: unknown,
+        rawJwtToken: string,
+        done: (error: unknown, key?: string) => void,
+      ) => {
+        try {
+          const key = keys.publishedKey(tokenKeyId(rawJwtToken));
+          if (key) done(null, pem(key));
+          else done(new Error('Unknown signing key'));
+        } catch (error) {
+          done(error);
+        }
+      },
       algorithms: ['RS256'],
     });
   }
@@ -38,4 +55,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       sessionId: payload.sid ?? null,
     };
   }
+}
+
+/** passport-jwt is typed for PEM strings, not key objects. */
+function pem(key: KeyObject): string {
+  return key.export({ type: 'spki', format: 'pem' }).toString();
 }

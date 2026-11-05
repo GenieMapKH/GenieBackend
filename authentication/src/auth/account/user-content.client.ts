@@ -4,11 +4,11 @@ import {
   Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import {
   INTERNAL_TOKEN_TTL_SECONDS,
   INTERNAL_TOKEN_TYPE,
 } from '../auth.constants';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 
 const ERASE_TIMEOUT_MS = 30_000;
 const NOTICE_TIMEOUT_MS = 5_000;
@@ -29,7 +29,7 @@ export class UserContentClient {
     process.env.USER_SERVICE_URL || 'http://localhost:4002'
   ).replace(/\/+$/, '');
 
-  constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
+  constructor(@Inject(TokenSigner) private readonly signer: TokenSigner) {}
 
   /**
    * Removes every file the account uploaded, for good. Throws `503` when the
@@ -69,9 +69,9 @@ export class UserContentClient {
     action: string,
     timeoutMs: number,
   ): Promise<void> {
-    const token = this.jwt.sign(
+    const token = this.signer.sign(
       { sub: userId, typ: INTERNAL_TOKEN_TYPE },
-      { expiresIn: INTERNAL_TOKEN_TTL_SECONDS },
+      INTERNAL_TOKEN_TTL_SECONDS,
     );
     const response = await fetch(
       `${this.baseUrl}/internal/accounts/${userId}/${action}`,
