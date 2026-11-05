@@ -9,7 +9,7 @@ initSentry('payment');
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { enableApiVersioning } from '@tilomnov/shared/api-versions';
-import { describeJwtPublicKey } from '@tilomnov/shared';
+import { warmUpAuthKeys } from '@tilomnov/shared';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -30,6 +30,6 @@ async function bootstrap() {
   const host = process.env.HOST || '0.0.0.0';
   await app.listen(port, host);
   Logger.log(`Listening on ${host}:${port}`, 'Bootstrap');
-  Logger.log(describeJwtPublicKey(), 'Bootstrap');
+  void warmUpAuthKeys().then((status) => Logger.log(status, 'Bootstrap'));
 }
 void bootstrap();

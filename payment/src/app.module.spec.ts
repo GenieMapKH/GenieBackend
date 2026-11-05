@@ -8,7 +8,6 @@ import { PaymentsController } from './payments/payments.controller';
 describe('payment service wiring', () => {
   beforeAll(() => {
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
-    process.env.JWT_PUBLIC_KEY = 'test-public-key';
   });
 
   it('resolves every controller', async () => {

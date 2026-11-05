@@ -27,8 +27,8 @@ export function socketUser(client: Socket): SocketUser {
 }
 
 /** Verifies an access token and returns who it was issued to. Throws if invalid. */
-export function verifyAccessToken(token: string): SocketUser {
-  const payload = verifySignedToken(token, ACCESS_TOKEN);
+export async function verifyAccessToken(token: string): Promise<SocketUser> {
+  const payload = await verifySignedToken(token, ACCESS_TOKEN);
   return {
     userId: payload.sub,
     sessionId: typeof payload.sid === 'string' ? payload.sid : null,
@@ -46,7 +46,7 @@ export async function authenticateSocket(
   const token = extractSocketToken(client);
   if (!token) throw new Error('No token provided');
 
-  const user = verifyAccessToken(token);
+  const user = await verifyAccessToken(token);
   if (user.sessionId && (await revoked.has(user.sessionId))) {
     throw new Error('This device was signed out');
   }

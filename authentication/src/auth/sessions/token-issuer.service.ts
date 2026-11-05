@@ -1,5 +1,4 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { randomUUID } from 'crypto';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
@@ -8,6 +7,7 @@ import {
   REFRESH_TOKEN_TYPE,
 } from '../auth.constants';
 import { ClientContext } from './client-context';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 import { IpLocationProvider } from './ip-location.provider';
 import { hashRefreshToken } from './refresh-token-hash';
 import {
@@ -32,7 +32,7 @@ export class TokenIssuerService {
   private readonly logger = new Logger(TokenIssuerService.name);
 
   constructor(
-    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(TokenSigner) private readonly signer: TokenSigner,
     @Inject(RefreshTokenRepository)
     private readonly refreshTokens: RefreshTokenRepository,
     @Inject(IpLocationProvider) private readonly locations: IpLocationProvider,
@@ -52,16 +52,16 @@ export class TokenIssuerService {
 
     // `sid` names the session: it marks the asking device in the session list,
     // and is what a sign-out cuts off (see `RevokedSessionStore`).
-    const accessToken = this.jwt.sign(
+    const accessToken = this.signer.sign(
       { sub: userId, role, typ: ACCESS_TOKEN_TYPE, sid: session.id },
-      { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
+      ACCESS_TOKEN_TTL_SECONDS,
     );
 
     // The jti ties the signed token to its database row so it can be revoked.
     const jti = randomUUID();
-    const refreshToken = this.jwt.sign(
+    const refreshToken = this.signer.sign(
       { sub: userId, jti, typ: REFRESH_TOKEN_TYPE },
-      { expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d` },
+      `${REFRESH_TOKEN_TTL_DAYS}d`,
     );
 
     await this.refreshTokens.insert({

@@ -2,9 +2,14 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { INTERNAL_TOKEN, verifySignedToken } from '@tilomnov/shared';
+import {
+  INTERNAL_TOKEN,
+  KeySetUnavailableError,
+  verifySignedToken,
+} from '@tilomnov/shared';
 
 /**
  * Lets in only the authentication service, and only for the account named in
@@ -14,7 +19,7 @@ import { INTERNAL_TOKEN, verifySignedToken } from '@tilomnov/shared';
  */
 @Injectable()
 export class InternalCallGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{
       headers: Record<string, string>;
       params: { userId?: string };
@@ -27,10 +32,14 @@ export class InternalCallGuard implements CanActivate {
     try {
       if (
         token &&
-        verifySignedToken(token, INTERNAL_TOKEN).sub === request.params.userId
+        (await verifySignedToken(token, INTERNAL_TOKEN)).sub ===
+          request.params.userId
       )
         return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof KeySetUnavailableError) {
+        throw new ServiceUnavailableException();
+      }
       // Falls through to the refusal below.
     }
     throw new UnauthorizedException();

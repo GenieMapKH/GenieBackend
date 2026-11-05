@@ -16,7 +16,6 @@ describe('property service wiring', () => {
     process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
     process.env.SUPABASE_URL = 'http://localhost:54321';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
-    process.env.JWT_PUBLIC_KEY = 'test-public-key';
   });
 
   it('resolves every controller', async () => {

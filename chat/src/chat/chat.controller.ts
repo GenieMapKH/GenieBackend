@@ -72,9 +72,9 @@ export class ChatController {
    */
   @Post('keys/reset')
   @HttpCode(HttpStatus.OK)
-  resetKeys(@CurrentUserId() userId: string, @Body() dto: ResetKeysDto) {
+  async resetKeys(@CurrentUserId() userId: string, @Body() dto: ResetKeysDto) {
     return this.backupService.save(userId, backupOf(dto), {
-      ...ownerProofOf(userId, dto),
+      ...(await ownerProofOf(userId, dto)),
       identityPublicKey: dto.identityPublicKey,
     });
   }
@@ -86,11 +86,11 @@ export class ChatController {
 
   /** A new PIN replaces the backup, which needs the same proof as `resetKeys`. */
   @Post('backup')
-  setBackup(@CurrentUserId() userId: string, @Body() dto: SetBackupDto) {
+  async setBackup(@CurrentUserId() userId: string, @Body() dto: SetBackupDto) {
     return this.backupService.save(
       userId,
       backupOf(dto),
-      ownerProofOf(userId, dto),
+      await ownerProofOf(userId, dto),
     );
   }
 
@@ -235,12 +235,12 @@ export class ChatController {
 }
 
 /** How the caller shows the backup is theirs to replace: the account password, else the current PIN. */
-function ownerProofOf(
+async function ownerProofOf(
   userId: string,
   dto: BackupOwnerProofDto,
-): BackupOwnerProof {
+): Promise<BackupOwnerProof> {
   if (dto.passwordProofToken) {
-    requirePasswordProof(userId, dto.passwordProofToken);
+    await requirePasswordProof(userId, dto.passwordProofToken);
     return { provenByPassword: true };
   }
   return { currentVerifier: dto.currentBackupVerifier };

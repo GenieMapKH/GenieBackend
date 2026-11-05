@@ -1,5 +1,6 @@
 import { UnauthorizedException } from '@nestjs/common';
 import { JwtStrategy } from '../jwt.strategy';
+import { SigningKeyStore } from '../signing-keys/signing-key.store';
 import { signInAlertEmailHtml } from '../mail/sign-in-alert-email.template';
 import { RevokedSessionStore } from './revoked-session.store';
 import { SignInService } from './sign-in.service';
@@ -200,20 +201,14 @@ describe('RevokedSessionStore', () => {
 });
 
 describe('JwtStrategy', () => {
-  const originalKey = process.env.JWT_PUBLIC_KEY;
   const signedOut = new Set<string>();
   let strategy: JwtStrategy;
 
   beforeAll(() => {
-    process.env.JWT_PUBLIC_KEY = 'test-public-key';
-    strategy = new JwtStrategy({
-      has: async (sessionId: string) => signedOut.has(sessionId),
-    } as never);
-  });
-
-  afterAll(() => {
-    if (originalKey === undefined) delete process.env.JWT_PUBLIC_KEY;
-    else process.env.JWT_PUBLIC_KEY = originalKey;
+    strategy = new JwtStrategy(
+      { has: async (sessionId: string) => signedOut.has(sessionId) } as never,
+      new SigningKeyStore(),
+    );
   });
 
   it('says who is calling, and from which session', async () => {

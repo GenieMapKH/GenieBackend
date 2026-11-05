@@ -4,7 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 import { UserRepository } from '../users/user.repository';
 import { ClientContext } from './client-context';
 import {
@@ -50,7 +50,7 @@ export interface DeviceList {
 @Injectable()
 export class SessionService {
   constructor(
-    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(TokenSigner) private readonly signer: TokenSigner,
     @Inject(RefreshTokenRepository)
     private readonly refreshTokens: RefreshTokenRepository,
     @Inject(TokenIssuerService) private readonly issuer: TokenIssuerService,
@@ -108,7 +108,7 @@ export class SessionService {
   async logout(refreshToken: string): Promise<{ message: string }> {
     let payload: RefreshPayload;
     try {
-      payload = this.jwt.verify<RefreshPayload>(refreshToken, {
+      payload = this.signer.verifyRefreshToken<RefreshPayload>(refreshToken, {
         ignoreExpiration: true,
       });
     } catch {
@@ -192,7 +192,7 @@ export class SessionService {
   private verifyRefreshToken(token: string): { sub: string; jti: string } {
     let payload: RefreshPayload;
     try {
-      payload = this.jwt.verify<RefreshPayload>(token);
+      payload = this.signer.verifyRefreshToken<RefreshPayload>(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }

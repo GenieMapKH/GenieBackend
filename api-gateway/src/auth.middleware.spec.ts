@@ -1,25 +1,24 @@
-import { UnauthorizedException } from '@nestjs/common';
-import { generateKeyPairSync } from 'crypto';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { fakeAuthKeys, FakeAuthKeys } from '@tilomnov/shared/testing';
+import { generateKeyPairSync, KeyObject } from 'crypto';
 import * as jwt from 'jsonwebtoken';
-
-const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-  modulusLength: 2048,
-  publicKeyEncoding: { type: 'spki', format: 'pem' },
-  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-});
-
-// The middleware reads the key when it is constructed.
-process.env.JWT_PUBLIC_KEY = publicKey;
-
-/* eslint-disable @typescript-eslint/no-require-imports -- these must load after the env is set above, so they cannot be hoisted imports */
-const { AuthMiddleware } =
-  require('./auth.middleware') as typeof import('./auth.middleware');
-
-const { RevokedSessions } =
-  require('./revoked-sessions') as typeof import('./revoked-sessions');
-/* eslint-enable @typescript-eslint/no-require-imports */
+import { AuthMiddleware } from './auth.middleware';
+import { RevokedSessions } from './revoked-sessions';
 
 describe('AuthMiddleware', () => {
+  // The authentication service's JWKS, answered in-process.
+  let keys: FakeAuthKeys;
+  let privateKey: KeyObject;
+  let publicKey: KeyObject;
+  beforeAll(() => {
+    keys = fakeAuthKeys();
+    ({ privateKey, publicKey } = keys);
+  });
+  afterAll(() => keys.restore());
+
   /** The sessions that were signed out. */
   const signedOut = new Set<string>();
   const middleware = new AuthMiddleware({
@@ -34,12 +33,13 @@ describe('AuthMiddleware', () => {
   };
   const sign = (
     options: jwt.SignOptions = {},
-    key = privateKey,
+    key: KeyObject = privateKey,
     claims: object = { typ: 'access' },
   ) =>
     jwt.sign({ sub: 'user-1', ...claims }, key, {
       algorithm: 'RS256',
       expiresIn: '5m',
+      keyid: keys.kid,
       ...options,
     });
 
@@ -85,11 +85,7 @@ describe('AuthMiddleware', () => {
   });
 
   it('rejects a token signed with a different key', async () => {
-    const other = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    });
+    const other = generateKeyPairSync('rsa', { modulusLength: 2048 });
 
     await expect(
       run({ authorization: `Bearer ${sign({}, other.privateKey)}` }),
@@ -121,13 +117,51 @@ describe('AuthMiddleware', () => {
   });
 
   it('rejects an HS256 token (algorithm confusion)', async () => {
-    const forged = jwt.sign({ sub: 'user-1' }, publicKey, {
+    const pem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const forged = jwt.sign({ sub: 'user-1', typ: 'access' }, pem, {
       algorithm: 'HS256',
+      keyid: keys.kid,
     });
 
     await expect(run({ authorization: `Bearer ${forged}` })).rejects.toThrow(
       UnauthorizedException,
     );
+  });
+
+  it('rejects a token naming a key the authentication service does not publish', async () => {
+    await expect(
+      run({ authorization: `Bearer ${sign({ keyid: 'retired-key' })}` }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('answers 503, not 401, when the keys cannot be loaded, so the app does not sign out', async () => {
+    keys.restore();
+    const down = fakeAuthKeys();
+    down.setDown(true);
+    try {
+      await expect(
+        run({ authorization: `Bearer ${down.sign({ typ: 'access' })}` }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    } finally {
+      down.restore();
+      keys = fakeAuthKeys();
+      ({ privateKey, publicKey } = keys);
+    }
+  });
+
+  it('accepts a token from before rotation (no kid) while the old key is published', async () => {
+    keys.restore();
+    const legacy = fakeAuthKeys({ legacy: true });
+    try {
+      const { next } = await run({
+        authorization: `Bearer ${legacy.sign({ typ: 'access' })}`,
+      });
+      expect(next).toHaveBeenCalled();
+    } finally {
+      legacy.restore();
+      keys = fakeAuthKeys();
+      ({ privateKey, publicKey } = keys);
+    }
   });
 
   it('lets CORS preflight requests through without a token', async () => {

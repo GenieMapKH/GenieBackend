@@ -36,7 +36,7 @@ const storedToken = (overrides: Record<string, unknown> = {}) => ({
 
 describe('SessionService', () => {
   const REFRESH_TOKEN = 'signed.refresh.token';
-  const jwt = { verify: jest.fn() };
+  const jwt = { verifyRefreshToken: jest.fn() };
   const refreshTokens = {
     findById: jest.fn(),
     revokeIfActive: jest.fn(),
@@ -63,7 +63,7 @@ describe('SessionService', () => {
       new SessionRevocationService(refreshTokens as never, cutOff as never),
       new EstablishedDeviceService(refreshTokens as never),
     );
-    jwt.verify.mockReturnValue({ sub: 'u1', jti: 't1' });
+    jwt.verifyRefreshToken.mockReturnValue({ sub: 'u1', jti: 't1' });
   });
 
   describe('refresh', () => {
@@ -165,7 +165,7 @@ describe('SessionService', () => {
     });
 
     it('rejects a token that fails signature verification', async () => {
-      jwt.verify.mockImplementation(() => {
+      jwt.verifyRefreshToken.mockImplementation(() => {
         throw new Error('jwt expired');
       });
 
@@ -188,7 +188,7 @@ describe('SessionService', () => {
     it('revokes the token even when it has already expired', async () => {
       await service.logout(REFRESH_TOKEN);
 
-      expect(jwt.verify).toHaveBeenCalledWith(REFRESH_TOKEN, {
+      expect(jwt.verifyRefreshToken).toHaveBeenCalledWith(REFRESH_TOKEN, {
         ignoreExpiration: true,
       });
       expect(refreshTokens.revokeById).toHaveBeenCalledWith('t1');
