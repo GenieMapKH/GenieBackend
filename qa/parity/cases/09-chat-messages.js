@@ -1,6 +1,6 @@
 'use strict';
 const { randomUUID, randomBytes } = require('node:crypto');
-const { sealedText } = require('../lib/chat-fixtures');
+const { managedText } = require('../lib/chat-fixtures');
 const { itemsOf } = require('../lib/json-search');
 
 const AREA = 'Chat';
@@ -10,6 +10,11 @@ const mentions = (item, id) => JSON.stringify(item).includes(id);
 
 /** Sends over the socket as `from`, records the ack, and answers it. */
 async function send(t, from, payload, label) {
+  if (payload.nonce === undefined) {
+    payload.id ??= randomUUID();
+    Object.assign(payload, managedText({ id: payload.id, senderId: t.userId(from),
+      recipientId: payload.recipientId, replyToId: payload.replyToId }));
+  }
   const ack = await t.state.sockets[from].emitAck('sendMessage', payload);
   t.record(label, from, ack?.status ?? 'no ack', ack);
   return ack;
@@ -23,7 +28,7 @@ module.exports = [
     needs: ['sockets'],
     run: async (t) => {
       const id = randomUUID();
-      const payload = { id, recipientId: t.userId('buyer'), ...sealedText() };
+      const payload = { id, recipientId: t.userId('buyer') };
       const ack = await send(t, 'seller', payload, 'sendMessage seller -> buyer');
       t.check(ack.status === 'ok' && ack.messageId === id, `ack ${JSON.stringify(ack)}`);
       const live = await t.state.sockets.buyer.waitFor('newMessage', (m) => m.id === id);
@@ -61,17 +66,17 @@ module.exports = [
     needs: ['firstMessageId'],
     run: async (t) => {
       const replyId = randomUUID();
-      const reply = await send(t, 'buyer', { id: replyId, recipientId: t.userId('seller'), replyToId: t.state.firstMessageId, ...sealedText() }, 'buyer replies');
+      const reply = await send(t, 'buyer', { id: replyId, recipientId: t.userId('seller'), replyToId: t.state.firstMessageId }, 'buyer replies');
       t.check(reply.status === 'ok', `reply ack ${JSON.stringify(reply)}`);
       const got = await t.state.sockets.seller.waitFor('newMessage', (m) => m.id === replyId);
       t.check(got && JSON.stringify(got).includes(t.state.firstMessageId), 'reply arrived without what it replies to');
 
-      const edit = sealedText();
+      const edit = managedText({ id: t.state.firstMessageId, senderId: t.userId('seller'), recipientId: t.userId('buyer'), text: 'Edited QA message' });
       await t.call('seller', 'POST', '/chat/messages/:id/edit', { params: { id: t.state.firstMessageId }, body: edit, expect: [200, 201] });
       const edited = await t.state.sockets.buyer.waitFor('messageEdited', (m) => mentions(m, t.state.firstMessageId));
       t.record('buyer receives messageEdited', 'buyer', edited ? 'received' : 'missed', edited);
       t.check(edited, 'edit not pushed live');
-      await t.call('buyer', 'POST', '/chat/messages/:id/edit', { params: { id: t.state.firstMessageId }, body: sealedText(), expect: [403, 404], label: "edit someone else's message" });
+      await t.call('buyer', 'POST', '/chat/messages/:id/edit', { params: { id: t.state.firstMessageId }, body: { ciphertext: 'invalid', nonce: 'managed-v1' }, expect: [403, 404], label: "edit someone else's message" });
 
       await t.call('buyer', 'POST', '/chat/messages/:id/delete', { params: { id: replyId }, body: { forEveryone: true }, expect: [200, 201] });
       const deleted = await t.state.sockets.seller.waitFor('messageDeleted', (m) => mentions(m, replyId));
@@ -87,15 +92,15 @@ module.exports = [
     title: 'Sending is refused: to yourself, malformed, unknown recipient, and to someone who blocked you',
     needs: ['sockets'],
     run: async (t) => {
-      const self = await send(t, 'seller', { recipientId: t.userId('seller'), ...sealedText() }, 'send to yourself');
+      const self = await send(t, 'seller', { recipientId: t.userId('seller') }, 'send to yourself');
       t.check(self.status === 'error', `self-send ack ${JSON.stringify(self)}`);
       const bad = await send(t, 'seller', { recipientId: 'nope' }, 'malformed message');
       t.check(bad.status === 'error', `malformed ack ${JSON.stringify(bad)}`);
-      const nobody = await send(t, 'seller', { recipientId: randomUUID(), ...sealedText() }, 'unknown recipient');
+      const nobody = await send(t, 'seller', { recipientId: randomUUID() }, 'unknown recipient');
       t.check(nobody.status === 'error', `unknown recipient ack ${JSON.stringify(nobody)}`);
 
       await t.call('outsider', 'PUT', '/users/:id/block', { params: { id: t.userId('seller') }, expect: 200, label: 'outsider blocks seller' });
-      const blocked = await send(t, 'seller', { recipientId: t.userId('outsider'), ...sealedText() }, 'send to someone who blocked you');
+      const blocked = await send(t, 'seller', { recipientId: t.userId('outsider') }, 'send to someone who blocked you');
       await t.call('outsider', 'DELETE', '/users/:id/block', { params: { id: t.userId('seller') }, expect: 200, label: 'outsider unblocks seller' });
       t.check(blocked.status === 'error' && blocked.code === 'blocked', `blocked ack ${JSON.stringify(blocked)}`);
     },
@@ -124,7 +129,7 @@ module.exports = [
       await t.call('outsider', 'GET', route, { params, expect: [403, 404], label: 'download link as a stranger' });
 
       const id = randomUUID();
-      await send(t, 'seller', { id, recipientId: t.userId('buyer'), ...sealedText() }, 'send the attachment message');
+      await send(t, 'seller', { id, recipientId: t.userId('buyer') }, 'send the attachment message');
       await t.call('seller', 'POST', '/chat/messages/:id/delete', { params: { id }, body: { forEveryone: true, attachmentPath: slot.body.path }, expect: [200, 201], label: 'delete message and its file' });
       const gone = await t.call('buyer', 'GET', route, { params, label: 'download link after removal' });
       if (gone.status === 200) {

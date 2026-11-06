@@ -1,3 +1,4 @@
+import { MessageProtection } from './message-protection';
 import {
   ForbiddenException,
   Injectable,
@@ -10,7 +11,7 @@ import { ChatAttachmentService } from './chat-attachment.service';
 /** A sent message can be edited for this long. */
 export const EDIT_WINDOW_MS = 60 * 60 * 1000;
 
-/** The new text of an edited message, sealed again on the sender's device. */
+/** The replacement transport envelope of an edited message. */
 export interface MessageEdit {
   ciphertext: string;
   nonce: string;
@@ -33,9 +34,8 @@ const EDITED_FIELDS = {
 } as const;
 
 /**
- * Editing and deleting one message. The text stays end-to-end encrypted: an
- * edit is a new ciphertext from the sender's device, and the server only
- * decides who may change what.
+ * Editing and deleting one message. Managed edits are encrypted before storage;
+ * participant authorization and the edit window apply to all messages.
  */
 @Injectable()
 export class MessageActionsService {
@@ -44,6 +44,7 @@ export class MessageActionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly attachments: ChatAttachmentService,
+    private readonly protection: MessageProtection,
   ) {}
 
   /** Replaces the text of the sender's own message, within an hour of sending it. */
@@ -66,17 +67,22 @@ export class MessageActionsService {
         senderId: userId,
         createdAt: { gt: editableSince },
       },
-      data: { ciphertext: edit.ciphertext, nonce: edit.nonce, editedAt: now },
+      data: {
+        ...this.protection.seal(edit, { id: messageId, ...message }),
+        editedAt: now,
+      },
     });
     if (count === 0) {
       throw new ForbiddenException(
         'A message can only be edited within an hour of sending it',
       );
     }
-    return this.prisma.message.findUniqueOrThrow({
-      where: { id: messageId },
-      select: EDITED_FIELDS,
-    });
+    return this.protection.view(
+      await this.prisma.message.findUniqueOrThrow({
+        where: { id: messageId },
+        select: EDITED_FIELDS,
+      }),
+    );
   }
 
   /** Hides the message from [userId] only; the other person keeps it. */

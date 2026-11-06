@@ -35,8 +35,8 @@ function presenceRoom(userId: string): string {
 const PRESENCE_TIMEOUT_MS = 1000;
 
 /**
- * Real-time delivery of end-to-end encrypted messages, and who is online.
- * The server only stores and forwards ciphertext; it cannot read messages.
+ * Authenticated real-time delivery of managed messages and legacy history.
+ * New messages are encrypted at rest by the chat service before storage.
  */
 // Mobile clients do not use CORS, so no browser origin is allowed.
 @WebSocketGateway({ cors: { origin: false }, namespace: '/chat' })

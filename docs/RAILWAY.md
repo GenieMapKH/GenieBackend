@@ -6,12 +6,41 @@ Each service restarts, scales and deploys on its own, so one crashing does not t
 Checked against Railway's docs on 2026-10-17 (config-as-code, private networking, healthchecks, monorepos).
 Dashboard labels move around; if one is missing, the setting is in the service's **Settings** tab.
 
+## Existing staging and production deployment
+
+Both environments use the same service ports and private hosts below. Their private
+networks, Redis instances, databases and signing keys stay separate. APK gateway URLs:
+
+- Staging: `https://gateway-staging-c9ff.up.railway.app` (`Tilomnov Stage`).
+- Production: `https://tilomnovgateway.sparkbytekh.com` (`Tilomnov`).
+
+Railway display names are `Gateway`, `Authentication`, `Users`, `property`, `Chat`,
+`payment`, and `Notification`; the `SERVICE` variable selects the lowercase workspace.
+Existing private hosts are `gateway`, `authentication`, `users`, `geniebackend`, `chat`,
+`payment`, and `geniebackend-1e79da11`, followed by `.railway.internal`.
+Authentication uses port **8080** in Railway (local development still defaults to 4001).
+
+Set `DATABASE_POOL_MAX=2`, `DATABASE_POOL_MIN=0`, `DATABASE_POOL_IDLE_SECONDS=10` in
+all six database services. Their combined maximum is 12 against the current 15-session
+pooler limit. Increase capacity or revise this budget before adding replicas. Never
+replace these with the driver's default of 10 connections per service.
+
+`/health` and its 300-second deployment timeout are configured on the live Railway
+service instances. Authentication must expose the shared health controller too.
+Health proves liveness only: run the staging parity suite to verify database-backed
+login, chat and property operations. Production functional mutation tests are not part
+of the 6 November consistency check.
+
+The older config-as-code instructions below are for the legacy files. New deploys use
+the service settings; Railway announced those files stop being supported on 1 December
+2026. Do not attach a legacy config that restores old ports or start commands.
+
 ## 1. Services
 
 | Railway service name | `SERVICE` | `PORT` | Public domain | Config file |
 |---|---|---|---|---|
 | `api-gateway` | `api-gateway` | 4000 | **yes** (the only one) | `/railway/api-gateway.json` |
-| `authentication` | `authentication` | 4001 | no | `/railway/authentication.json` |
+| `authentication` | `authentication` | 8080 | no | `/railway/authentication.json` |
 | `user` | `user` | 4002 | no | `/railway/user.json` |
 | `property` | `property` | 4003 | no | `/railway/property.json` |
 | `chat` | `chat` | 4004 | no | `/railway/chat.json` |
@@ -51,7 +80,7 @@ Shared (add to every service that lists them below):
 |---|---|
 | `DATABASE_URL` | **different in every service**: that service's own database login, which can only reach its own schema (docs/DATABASE_SCHEMAS.md). Until a service is given one, the `postgres` pooler URL still works |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | as today |
-| `AUTH_SERVICE_URL` | `http://authentication.railway.internal:4001`: every service fetches the token signing keys from there (docs/SECRET_ROTATION.md) |
+| `AUTH_SERVICE_URL` | `http://authentication.railway.internal:8080`: every service fetches the token signing keys from there (docs/SECRET_ROTATION.md) |
 | `INTERNAL_SERVICE_SECRET` | **new**, 32+ random characters: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `REDIS_URL` | `${{Redis.REDIS_URL}}` |
 | `SENTRY_DSN` | optional, every service: the DSN of the Sentry project for the backend. Unset, nothing is reported. `SENTRY_ENVIRONMENT` (default `production`; e.g. `staging`) and `SENTRY_TRACES_SAMPLE_RATE` (default 0, performance tracing off) are optional too. The release is Railway's `RAILWAY_GIT_COMMIT_SHA`. |
@@ -61,22 +90,22 @@ Per service (everything else comes from the shared list):
 | Service | Variables |
 |---|---|
 | all seven | `SERVICE=<its name>`, `PORT=<its port>`, `HOST=::` (see the note below) |
-| `api-gateway` | `REDIS_URL`, `CORS_ORIGINS`, and the six addresses: `AUTH_SERVICE_URL=http://authentication.railway.internal:4001`, `USER_SERVICE_URL=http://user.railway.internal:4002`, `PROPERTY_SERVICE_URL=http://property.railway.internal:4003`, `CHAT_SERVICE_URL=http://chat.railway.internal:4004`, `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005`, `NOTIFICATION_SERVICE_URL=http://notification.railway.internal:4006` |
-| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=3`, `JWT_KEY_ENCRYPTION_KEY` (its signing keys rotate by themselves; `JWT_PUBLIC_KEY` only during the switch, see docs/SECRET_ROTATION.md), `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push) |
-| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL` |
-| `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
-| `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=5`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_BACKUP_SECRET`, `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
-| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
-| `notification` | `DATABASE_URL`, `DATABASE_POOL_MAX=3`, `AUTH_SERVICE_URL`, `REDIS_URL` (to hear sign-outs), `INTERNAL_SERVICE_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` (the same as `authentication`; without it nothing is pushed) |
+| `api-gateway` | `REDIS_URL`, `CORS_ORIGINS`, and the six addresses: `AUTH_SERVICE_URL=http://authentication.railway.internal:8080`, `USER_SERVICE_URL=http://users.railway.internal:4002`, `PROPERTY_SERVICE_URL=http://geniebackend.railway.internal:4003`, `CHAT_SERVICE_URL=http://chat.railway.internal:4004`, `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005`, `NOTIFICATION_SERVICE_URL=http://geniebackend-1e79da11.railway.internal:4006` |
+| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=2`, `JWT_KEY_ENCRYPTION_KEY` (its signing keys rotate by themselves; `JWT_PUBLIC_KEY` only during the switch, see docs/SECRET_ROTATION.md), `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push) |
+| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL` |
+| `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
+| `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_MESSAGE_SECRET` (32+ characters; preserve and back up), `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
+| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
+| `notification` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `REDIS_URL` (to hear sign-outs), `INTERNAL_SERVICE_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` (the same as `authentication`; without it nothing is pushed) |
 
 Rules that matter:
 
 - `JWT_KEY_ENCRYPTION_KEY` goes **only** on `authentication`. `JWT_PRIVATE_KEY` is no longer read: delete it.
 - `SERVICE` is also a Docker build argument: Railway passes variables to the build, and the `Dockerfile`
   picks the service to build from it. A missing `SERVICE` fails the build with a clear message.
-- **Connection budget.** Each service opens its own database pool. Supabase's pooler allows few
-  connections on small plans, so `DATABASE_POOL_MAX` is 3-5 here (total 16) instead of the default 10
-  (which would be 40). Raise a number only when that service's logs show waiting for a connection.
+- **Connection budget.** Each of the six database services opens its own pool. Keep
+  `DATABASE_POOL_MAX=2` (total 12) below the current 15-session limit, including room for
+  one rolling replacement. Increase database capacity before raising these limits or replicas.
   `DATABASE_POOL_MIN` (default 0) keeps that many connections open while idle, and
   `DATABASE_POOL_IDLE_SECONDS` (default 10) is how long others stay open unused. Opening a connection
   costs a TLS handshake and a login (about 0.4 s from far away, little next to the database), so local

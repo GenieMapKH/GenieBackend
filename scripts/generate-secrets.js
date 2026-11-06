@@ -10,3 +10,5 @@ const secret = () => randomBytes(32).toString('base64');
 
 console.log(`JWT_KEY_ENCRYPTION_KEY=${secret()}`);
 console.log(`INTERNAL_SERVICE_SECRET=${secret()}`);
+
+console.log(`CHAT_MESSAGE_SECRET=${secret()}`);

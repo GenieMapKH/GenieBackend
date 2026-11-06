@@ -35,7 +35,11 @@ describe('MessageActionsService', () => {
       editedAt: now,
     });
     messageTable.deleteMany.mockResolvedValue({ count: 1 });
-    service = new MessageActionsService(prisma as never, attachments as never);
+    service = new MessageActionsService(
+      prisma as never,
+      attachments as never,
+      { seal: (body: unknown) => body, view: (body: unknown) => body } as never,
+    );
   });
 
   describe('edit', () => {

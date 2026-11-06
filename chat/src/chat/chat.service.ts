@@ -1,18 +1,16 @@
+import { MessageProtection } from './message-protection';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JsonCache, PrismaService } from '@tilomnov/shared';
+import { PrismaService } from '@tilomnov/shared';
 import { BlockChecker } from './block-checker';
-import { CHAT_PIN_TTL_SECONDS, chatPinCacheKey } from './chat-pin-cache';
 import { ConversationStateService } from './conversation-state.service';
 import { DISPLAY_FIELDS, displayName } from './display-name';
 import { betweenPair, toMessageView, withReplyTo } from './message-view';
 import { NotificationClient } from './notification.client';
-import { PUBLIC_KEY_TTL_SECONDS, publicKeyCacheKey } from './public-key-cache';
 
 export interface Conversation {
   participantId: string;
@@ -39,7 +37,7 @@ type LastMessageRow = Conversation['lastMessage'] & {
 /** Which of a user's conversations to list. */
 export type ConversationList = 'main' | 'archived';
 
-/** An encrypted message as the sender's device submits it. */
+/** A managed transport envelope as the sender submits it. */
 export interface NewMessage {
   /** Chosen by the sender's device, so a retried send is not stored twice. */
   id?: string;
@@ -69,62 +67,11 @@ function isInList(row: LastMessageRow, list: ConversationList): boolean {
 export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cache: JsonCache,
     private readonly states: ConversationStateService,
     private readonly notifications: NotificationClient,
     private readonly blocks: BlockChecker,
+    private readonly protection: MessageProtection,
   ) {}
-
-  /**
-   * Publishes a device's public key. Once the account has a PIN-protected
-   * backup its key is fixed: a different one is refused here and can only come
-   * in through "reset keys" with the current PIN (`ChatBackupService.save`).
-   */
-  async setPublicKey(userId: string, publicKey: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        identityPublicKey: true,
-        keyBackup: { select: { userId: true } },
-      },
-    });
-    if (user?.identityPublicKey === publicKey) return { success: true };
-    if (user?.identityPublicKey && user.keyBackup) {
-      throw new ConflictException(
-        'This account already has chat keys. Replacing them needs the backup PIN.',
-      );
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { identityPublicKey: publicKey },
-    });
-    await this.cache.delete(publicKeyCacheKey(userId));
-    return { success: true };
-  }
-
-  /** Fetched every time a conversation opens. */
-  getPublicKey(userId: string) {
-    return this.cache.remember(
-      publicKeyCacheKey(userId),
-      PUBLIC_KEY_TTL_SECONDS,
-      async () => {
-        const user = await this.prisma.user.findFirst({
-          where: { id: userId, ...VISIBLE },
-          select: { identityPublicKey: true },
-        });
-        if (!user || !user.identityPublicKey) {
-          throw new NotFoundException('Public key not found for this user');
-        }
-        return { identityPublicKey: user.identityPublicKey };
-      },
-    );
-  }
-
-  /** Called when the account is hidden, shown again or deleted. */
-  async forgetPublicKey(userId: string): Promise<void> {
-    await this.cache.delete(publicKeyCacheKey(userId));
-  }
 
   /**
    * Stores an encrypted message and returns it with the sender's display info
@@ -139,13 +86,11 @@ export class ChatService {
 
     // Independent of each other, so asked at once; a refusal is still the
     // one the first failing check gives.
-    const [pin, visible, replyToId, notBlocked] = await Promise.allSettled([
-      this.requireChatPin(senderId),
+    const [visible, replyToId, notBlocked] = await Promise.allSettled([
       this.isVisible(message.recipientId),
       this.quotable(senderId, message),
       this.blocks.requireNotBlocked(senderId, message.recipientId),
     ]);
-    if (pin.status === 'rejected') throw pin.reason;
     if (visible.status === 'rejected') throw visible.reason;
     if (!visible.value) {
       throw new NotFoundException('Recipient not found');
@@ -170,34 +115,11 @@ export class ChatService {
         nonce: stored.nonce,
       });
     }
-    return { ...stored, senderName, senderAvatar: sender.avatarUrl || null };
-  }
-
-  /**
-   * Every account protects its chats with a chat PIN before it chats: the app
-   * asks for one right after sign-in, and this stops a build that skips it.
-   * A backup still locked with the account password does not count; nor does
-   * none at all. One from before PIN tries were counted does.
-   */
-  private async requireChatPin(userId: string): Promise<void> {
-    if (await this.cache.get<boolean>(chatPinCacheKey(userId))) return;
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        backupBlob: true,
-        keyBackup: { select: { protectedBy: true } },
-      },
+    return this.protection.view({
+      ...stored,
+      senderName,
+      senderAvatar: sender.avatarUrl || null,
     });
-    const hasPin =
-      user?.keyBackup?.protectedBy === 'pin' ||
-      (!user?.keyBackup && !!user?.backupBlob);
-    if (!hasPin) {
-      throw new ForbiddenException(
-        'Create your chat PIN before sending messages.',
-      );
-    }
-    await this.cache.set(chatPinCacheKey(userId), true, CHAT_PIN_TTL_SECONDS);
   }
 
   private async createOrFindMessage(
@@ -215,8 +137,11 @@ export class ChatService {
           id: message.id,
           senderId,
           recipientId: message.recipientId,
-          ciphertext: message.ciphertext,
-          nonce: message.nonce,
+          ...this.protection.seal(message, {
+            id: message.id ?? '',
+            senderId,
+            recipientId: message.recipientId,
+          }),
           replyToId,
         },
         include,
@@ -389,7 +314,12 @@ export class ChatService {
               participantId: partnerId,
               participantName: displayName(partner),
               participantAvatar: partner.avatarUrl || null,
-              lastMessage,
+              lastMessage: this.protection.open(lastMessage, {
+                id: lastMessage.id,
+                senderId: lastMessage.senderId,
+                recipientId:
+                  lastMessage.senderId === userId ? partnerId : userId,
+              }),
               unreadCount: unreadBySender.get(partnerId) ?? 0,
             };
           },
@@ -430,7 +360,9 @@ export class ChatService {
       take: limit,
       include: withReplyTo(userId),
     });
-    return newestFirst.reverse().map((row) => toMessageView(row, clearedAt));
+    return newestFirst
+      .reverse()
+      .map((row) => this.protection.view(toMessageView(row, clearedAt)));
   }
 
   private async isVisible(userId: string): Promise<boolean> {

@@ -12,7 +12,6 @@ import {
 import { ApiExcludeController } from '@nestjs/swagger';
 import { serviceCallGuard } from '@tilomnov/shared';
 import { ChatAttachmentService } from './chat-attachment.service';
-import { ChatService } from './chat.service';
 
 /**
  * What the chat service keeps for an account, acted on when the user service
@@ -23,10 +22,7 @@ import { ChatService } from './chat.service';
 @UseGuards(serviceCallGuard('user'))
 @Controller({ path: 'internal/accounts/:userId', version: VERSION_NEUTRAL })
 export class InternalAccountsController {
-  constructor(
-    private readonly chat: ChatService,
-    private readonly attachments: ChatAttachmentService,
-  ) {}
+  constructor(private readonly attachments: ChatAttachmentService) {}
 
   /** The account is being deleted: remove the files it sent and received. */
   @Delete('files')
@@ -37,12 +33,12 @@ export class InternalAccountsController {
     await this.attachments.removeAllOf(userId);
   }
 
-  /** The account was hidden, shown again or deleted: forget its cached public key. */
+  /** Compatibility endpoint for account lifecycle callers; chat reads check account visibility. */
   @Post('visibility-changed')
   @HttpCode(HttpStatus.NO_CONTENT)
   visibilityChanged(
-    @Param('userId', ParseUUIDPipe) userId: string,
+    @Param('userId', ParseUUIDPipe) _userId: string,
   ): Promise<void> {
-    return this.chat.forgetPublicKey(userId);
+    return Promise.resolve();
   }
 }
