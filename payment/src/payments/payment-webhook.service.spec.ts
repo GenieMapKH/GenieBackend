@@ -14,6 +14,7 @@ describe('PaymentWebhookService', () => {
   let service: PaymentWebhookService;
 
   const pending = {
+    provider: 'MOCK',
     id: 'tx-1',
     propertyId: 'p-1',
     status: 'Pending',
@@ -22,6 +23,8 @@ describe('PaymentWebhookService', () => {
   const webhook = { transactionId: 'tx-1', status: 'SUCCESS' as const };
 
   beforeEach(() => {
+    process.env.PAYMENT_MODE = 'mock';
+    process.env.APP_ENV = 'test';
     jest.clearAllMocks();
     provider.verifyWebhook.mockReturnValue(true);
     transactionTable.findUnique.mockResolvedValue(pending);

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { PropertyStatusService } from '../property-status.service';
 import { datesAnew } from '../published-at';
@@ -35,8 +35,8 @@ export class PropertyPublicationService {
     const property = await this.query.findOwned(userId, propertyId);
     this.status.canPublish(property.status);
 
-    await this.prisma.property.update({
-      where: { id: propertyId },
+    const changed = await this.prisma.property.updateMany({
+      where: { id: propertyId, userId, status: property.status },
       // Paying to put a sold or expired listing back on the market dates it
       // anew once paid (see settlePublish); a draft keeps its first date.
       data: {
@@ -44,6 +44,10 @@ export class PropertyPublicationService {
         ...(datesAnew(property.status) && { publishedAt: null }),
       },
     });
+    if (changed.count === 0)
+      throw new ConflictException(
+        'A payment is already in progress for this property.',
+      );
     return { previousStatus: property.status };
   }
 

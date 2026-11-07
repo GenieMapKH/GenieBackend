@@ -215,7 +215,11 @@ without `/v1` and are answered as v1. How versions are added and retired:
 | POST | `/reports` | JWT | report a listing or an account: `{ targetType: listing\|user, targetId, reason, details? }` -> `{ id, status, createdAt }`; the same open report again answers the same one |
 | GET / PATCH | `/reports/admin`, `/reports/admin/:id` | JWT, admin | the review queue `?status=&limit=&cursor=`, and resolving or dismissing one `{ status, note? }` |
 | `*` | `/chat/...` | JWT | keys, backup, conversations, messages |
-| POST | `/payments/checkout` | JWT | `{propertyId}` → `{checkoutUrl, transactionId}` |
+| POST | `/payments/checkout` | JWT | `{propertyId, requestId, method?}` → server-recorded mock purchase; unavailable unless staging/development mock mode is enabled |
+| POST | `/payments/subscriptions/checkout` | JWT | `{tier, method, requestId}` → server-recorded subscription purchase |
+| GET | `/payments/subscriptions/current` | JWT | current paid period or `null` under `subscription` |
+| POST | `/payments/subscriptions/cancel` | JWT | stops renewal; retains the paid plan until its expiry |
+| GET | `/payments/transactions/:id` | JWT, owner | transaction ID and payment status |
 | POST | `/payments/webhook` | signature | called by the payment provider |
 | GET | `/health` | – | liveness |
 

@@ -5,29 +5,33 @@ const ME = '11111111-1111-4111-8111-111111111111';
 const LISTING = '33333333-3333-4333-8333-333333333333';
 
 describe('PaymentCheckoutService', () => {
-  const transactionTable = { create: jest.fn() };
+  const transactionTable = {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    updateMany: jest.fn(),
+    findFirst: jest.fn(),
+  };
   const prisma = { paymentTransaction: transactionTable };
-  const provider = { initiateCheckout: jest.fn() };
-  const property = { begin: jest.fn(), revert: jest.fn() };
+  const property = { begin: jest.fn(), revert: jest.fn(), settle: jest.fn() };
   let service: PaymentCheckoutService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.PAYMENT_MODE = 'mock';
+    process.env.APP_ENV = 'test';
+    transactionTable.findUnique.mockResolvedValue(null);
+    transactionTable.updateMany.mockResolvedValue({ count: 1 });
     property.begin.mockResolvedValue({ previousStatus: 'Draft' });
     property.revert.mockResolvedValue(undefined);
-    transactionTable.create.mockResolvedValue({ id: 'tx-1' });
-    provider.initiateCheckout.mockResolvedValue({
-      checkoutUrl: 'https://pay.test/checkout',
-      abapayDeeplink: 'abamobilebank://pay',
+    transactionTable.create.mockResolvedValue({
+      id: 'tx-1',
+      status: 'Pending',
     });
-    service = new PaymentCheckoutService(
-      prisma as never,
-      provider as never,
-      property as never,
-    );
+    property.settle.mockResolvedValue(undefined);
+    service = new PaymentCheckoutService(prisma as never, property as never);
   });
 
-  it('records a Pending transaction and returns where to pay', async () => {
+  it('records a mock transaction and publishes on the server before reporting success', async () => {
     const result = await service.initiate(ME, LISTING, 'aba_khqr');
 
     expect(property.begin).toHaveBeenCalledWith(ME, LISTING);
@@ -35,20 +39,17 @@ describe('PaymentCheckoutService', () => {
       data: {
         userId: ME,
         propertyId: LISTING,
-        provider: 'ABA_PAYWAY',
-        amount: 50,
+        requestId: 'aba_khqr',
+        provider: 'MOCK',
+        amount: 1,
         status: 'Pending',
       },
     });
-    expect(provider.initiateCheckout).toHaveBeenCalledWith({
-      transactionId: 'tx-1',
-      amount: 50,
-      method: 'aba_khqr',
-    });
+    expect(property.settle).toHaveBeenCalledWith(LISTING, 'Active');
     expect(result).toEqual({
       transactionId: 'tx-1',
-      checkoutUrl: 'https://pay.test/checkout',
-      abapayDeeplink: 'abamobilebank://pay',
+      status: 'Success',
+      isSimulation: true,
     });
   });
 
@@ -61,7 +62,6 @@ describe('PaymentCheckoutService', () => {
       'Cannot publish',
     );
     expect(transactionTable.create).not.toHaveBeenCalled();
-    expect(provider.initiateCheckout).not.toHaveBeenCalled();
   });
 
   it('gives the listing back its status when the transaction cannot be saved', async () => {
@@ -73,7 +73,6 @@ describe('PaymentCheckoutService', () => {
     );
 
     expect(property.revert).toHaveBeenCalledWith(LISTING, 'Expired');
-    expect(provider.initiateCheckout).not.toHaveBeenCalled();
   });
 
   it('still reports the original failure when the listing cannot be given back', async () => {
@@ -83,5 +82,26 @@ describe('PaymentCheckoutService', () => {
     await expect(service.initiate(ME, LISTING, 'aba_khqr')).rejects.toThrow(
       'db down',
     );
+  });
+
+  it('never reveals another account transaction', async () => {
+    transactionTable.findFirst.mockResolvedValue(null);
+    await expect(service.state(ME, 'someone-else-tx')).rejects.toMatchObject({
+      status: 404,
+    });
+    expect(transactionTable.findFirst).toHaveBeenCalledWith({
+      where: { id: 'someone-else-tx', userId: ME },
+      select: { id: true, status: true },
+    });
+  });
+
+  it('does not report paid when a concurrent settlement stored a failure', async () => {
+    transactionTable.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ status: 'Failed' });
+    transactionTable.updateMany.mockResolvedValue({ count: 0 });
+    await expect(
+      service.initiate(ME, LISTING, 'request-1'),
+    ).resolves.toMatchObject({ status: 'Failed' });
   });
 });

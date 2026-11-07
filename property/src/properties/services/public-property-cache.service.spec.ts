@@ -127,6 +127,10 @@ describe('public property cache', () => {
       new ListingChanges(publicCache),
       { locationChanged: jest.fn(), keywordsChanged: jest.fn() } as never,
       counts,
+      {
+        publish: (_userId: string, write: (tx: unknown) => unknown) =>
+          write(prisma),
+      } as never,
     );
     propertyTable.findMany.mockResolvedValue([listing]);
     propertyTable.findFirst.mockResolvedValue(listing);

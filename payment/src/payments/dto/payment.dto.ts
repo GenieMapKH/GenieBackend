@@ -3,8 +3,12 @@ import {
   PAYMENT_METHODS,
   type PaymentMethod,
 } from '../payment-provider.interface';
+import { PaidTier } from '../plan-catalog';
 
 export class CheckoutDto {
+  @IsUUID()
+  requestId: string;
+
   @IsUUID()
   propertyId: string;
 
@@ -12,6 +16,17 @@ export class CheckoutDto {
   @IsOptional()
   @IsIn(PAYMENT_METHODS)
   method?: PaymentMethod;
+}
+
+export class SubscriptionCheckoutDto {
+  @IsUUID()
+  requestId: string;
+
+  @IsIn(['silver', 'gold', 'diamond'])
+  tier: PaidTier;
+
+  @IsIn(PAYMENT_METHODS)
+  method: PaymentMethod;
 }
 
 export class PaymentWebhookDto {

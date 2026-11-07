@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotImplementedException } from '@nestjs/common';
 import { createHmac, timingSafeEqual } from 'crypto';
 import {
   CheckoutRequest,
@@ -20,11 +20,8 @@ import {
  */
 @Injectable()
 export class AbaPaywayProvider implements PaymentProvider {
-  initiateCheckout(request: CheckoutRequest): Promise<ProviderCheckout> {
-    const { transactionId, amount } = request;
-    return Promise.resolve({
-      checkoutUrl: `https://payway.aba.com/checkout?id=${transactionId}&amount=${amount}`,
-    });
+  initiateCheckout(_request: CheckoutRequest): Promise<ProviderCheckout> {
+    throw new NotImplementedException('ABA PayWay is not integrated yet');
   }
 
   /** The mock cannot ask PayWay: only the signed webhook settles a payment. */

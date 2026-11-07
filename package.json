@@ -18,7 +18,7 @@
     "start:auth": "npm run start:prod --workspace=authentication",
     "start:gateway": "npm run start:prod --workspace=api-gateway",
     "test": "npm test --workspaces --if-present && npm run test:scripts",
-    "test:scripts": "node --test \"scripts/secret-rotation/test/*.test.js\"",
+    "test:scripts": "node --test \"scripts/test/*.test.js\" \"scripts/secret-rotation/test/*.test.js\"",
     "lint": "npm run lint:check --workspaces --if-present",
     "db:migrate:deploy": "npx prisma migrate deploy",
     "keys:generate": "node scripts/generate-secrets.js",

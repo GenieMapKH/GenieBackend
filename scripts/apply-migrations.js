@@ -1,6 +1,7 @@
-// Applies migrations from prisma/migrations to the database in DATABASE_URL.
+// Applies migrations using .env (staging/default) or .env.prod-db (--prod).
 //
 //   node scripts/apply-migrations.js 7_user_profile_fields 8_refresh_token_sessions
+//   node scripts/apply-migrations.js 37_subscriptions --prod
 //
 // Why this exists: `prisma migrate deploy` cannot use the pooled DATABASE_URL
 // this project runs on, and nothing applies migrations on deploy. Every
@@ -12,7 +13,7 @@
 //
 // Apply a migration BEFORE starting a backend build that needs it: the
 // services read the new columns as soon as they start.
-require('dotenv').config();
+const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
 const { Client } = require('pg');
@@ -20,14 +21,27 @@ const { Client } = require('pg');
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'prisma', 'migrations');
 
 async function main() {
-  const names = process.argv.slice(2);
+  const args = process.argv.slice(2);
+  const prod = args.includes('--prod');
+  const names = args.filter((arg) => arg !== '--prod');
+  const unknownOption = names.find((name) => name.startsWith('-'));
+  if (unknownOption) throw new Error(`Unknown option: ${unknownOption}`);
   if (names.length === 0) {
     const available = fs.readdirSync(MIGRATIONS_DIR).filter((name) => /^\d+_/.test(name));
     console.error(`Name the migrations to apply, in order. Available:\n  ${available.join('\n  ')}`);
-    process.exit(1);
+    return process.exit(1);
   }
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not set (see .env.example)');
+  const envFile = prod ? '.env.prod-db' : '.env';
+  // Production must never inherit a staging DATABASE_URL from the shell or .env.
+  const env = prod ? {} : process.env;
+  const loaded = dotenv.config({
+    path: path.join(__dirname, '..', envFile),
+    processEnv: env,
+    quiet: true,
+  });
+  if (prod && loaded.error) throw new Error(`Cannot read ${envFile}`);
+  if (!env.DATABASE_URL) {
+    throw new Error(`DATABASE_URL is not set in ${envFile} (use a postgres/admin login, not a service login)`);
   }
 
   // Read every file first, so a typo in a name stops before anything runs.
@@ -36,7 +50,8 @@ async function main() {
     sql: fs.readFileSync(path.join(MIGRATIONS_DIR, name, 'migration.sql'), 'utf8'),
   }));
 
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  console.log(`Applying migrations to ${prod ? 'production' : 'staging/default'} using ${envFile}`);
+  const client = new Client({ connectionString: env.DATABASE_URL });
   await client.connect();
   try {
     await client.query('BEGIN');

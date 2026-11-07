@@ -154,13 +154,17 @@ module.exports = [
   {
     id: 'LST-12',
     area: AREA,
-    title: 'App flow: a listing created as Active goes on the map once its boundary is drawn',
+    title: 'Creating Active respects the publishing limit; an allowed listing goes on the map once its boundary is drawn',
     needs: ['sessions'],
     run: async (t) => {
       const created = await t.call('seller', 'POST', '/properties', {
         body: { title: `${QA_MARK} Land for rent`, price: 900, propertyType: 'Land', listingType: 'Rent', landSize: 500, status: 'Active' },
-        expect: 201,
+        expect: [201, 402],
       });
+      if (created.status === 402) {
+        t.check(created.body.code === 'PUBLISHING_PLAN_REQUIRED', 'missing publishing-plan error code');
+        return;
+      }
       const id = created.body.id;
       t.state.secondListingId = id;
       t.check(created.body.status === 'Active', `status ${created.body.status}`);

@@ -17,7 +17,7 @@ async function check(env) {
     const cacheControl = response.headers['cache-control'];
     checks.push({ method, route, status: response.status, expected, cacheControl });
     console.log(`${env.name}: ${method} ${route}: ${response.status}`);
-    assert.equal(response.status, expected, `${env.name}: ${method} ${route}`);
+    assert([].concat(expected).includes(response.status), `${env.name}: ${method} ${route}: expected ${expected}, received ${response.status}`);
     if (method === 'GET' && expected === 200) {
       assert(cacheControl?.includes('no-store'), `${env.name}: ${route} allows stale HTTP caching`);
     }
@@ -44,8 +44,8 @@ async function check(env) {
     await call('GET', '/chat/backup', session, 404);
     // A missing listing is refused before a transaction or provider call is made.
     await call('POST', '/payments/checkout', {
-      ...session, body: { propertyId: randomUUID() },
-    }, 404);
+      ...session, body: { propertyId: randomUUID(), requestId: randomUUID() },
+    }, [404, 501]);
 
     const other = ENVIRONMENTS[env.name === 'staging' ? 'production' : 'staging'];
     const isolated = await new ApiClient(other.baseUrl).request('GET', '/users/me', session);
