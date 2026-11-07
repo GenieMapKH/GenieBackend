@@ -107,16 +107,29 @@ module.exports = [
   {
     id: 'LST-10',
     area: AREA,
-    title: 'Unpublish takes it off the map; publishing again puts it back',
+    title: 'Unpublish removes cached discovery results and keeps a private unavailable saved card',
     needs: ['published'],
     run: async (t) => {
+      await t.call('buyer', 'POST', '/properties/:id/favorite', { ...listing(t), expect: 201 });
+      const query = { ...QA_SPOT, limit: 50 };
+      const before = await t.call('buyer', 'GET', '/public/properties/closest', { query, expect: 200 });
+      t.check(onMap(before.body, t.state.listingId), 'active listing missing before unpublish');
       const hidden = await t.call('seller', 'PATCH', '/properties/:id/unpublish', { ...listing(t), expect: 200 });
       t.check(hidden.body.status === 'Draft', `status after unpublish ${hidden.body.status}`);
       await t.call(null, 'GET', '/public/properties/:id', { ...listing(t), expect: 404, label: 'detail as guest (unpublished)' });
       const map = await t.call(null, 'GET', '/public/properties/map', { query: QA_AREA, expect: 200, label: 'map (unpublished)' });
       t.check(!onMap(map.body, t.state.listingId), 'still on the map after unpublishing');
+      const closest = await t.call('buyer', 'GET', '/public/properties/closest', { query, expect: 200 });
+      t.check(!onMap(closest.body, t.state.listingId), 'cached closest result still contains draft');
+      for (const savedQuery of [{}, { limit: 10 }]) {
+        const saved = await t.call('buyer', 'GET', '/properties/my/favorites', { query: savedQuery, expect: 200 });
+        const card = itemsOf(saved.body).find((p) => p.id === t.state.listingId);
+        t.check(card?.status === 'Draft', 'saved draft card missing');
+        t.check(fieldsPresent(card, ['description', 'contactPhone', 'lat', 'lng', 'boundaryPoints']).length === 0, 'saved draft exposes private details');
+      }
       const again = await t.call('seller', 'PATCH', '/properties/:id/publish', { ...listing(t), expect: 200, label: 'publish again' });
       t.check(again.body.status === 'Active', `status ${again.body.status}`);
+      await t.call('buyer', 'DELETE', '/properties/:id/favorite', { ...listing(t), expect: 200 });
     },
   },
   {
@@ -125,25 +138,33 @@ module.exports = [
     title: 'Mark as sold, then relist',
     needs: ['published'],
     run: async (t) => {
+      await t.call('buyer', 'POST', '/properties/:id/favorite', { ...listing(t), expect: 201 });
       const sold = await t.call('seller', 'PATCH', '/properties/:id/mark-sold', { ...listing(t), expect: 200 });
       t.check(sold.body.status === 'Sold', `status ${sold.body.status}`);
+      const saved = await t.call('buyer', 'GET', '/properties/my/favorites', { expect: 200 });
+      t.check(itemsOf(saved.body).some((p) => p.id === t.state.listingId && p.status === 'Sold'), 'saved sold card missing');
       await t.call('seller', 'PATCH', '/properties/:id/mark-sold', { ...listing(t), expect: 400, label: 'mark sold again' });
       await t.call('buyer', 'PATCH', '/properties/:id/relist', { ...listing(t), expect: 404, label: 'relist as buyer' });
       const relisted = await t.call('seller', 'PATCH', '/properties/:id/relist', { ...listing(t), expect: 200 });
       t.check(relisted.body.status === 'Active', `status ${relisted.body.status}`);
+      await t.call('buyer', 'DELETE', '/properties/:id/favorite', { ...listing(t), expect: 200 });
       await t.call('seller', 'PATCH', '/properties/:id/relist', { ...listing(t), expect: 400, label: 'relist an active listing' });
     },
   },
   {
     id: 'LST-12',
     area: AREA,
-    title: 'App flow: a listing created as Active goes on the map once its boundary is drawn',
+    title: 'Creating Active respects the publishing limit; an allowed listing goes on the map once its boundary is drawn',
     needs: ['sessions'],
     run: async (t) => {
       const created = await t.call('seller', 'POST', '/properties', {
         body: { title: `${QA_MARK} Land for rent`, price: 900, propertyType: 'Land', listingType: 'Rent', landSize: 500, status: 'Active' },
-        expect: 201,
+        expect: [201, 402],
       });
+      if (created.status === 402) {
+        t.check(created.body.code === 'PUBLISHING_PLAN_REQUIRED', 'missing publishing-plan error code');
+        return;
+      }
       const id = created.body.id;
       t.state.secondListingId = id;
       t.check(created.body.status === 'Active', `status ${created.body.status}`);

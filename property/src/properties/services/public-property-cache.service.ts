@@ -154,9 +154,10 @@ export class PublicPropertyCache {
     );
   }
 
-  detail<T>(propertyId: string, load: () => Promise<T>): Promise<T> {
+  async detail<T>(propertyId: string, load: () => Promise<T>): Promise<T> {
+    const version = await this.version(`${this.detailKey(propertyId)}:version`);
     return this.cache.remember(
-      this.detailKey(propertyId),
+      `${this.detailKey(propertyId)}:v${version}`,
       DETAIL_TTL_SECONDS,
       load,
     );
@@ -173,7 +174,7 @@ export class PublicPropertyCache {
       [listing, movedFrom].flatMap((place) => (place ? cellOf(place) : [])),
     );
     await Promise.all([
-      this.cache.delete(this.detailKey(listing.id)),
+      this.cache.increment(`${this.detailKey(listing.id)}:version`),
       this.cache.increment(TEXT_VERSION_KEY),
       this.cache.increment(WIDE_VERSION_KEY),
       this.cache.increment(ownerVersionKey(listing.userId)),
@@ -183,7 +184,7 @@ export class PublicPropertyCache {
 
   /** Call after a change only the listing's own page shows (its nearby places). */
   async detailChanged(propertyId: string): Promise<void> {
-    await this.cache.delete(this.detailKey(propertyId));
+    await this.cache.increment(`${this.detailKey(propertyId)}:version`);
   }
 
   private async version(key: string): Promise<number> {

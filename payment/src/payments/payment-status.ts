@@ -5,5 +5,5 @@ export const PaymentStatus = {
   Failed: 'Failed',
 } as const;
 
-/** Fee charged to publish a listing. Stub value until pricing is decided. */
-export const PUBLISH_FEE = 50;
+/** USD, tax included; matches the displayed one-time publishing fee. */
+export const PUBLISH_FEE = 1;

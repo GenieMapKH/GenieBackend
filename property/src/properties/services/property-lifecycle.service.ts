@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { boundaryCentroid } from '../boundary-centroid';
 import { BoundaryDto } from '../dto/boundary.dto';
@@ -20,6 +20,7 @@ import {
 import { PropertyQueryService } from './property-query.service';
 import { ListingChanges } from './listing-changes.service';
 import { CachedListing, Position } from './public-property-cache.service';
+import { PublishingAllowanceService } from './publishing-allowance.service';
 
 /** The keyword codes of a property read with PROPERTY_WITH_RELATIONS. */
 const keywordCodes = (property: { keywords?: { keyword: string }[] }) =>
@@ -44,14 +45,20 @@ export class PropertyLifecycleService {
     private readonly listingChanges: ListingChanges,
     private readonly nearby: PropertyNearbyService,
     private readonly counts: PropertyEngagementCounts,
+    private readonly allowance: PublishingAllowanceService,
   ) {}
 
   async create(userId: string, dto: CreatePropertyDto) {
     assertValidDiscount(dto);
-    const property = await this.prisma.property.create({
-      data: toCreateData(userId, dto),
-      include: PROPERTY_WITH_RELATIONS,
-    });
+    const create = (db: Pick<PrismaService, 'property'>) =>
+      db.property.create({
+        data: toCreateData(userId, dto),
+        include: PROPERTY_WITH_RELATIONS,
+      });
+    const property =
+      dto.status === PUBLIC_STATUS
+        ? await this.allowance.publish(userId, create)
+        : await create(this.prisma);
     await this.refreshPublicView(property, [property.status]);
     this.announceIfNowOnMap(null, property);
     // Nobody can have saved, opened or messaged about it yet.
@@ -161,20 +168,37 @@ export class PropertyLifecycleService {
   }
 
   private async setStatus(
-    before: OnMapState & { id: string; publishedAt: Date | null },
+    before: OnMapState & {
+      id: string;
+      userId: string;
+      publishedAt: Date | null;
+    },
     to: string,
   ) {
-    const property = await this.prisma.property.update({
-      where: { id: before.id },
-      // Going live dates it in the feed only the first time, or when it is
-      // back on the market (see publishedAtGoingLive).
-      data: {
-        status: to,
-        ...(to === PUBLIC_STATUS && {
-          publishedAt: publishedAtGoingLive(before.status, before.publishedAt),
-        }),
-      },
-    });
+    if (before.status === 'Pending') {
+      throw new BadRequestException(
+        'This property has a payment in progress. Please wait for confirmation.',
+      );
+    }
+    const update = (db: Pick<PrismaService, 'property'>) =>
+      db.property.update({
+        where: { id: before.id, status: before.status },
+        // Going live dates it in the feed only the first time, or when it is
+        // back on the market (see publishedAtGoingLive).
+        data: {
+          status: to,
+          ...(to === PUBLIC_STATUS && {
+            publishedAt: publishedAtGoingLive(
+              before.status,
+              before.publishedAt,
+            ),
+          }),
+        },
+      });
+    const property =
+      to === PUBLIC_STATUS
+        ? await this.allowance.publish(before.userId, update)
+        : await update(this.prisma);
     await this.refreshPublicView(property, [before.status, to]);
     this.announceIfNowOnMap(before, property);
     if (to === 'Sold' && before.status === PUBLIC_STATUS) {

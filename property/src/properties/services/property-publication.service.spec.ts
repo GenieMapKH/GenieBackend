@@ -38,8 +38,8 @@ describe('PropertyPublicationService', () => {
       const result = await service.beginPublish(ME, LISTING);
 
       expect(query.findOwned).toHaveBeenCalledWith(ME, LISTING);
-      expect(propertyTable.update).toHaveBeenCalledWith({
-        where: { id: LISTING },
+      expect(propertyTable.updateMany).toHaveBeenCalledWith({
+        where: { id: LISTING, userId: ME, status: 'Draft' },
         data: { status: 'Pending' },
       });
       expect(result).toEqual({ previousStatus: 'Draft' });
@@ -51,8 +51,8 @@ describe('PropertyPublicationService', () => {
       await expect(service.beginPublish(ME, LISTING)).resolves.toEqual({
         previousStatus: 'Expired',
       });
-      expect(propertyTable.update).toHaveBeenCalledWith({
-        where: { id: LISTING },
+      expect(propertyTable.updateMany).toHaveBeenCalledWith({
+        where: { id: LISTING, userId: ME, status: 'Expired' },
         data: { status: 'Pending', publishedAt: null },
       });
     });

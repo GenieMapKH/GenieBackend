@@ -1,7 +1,6 @@
 'use strict';
 const path = require('node:path');
 const fs = require('node:fs');
-const crypto = require('node:crypto');
 
 const ENV_FILE = path.join(__dirname, '..', '.env');
 if (fs.existsSync(ENV_FILE)) process.loadEnvFile(ENV_FILE);
@@ -55,22 +54,6 @@ function passwordFor(envName) {
   return value;
 }
 
-/** A fixed chat PIN proof per account (43 base64 chars + "="), as the app derives one from a PIN. */
-function pinVerifierFor(envName, role, salt = 'pin') {
-  return crypto
-    .createHash('sha256')
-    .update(`tilomnov-qa:${envName}:${role}:${salt}`)
-    .digest('base64');
-}
-
-/** A stable fake identity key per account, shaped like the app's X25519 public key. */
-function identityKeyFor(envName, role) {
-  return crypto
-    .createHash('sha256')
-    .update(`tilomnov-qa-key:${envName}:${role}`)
-    .digest('base64');
-}
-
 module.exports = {
   ENVIRONMENTS,
   ROLES,
@@ -79,6 +62,4 @@ module.exports = {
   QA_AREA,
   MIN_REQUEST_GAP_MS,
   passwordFor,
-  pinVerifierFor,
-  identityKeyFor,
 };

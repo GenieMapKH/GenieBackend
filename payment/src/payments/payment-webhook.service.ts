@@ -9,6 +9,7 @@ import { PrismaService } from '@tilomnov/shared';
 import { AbaPaywayProvider } from './aba-payway.provider';
 import { PaymentWebhookDto } from './dto/payment.dto';
 import { PaymentStatus } from './payment-status';
+import { requireMockPayments } from './mock-payment-mode';
 import {
   PropertyPublishingClient,
   PublishOutcome,
@@ -38,6 +39,7 @@ export class PaymentWebhookService {
     dto: PaymentWebhookDto,
     signature: string,
   ): Promise<WebhookResult> {
+    requireMockPayments();
     if (!this.provider.verifyWebhook(dto, signature)) {
       throw new UnauthorizedException('Invalid webhook signature');
     }
@@ -47,6 +49,9 @@ export class PaymentWebhookService {
     });
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
+    }
+    if (!transaction.propertyId || transaction.provider !== 'MOCK') {
+      throw new BadRequestException('Not a mock listing transaction');
     }
 
     if (dto.amount !== undefined && !transaction.amount.equals(dto.amount)) {

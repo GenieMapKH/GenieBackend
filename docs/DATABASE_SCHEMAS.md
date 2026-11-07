@@ -12,7 +12,7 @@ service to its own database later is a matter of copying its schema and changing
 | `account` | authentication, user | `users`, `refresh_tokens`, `password_reset_otps`, `follows`, `user_blocks`, `reports` |
 | `listing` | property | `properties`, `property_images`, `property_likes`, `property_favorites`, `property_views`, `property_contacts`, `property_leads`, `property_nearby_places`, `property_keywords`, `keywords`, `saved_searches`, `saved_search_matches`, `search_history`, `guest_sessions` |
 | `chat` | chat | `messages`, `chat_key_backups`, `chat_conversation_states`, `chat_hidden_messages`, `call_logs` |
-| `payment` | payment | `payment_transactions` |
+| `payment` | payment | `payment_transactions`, `subscriptions` (migration 37) |
 | `notification` | notification | `push_devices`, `notification_preferences`, `promotions` |
 | `public` | nobody | `_prisma_migrations` only; `pg_trgm` lives here too |
 
@@ -36,6 +36,24 @@ public API keys out, not the services. They cannot create or alter tables: schem
 run as `postgres` through `scripts/apply-migrations.js`. A new table in `listing`, `chat`,
 `payment` or `notification` is granted to its owner automatically; a new table in `account`
 needs its grants written in its migration.
+
+Run migrations from `genie-backend` against staging using `.env`:
+
+```sh
+node scripts/apply-migrations.js 37_subscriptions
+```
+
+For production, add the production **postgres/admin** connection string as
+`DATABASE_URL` in the git-ignored `genie-backend/.env.prod-db`, then run:
+
+```sh
+node scripts/apply-migrations.js 37_subscriptions --prod
+```
+
+The existing `*_DATABASE_URL` service logins in `.env.prod-db` cannot alter
+tables. `--prod` reads only that file's `DATABASE_URL`; a missing file or URL
+stops the command without falling back to staging or shell credentials.
+Multiple migration names still run in the order supplied, in one transaction.
 
 Deleting an account deletes its rows in every schema through the foreign keys
 (`ON DELETE CASCADE`); that runs as the table owner, so no extra grants are needed.

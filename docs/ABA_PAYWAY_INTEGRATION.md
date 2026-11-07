@@ -1,8 +1,9 @@
 # ABA PayWay integration
 
-Status (2026-11-04): **not integrated.** The app's checkout screens and the
-provider abstraction are ready. `AbaPaywayProvider` is still a mock. This page
-covers how PayWay works, how it maps onto our code, and what is left to build.
+Status (2026-11-06): **bank integration not implemented.** Mock purchases now
+persist in Postgres and the server enforces publishing limits. The ABA adapter
+refuses live checkout. See [the implemented lifecycle and deployment settings](PAYMENT_AND_CONNECTION_FLOW_2026-11-06.md).
+The provider instructions below describe the work still needed for real payments.
 
 Sources: PayWay developer suite —
 [Purchase](https://developer.payway.com.kh/purchase-14530820e0.md),
@@ -84,30 +85,24 @@ The current `PaymentWebhookDto` and HMAC-SHA256 `x-signature` belong to the mock
 The current webhook route is public (`/payments/webhook` in the gateway's public routes) and must stay public.
 Optionally, allow-list PayWay's source IPs if ABA publishes them.
 
-## Our API contract (what the app calls)
+## Implemented API and enforcement
 
-| Method | Path | Body | Answer | State |
-|---|---|---|---|---|
-| POST | `/v1/payments/checkout` | `{ propertyId, method?: 'aba_pay'\|'aba_khqr' }` | `{ transactionId, checkoutUrl, abapayDeeplink }` | **exists** (mock URL) |
-| POST | `/v1/payments/subscriptions/checkout` | `{ tier: 'silver'\|'gold'\|'diamond', method }` | same shape | **to build** |
-| GET | `/v1/payments/transactions/:id` | – | `{ transactionId, status: 'Pending'\|'Success'\|'Failed' }`, own transactions only | **to build** |
-| GET | `/v1/users/me` | – | add `subscription: { tier, expiresAt }` (absent = Free) | **to build** |
+See [Payment and connection flow](PAYMENT_AND_CONNECTION_FLOW_2026-11-06.md)
+for the current mock API contract, migration 37, expiry, cancellation,
+idempotency and publishing enforcement. Subscription state comes from
+`GET /v1/payments/subscriptions/current`, not `/users/me`.
 
-The app reads a 404 "Cannot POST …" (endpoint missing), a 501, or `{ code: 'PAYMENTS_DISABLED' }` as "payments not available yet". It shows a friendly message and does not treat this as an error.
+## Remaining work before live payments
 
-## Data model still needed
+- Implement the purchase and verification calls above with ABA merchant credentials.
+- Add a unique provider reference of at most 20 characters and store ABA's approval reference.
+- Verify approved status, amount and currency against the stored transaction.
+- Implement reconciliation for lost callbacks and interrupted publishing, refunds and renewal consent.
+- Implement credential-on-file renewal and provider cancellation, respecting the stored cancellation flag.
+- Verify the complete flow on ABA's sandbox before enabling live payments.
 
-- `payment_transactions`: make `property_id` nullable, and add `purpose` (`LISTING_PUBLISH` | `SUBSCRIPTION`), `subscription_tier`, `provider_ref` (unique, ≤20 chars), `currency`, `apv` and `paid_at`.
-- New `subscriptions` table: `user_id`, `tier`, `status`, `current_period_start`, `current_period_end`, `transaction_id`. One active row per user.
-- Plan prices and limits live **on the server**. The app's `PlanCatalog` is display only. App values: Free 1 listing, Silver $5.90 / 20, Gold $8.90 / 50, Diamond $16.90 / 120, one-time publish $1.00, prices include 10% tax. `PUBLISH_FEE` here is still the stub value 50 and must become 1.00.
-- Renewal: PayWay checkout is one payment at a time. A monthly plan is either re-paid each month (remind before `current_period_end`), or set up with PayWay's account-linking / credentials-on-file product, which needs ABA's approval. This is a business decision that is still open.
-
-## Enforcement still open (do with the production switch)
-
-The listing limit is not enforced on the server yet. Today you can publish free through `/properties/:id/publish`, `/relist`, by creating with status `Active`, and by unpublishing with no status check (see the security scan notes). The property service must refuse to publish beyond the plan's limit unless a paid one-time transaction backs that listing.
-
-## Switching on
-
-- Server env: `PAYWAY_BASE_URL`, `PAYWAY_MERCHANT_ID`, `PAYWAY_API_KEY` (secret; never committed).
-- App: build with `--dart-define=PAYMENTS_ENABLED=true`. Without it, staging builds publish one-time listings free (as before) and say subscriptions are not available yet.
-- Test end to end on the PayWay sandbox (register at `https://sandbox.payway.com.kh/register-sandbox/`) before production.
+`PAYMENTS_ENABLED=true` alone cannot enable bank payments. Server checkout
+currently defaults to mock mode in every app environment, persists provider
+`MOCK` and never charges. Set `PAYMENT_MODE=disabled` on the payment service to
+stop simulated purchases and benefits. The placeholder provider returns no
+payment URLs.

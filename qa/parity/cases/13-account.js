@@ -46,7 +46,7 @@ module.exports = [
   {
     id: 'ACC-03',
     area: AREA,
-    title: 'Password proof (for chat PIN recovery): wrong password refused, right one gives a token',
+    title: 'Password verification: wrong password refused, right one gives a short-lived proof',
     needs: ['sessions'],
     run: async (t) => {
       await t.call('seller', 'POST', '/auth/account/password-proof', { body: { password: 'wrong-password' }, expect: [401, 403], label: 'wrong password' });

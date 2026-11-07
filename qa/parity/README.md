@@ -12,6 +12,12 @@ compared: the two databases hold different data.
 
 ## Running
 
+For routine live service checks, use `node check-live.js staging production`.
+This signs an existing QA account in and out, checks authenticated reads, TURN,
+cross-environment token isolation, retired chat routes and a refused checkout for
+a nonexistent listing. It never registers accounts or writes listings, messages,
+preferences or payment transactions. The sanitized report contains no tokens or user data.
+
 ```bash
 cd qa/parity
 npm install                       # once: socket.io-client only

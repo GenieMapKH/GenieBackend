@@ -127,6 +127,10 @@ describe('public property cache', () => {
       new ListingChanges(publicCache),
       { locationChanged: jest.fn(), keywordsChanged: jest.fn() } as never,
       counts,
+      {
+        publish: (_userId: string, write: (tx: unknown) => unknown) =>
+          write(prisma),
+      } as never,
     );
     propertyTable.findMany.mockResolvedValue([listing]);
     propertyTable.findFirst.mockResolvedValue(listing);
@@ -444,5 +448,26 @@ describe('public property cache', () => {
     await query.searchMap(VIEWPORT);
 
     expect(propertyTable.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('public detail invalidation during a read', () => {
+  it('cannot restore an obsolete listing after it is withdrawn', async () => {
+    const cache = new PublicPropertyCache(fakeCache());
+    let finish!: (value: string) => void;
+    const oldRead = cache.detail(
+      'p',
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    await cache.changed({ id: 'p', userId: 'owner', lat: 11.55, lng: 104.92 });
+    finish('old active details');
+    await oldRead;
+    expect(await cache.detail('p', async () => 'unavailable')).toBe(
+      'unavailable',
+    );
   });
 });

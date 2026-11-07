@@ -1,10 +1,9 @@
+import { MessageProtection } from './message-protection';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { fakeCache } from '@tilomnov/shared/testing';
 import { ChatService } from './chat.service';
 import { BlockedException } from './block-checker';
 
@@ -57,7 +56,6 @@ describe('ChatService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // The sender has a chat PIN, as every account does.
     userTable.findUnique.mockResolvedValue({
       id: 'bob',
       backupBlob: null,
@@ -69,94 +67,60 @@ describe('ChatService', () => {
     states.clearedAt.mockResolvedValue(null);
     service = new ChatService(
       prisma as never,
-      fakeCache(),
       states as never,
       notifications as never,
       blocks as never,
+      {
+        seal: (body: unknown) => body,
+        open: (body: unknown) => body,
+        view: (body: unknown) => body,
+      } as never,
     );
     blocks.requireNotBlocked.mockResolvedValue(undefined);
   });
 
-  describe('public keys', () => {
-    it('reads a key from the database once, then from the cache', async () => {
-      userTable.findFirst.mockResolvedValue({ identityPublicKey: 'key-1' });
-
-      expect(await service.getPublicKey('bob')).toEqual({
-        identityPublicKey: 'key-1',
-      });
-      expect(await service.getPublicKey('bob')).toEqual({
-        identityPublicKey: 'key-1',
-      });
-      expect(userTable.findFirst).toHaveBeenCalledTimes(1);
-    });
-
-    it('serves the new key immediately after the owner replaces it', async () => {
-      userTable.update.mockResolvedValue({});
-      userTable.findFirst.mockResolvedValue({ identityPublicKey: 'key-1' });
-      await service.getPublicKey('bob');
-
-      await service.setPublicKey('bob', 'key-2');
-      userTable.findFirst.mockResolvedValue({ identityPublicKey: 'key-2' });
-
-      expect(await service.getPublicKey('bob')).toEqual({
-        identityPublicKey: 'key-2',
-      });
-    });
-
-    it('accepts the first key, and the same key again', async () => {
-      userTable.findUnique.mockResolvedValue({
-        identityPublicKey: null,
-        keyBackup: null,
-      });
-      await expect(service.setPublicKey('bob', 'key-1')).resolves.toEqual({
-        success: true,
-      });
-
-      userTable.findUnique.mockResolvedValue({
-        identityPublicKey: 'key-1',
-        keyBackup: { userId: 'bob' },
-      });
-      await expect(service.setPublicKey('bob', 'key-1')).resolves.toEqual({
-        success: true,
-      });
-      expect(userTable.update).toHaveBeenCalledTimes(1);
-    });
-
-    it('refuses another key once a PIN protects the account, so a stolen session cannot swap it', async () => {
-      userTable.findUnique.mockResolvedValue({
-        identityPublicKey: 'key-1',
-        keyBackup: { userId: 'bob' },
-      });
-
-      await expect(service.setPublicKey('bob', 'attacker-key')).rejects.toThrow(
-        ConflictException,
+  it('stores a managed message encrypted and returns it only after opening it', async () => {
+    process.env.CHAT_MESSAGE_SECRET = 'test-only-chat-message-storage-secret';
+    try {
+      const protection = new MessageProtection();
+      const managed = {
+        id: 'm-1',
+        recipientId: 'bob',
+        nonce: 'managed-v1',
+        ciphertext: Buffer.from(
+          JSON.stringify({
+            v: 1,
+            id: 'm-1',
+            from: 'alice',
+            to: 'bob',
+            text: 'private',
+          }),
+        ).toString('base64'),
+      };
+      service = new ChatService(
+        prisma as never,
+        states as never,
+        notifications as never,
+        blocks as never,
+        protection,
       );
-      expect(userTable.update).not.toHaveBeenCalled();
-    });
-
-    it('has no key to give for a deactivated account', async () => {
-      userTable.findFirst.mockResolvedValue(null);
-
-      await expect(service.getPublicKey('bob')).rejects.toThrow(
-        NotFoundException,
+      messageTable.create.mockImplementation(async ({ data }) => ({
+        ...stored,
+        ...data,
+        sender,
+      }));
+      const received = await service.sendMessage('alice', managed);
+      expect(messageTable.create.mock.calls[0][0].data.ciphertext).not.toBe(
+        managed.ciphertext,
       );
-      expect(userTable.findFirst.mock.calls[0][0].where).toEqual({
-        id: 'bob',
-        deactivatedAt: null,
-      });
-    });
-
-    it('does not remember that a user had no key', async () => {
-      userTable.findFirst.mockResolvedValue({ identityPublicKey: null });
-      await expect(service.getPublicKey('bob')).rejects.toThrow(
-        NotFoundException,
+      expect(received.ciphertext).toBe(managed.ciphertext);
+      expect(received.nonce).toBe('managed-v1');
+      expect(notifications.chatMessage.mock.calls[0][0].ciphertext).not.toBe(
+        managed.ciphertext,
       );
-
-      userTable.findFirst.mockResolvedValue({ identityPublicKey: 'key-1' });
-      expect(await service.getPublicKey('bob')).toEqual({
-        identityPublicKey: 'key-1',
-      });
-    });
+    } finally {
+      delete process.env.CHAT_MESSAGE_SECRET;
+    }
   });
 
   describe('sendMessage', () => {
@@ -253,7 +217,7 @@ describe('ChatService', () => {
       });
       await new Promise((resolve) => setImmediate(resolve));
 
-      expect(pending).toHaveLength(3);
+      expect(pending).toHaveLength(2);
       pending.forEach((answer) => answer());
       await sending;
       expect(messageTable.create.mock.calls[0][0].data.replyToId).toBe('m-0');
@@ -274,69 +238,15 @@ describe('ChatService', () => {
       );
     });
 
-    describe('needs the sender to have a chat PIN', () => {
-      it.each([
-        ['no backup at all', { backupBlob: null, keyBackup: null }],
-        [
-          'a backup the account password still locks',
-          { backupBlob: null, keyBackup: { protectedBy: 'password' } },
-        ],
-      ])('refuses a sender with %s, storing nothing', async (_case, user) => {
-        userTable.findUnique.mockResolvedValue(user);
-
-        await expect(service.sendMessage('alice', newMessage)).rejects.toThrow(
-          ForbiddenException,
-        );
-        expect(messageTable.create).not.toHaveBeenCalled();
+    it('allows messaging without a chat PIN or key backup', async () => {
+      userTable.findUnique.mockResolvedValue({
+        backupBlob: null,
+        keyBackup: null,
       });
-
-      it('says so first, even when the recipient is gone too', async () => {
-        userTable.findUnique.mockResolvedValue({
-          backupBlob: null,
-          keyBackup: null,
-        });
-        userTable.findFirst.mockResolvedValue(null);
-
-        await expect(service.sendMessage('alice', newMessage)).rejects.toThrow(
-          ForbiddenException,
-        );
-      });
-
-      it('accepts a backup from before PIN tries were counted', async () => {
-        userTable.findUnique.mockResolvedValue({
-          backupBlob: 'old-blob',
-          keyBackup: null,
-        });
-
-        await expect(
-          service.sendMessage('alice', newMessage),
-        ).resolves.toMatchObject({ id: 'm-1' });
-      });
-
-      it('remembers a PIN, so each message does not ask the database again', async () => {
-        await service.sendMessage('alice', newMessage);
-        await service.sendMessage('alice', newMessage);
-
-        expect(userTable.findUnique).toHaveBeenCalledTimes(1);
-      });
-
-      it('asks again until a sender without one has created it', async () => {
-        userTable.findUnique.mockResolvedValue({
-          backupBlob: null,
-          keyBackup: null,
-        });
-        await expect(service.sendMessage('alice', newMessage)).rejects.toThrow(
-          ForbiddenException,
-        );
-
-        userTable.findUnique.mockResolvedValue({
-          backupBlob: null,
-          keyBackup: { protectedBy: 'pin' },
-        });
-        await expect(
-          service.sendMessage('alice', newMessage),
-        ).resolves.toMatchObject({ id: 'm-1' });
-      });
+      await expect(
+        service.sendMessage('alice', newMessage),
+      ).resolves.toMatchObject({ id: 'm-1' });
+      expect(userTable.findUnique).not.toHaveBeenCalled();
     });
   });
 

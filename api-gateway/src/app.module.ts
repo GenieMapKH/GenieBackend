@@ -1,3 +1,4 @@
+import { apiCachePolicy } from './api-cache-policy';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 import { createApiVersionMiddleware } from './api-versions';
@@ -49,8 +50,8 @@ export class AppModule implements NestModule {
       });
       if (route.websocket) this.websocketProxies.push(proxy);
       const middleware = route.authenticated
-        ? [rateLimit, apiVersion, AuthMiddleware, proxy]
-        : [rateLimit, apiVersion, proxy];
+        ? [apiCachePolicy, rateLimit, apiVersion, AuthMiddleware, proxy]
+        : [apiCachePolicy, rateLimit, apiVersion, proxy];
       const forRoutes = [
         ...routesFor(route.prefixes),
         ...exactRoutesFor(route.alsoPublic ?? []),

@@ -392,64 +392,30 @@ service. The chat service asks it whether two people may reach each other
   chat keeps working through a user-service outage.
 - Reasons: `spam`, `scam`, `misleading`, `inappropriate`, `duplicate`, `unavailable`, `harassment`,
   `impersonation`, `other` (a CHECK in the database and `REPORT_REASONS`). A message is reported as its sender:
-  the server cannot read it. `details` is at most 1000 characters.
+  moderation access must be authorized separately. `details` is at most 1000 characters.
 - A report is deleted with its target (a deleted listing or account needs no review). Closing a report changes
   nothing else; taking a listing down is a separate step. There is no admin screen yet.
 - Not covered: presence and last seen are still visible to a blocked person.
 
 ---
 
-## 10. Chat: first use (create keys; every account has a chat PIN)
+## 10. Chat: account access
 
-```mermaid
-flowchart LR
-    C["App, at sign-in"] -->|"1 generate identity key pair<br/>(libsodium, on device)"| C
-    C -->|"2 POST /chat/keys<br/>public key"| G["API Gateway"]
-    G --> U["Chat service"]
-    U --> DB2[("users.identity_public_key")]
-```
-
-```mermaid
-flowchart LR
-    C["App, right after sign-up / sign-in<br/>(password or Google)"] -->|"1 GET /chat/backup: none?<br/>ask for 6-digit PIN, twice<br/>(weak PINs refused)"| C
-    C -->|"2 Argon2id(PIN, salt) =<br/>encryption key + verifier"| C
-    C -->|"3 POST /chat/backup<br/>encrypted private key + verifier"| G["API Gateway"]
-    G --> U["Chat service"]
-    U -->|"4 seal with server secret,<br/>store"| DB[("chat_key_backups")]
-```
-
-- Messages are always end-to-end encrypted. Keys are made without asking anything as soon as someone signs in, so they can be messaged before they ever open a chat.
-- **Every account has a 6-digit chat PIN** (since 2026-10-18; before that it was optional, and for a few days password accounts locked their keys with the account password instead). A signed-in account without one is stopped by a full-screen "Create your chat PIN" step before it can use the app: right after signing up, after any sign-in (email/phone and password, or Google), and at the next app start for older accounts. The only way past it is creating the PIN or signing out. The PIN cannot be turned off.
-- Creating the PIN backs up the keys the device holds. A device that does not hold the account's current keys (they were never backed up) makes new ones and swaps the public key and the backup in one step (`POST /chat/keys/reset`, no proof needed while there is no backup); earlier messages cannot be read there.
-- A backup still locked with the account password (`chat_key_backups.protected_by = 'password'`, migration 18) is moved to a PIN by the same step: the password is typed once (a device with the keys proves it with `POST /auth/account/password-proof`; one without opens the backup with it), then the PIN replaces it. If the password was reset since and no device here can open the backup, the user can start over with new keys.
-- The account password no longer touches chat: signing in, changing or creating it leaves the keys alone. It is only used to prove a forgotten PIN is the owner's (section 14).
-- The app asks the server whether a PIN exists once per sign-in. If the server cannot be asked, nobody is blocked; the check runs again at the next start.
-- The server enforces it too. Sending a message needs a PIN-locked backup (`403` "Create your chat PIN before sending messages."), so an app build that skips the PIN cannot chat. A backup still locked with the account password does not count until it is moved; one from before PIN tries were counted does. Only a yes is cached (`chat:has-pin:<user>`, 24 h): a PIN cannot be removed (there is no `POST /chat/backup/remove` any more), and new backups are refused unless `protectedBy` is `pin`.
-- Keys are still published before the PIN exists (`POST /chat/keys`), so others can start a conversation with a brand-new account; that account replies once its PIN is created.
-- With a backup the public key can only be replaced with the PIN or the account password (`POST /chat/keys` answers `409`).
-- The private key never leaves the device unencrypted.
-- The server stores the key encrypted twice: by the PIN-derived key (device) and by `CHAT_BACKUP_SECRET` (server). The PIN proof is stored only as a keyed hash.
+Signed-in users can chat without creating a PIN or device identity keys. JWT verification,
+conversation membership, account visibility and blocking protect access. See the current
+[chat API contract](../README.md#chat).
 
 ## 11. Chat: send and receive a message
 
-```mermaid
-flowchart LR
-    A["Alice's app"] -->|"1 GET /chat/keys/:bob"| G["API Gateway"]
-    A -->|"2 pin Bob's key (first seen = trusted)"| A
-    A -->|"3 encrypt envelope:<br/>from, to, id, text, file"| A
-    A -->|"4 socket sendMessage"| G
-    G -->|"5 JWT (typ=access), WebSocket proxy"| U["User service<br/>ChatGateway"]
-    U -->|"6 rate limit 30 / 10 s, store ciphertext"| DB[("messages")]
-    U -->|"7 emit newMessage to Bob's room"| B["Bob's app(s)"]
-    U -->|"8 ack"| A
-    B -->|"9 decrypt, verify from/to"| B
-```
+The client encodes an envelope containing its UUID, sender, recipient and text, then sends it
+through authenticated TLS/WSS. The server validates those identifiers, encrypts the envelope
+using AES-256-GCM and a fresh IV, and stores it. `CHAT_MESSAGE_SECRET` stays outside the
+database. Authorized history, reply, edit and real-time delivery paths decrypt it for the
+participants. Retrying a UUID does not create a duplicate.
 
-- Server stores `ciphertext + nonce` only. Sender and recipient are **inside** the encrypted envelope, so the server cannot swap or replay messages as someone else's.
-- The client picks the message `id`, so a retry never creates a duplicate.
-- Each user has a Socket.IO room: every device of the recipient and the sender's other devices receive it.
-- If the recipient is offline the message waits in the table; they get it when they open the chat. **There is no push notification.**
-- History: `GET /chat/messages/:id?before=` pages of 50. Conversation list: one SQL query (`DISTINCT ON`) plus unread counts.
+Older ciphertext remains stored but its content is withheld from responses. It cannot be
+opened by the new app. New sends use `nonce: "managed-v1"`; old-format sends are refused.
+Push payloads do not carry readable message text.
 
 ## 12. Chat: presence (online, last seen)
 
@@ -503,7 +469,7 @@ Migration 22: `messages.reply_to_id` (FK to `messages`, `ON DELETE SET NULL`), `
 | Endpoint / event | What it does |
 |---|---|
 | socket `sendMessage { ..., replyToId? }` | A reply. Linked only if that message is in the same conversation; otherwise (deleted meanwhile, or another chat) it is stored as an ordinary message. Every message the app receives (ack, `newMessage`, history) carries `replyTo { id, senderId, recipientId, ciphertext, nonce, createdAt, editedAt }` or `null`, and `editedAt` |
-| `POST /chat/messages/:messageId/edit` `{ ciphertext, nonce }` | The sender's new text, sealed again on their device, within **1 hour** of sending (checked inside the update). `403` someone else's message or too late, `404` not in the caller's conversations. Returns the stored message |
+| `POST /chat/messages/:messageId/edit` `{ ciphertext, nonce }` | The sender's replacement envelope, encrypted by the server before storage, within **1 hour** of sending (checked inside the update). `403` someone else's message or too late, `404` not in the caller's conversations. Returns the stored message |
 | `POST /chat/messages/:messageId/delete` `{ forEveryone?, attachmentPath? }` | Default: hidden from the caller only (history, conversation list preview, unread count); either person may do it. `forEveryone`: sender only (`403` otherwise), no time limit; the row is deleted with nothing left in its place, replies to it lose their quote, and `attachmentPath` (`senderId/recipientId/fileId` of that message, `400` otherwise) is removed from storage. `404` once gone |
 | socket `messageEdited` | The edited message (no `replyTo`), to both people's devices |
 | socket `messageDeleted { messageId, participantId }` | To the caller's devices, and for `forEveryone` to the other person's too. `participantId` is the other person as seen by the receiver |
@@ -513,34 +479,12 @@ Migration 22: `messages.reply_to_id` (FK to `messages`, `ON DELETE SET NULL`), `
 - A quoted message the reader deleted for themselves, or from before they cleared the chat, comes back as `replyTo: null`.
 - Not covered: a push already shown on a phone stays there after the message is deleted or edited.
 
-## 14. Chat key recovery: new phone, change PIN, forgot PIN
+## 14. Chat storage and earlier history
 
-```mermaid
-flowchart LR
-    C["App"] -->|"1 GET /chat/backup<br/>(salt only)"| G["API Gateway"] -->|"forward"| U["User service"]
-    C -->|"2 Argon2id(PIN, salt)"| C
-    C -->|"3 POST /chat/backup/unlock<br/>verifier"| G
-    U -->|"4 row lock, compare keyed hash"| DB[("chat_key_backups")]
-    U -->|"5a right PIN: encrypted key"| C
-    U -->|"5b wrong PIN: 403, count it<br/>5th wrong: lock 15 min, then 30, 60 ... max 24 h"| C
-    C -->|"6 decrypt on device"| C
-```
-
-| Situation | What happens |
-|---|---|
-| New phone, knows PIN | Opening a chat asks for the PIN in a dialog that stays open: steps above, keys restored, old history readable |
-| Wrong PIN | The dialog stays open and shows the tries left (`403 { attemptsLeft }`); the field shakes and clears |
-| 5th wrong PIN | The dialog shows a lock icon and counts down the wait (`429 { retryAfterSeconds }`: 15 min, then 30, 60 ... max 24 h). Closed, the chat screen says "Too many wrong PINs" |
-| No connection while checking | The dialog keeps the PIN and says the check failed; Unlock tries the same PIN again |
-| Password reset by email code | Nothing changes for chat: the PIN still opens the backup |
-| Change PIN | Unlock with the old PIN, re-encrypt, save again. History stays readable |
-| **Forgot PIN** | Confirm with the account password (a Google-only account creates one first), then choose a new PIN. A device that still has the keys keeps the history; otherwise new keys are made and old messages become unreadable |
-| Someone guesses | Locked after 5 wrong tries; count is stored in the database so restarts do not reset it |
-| Old-format backup | Returned whole once, opened with the PIN, then re-saved in the protected format |
-
-Safety code: both people can compare a number derived from both public keys to detect a swapped key.
-
----
+The PIN/key-backup and security-code flows have been removed. Historical message and
+backup rows are retained without exposing a recovery API. New messages depend on the
+stable environment-specific `CHAT_MESSAGE_SECRET`; preserve it separately from database
+backups and rewrap data before any key replacement.
 
 ## 14a. Chat: voice messages
 
@@ -563,7 +507,7 @@ flowchart LR
 
 | Kind | Sent when | Shows | Can be turned off |
 |---|---|---|---|
-| `chat_message` | A new message is stored (not a retried one) | iOS and web: sender name + "New message". Android: a data-only push carrying the sealed message (`ciphertext`, `nonce`, `recipientId`, sender, message id; under 3000 characters, else the generic one), which the app opens with the keys on the phone and shows as a notification with the text. The server and Google only ever carry what is stored: ciphertext | yes (`chatMessages`) |
+| `chat_message` | A new message is stored (not a retried one) | Sender name and "New message". Android may carry server-encrypted ciphertext, which the app does not open. Readable message content arrives through the authenticated chat API | yes (`chatMessages`) |
 | `security_sign_in` | An account already in use signs in on another device | "New sign-in to your account": device name and platform; not sent to the new device | no |
 | `promotion` | An admin sends one | Title, body (Khmer when written in Khmer), optional picture; opens a listing or an HTTPS page | yes (`promotions`) |
 | `call_incoming` / `call_ended` | A call rings / stops ringing | Android: silent and urgent, the app rings full screen. iOS and web: "X is calling" / "Missed call" | no |
@@ -633,7 +577,7 @@ These come from reading the code, not from load testing.
 |---|---|---|
 | 7 | Map and favorites queries have no limit or pagination, and return all images | Cap results, return one thumbnail, paginate |
 | 8 | ~~Rate limits, login attempts, presence and socket rooms live in process memory~~ **Done:** all in Redis, tested with two instances | Remaining: move Redis out of the container (set `REDIS_URL`) before the second instance |
-| 9 | ~~Redis is deployed and used for nothing~~ **Done:** map, listing page, chat keys and public profile are cached with immediate invalidation | Watch the hit rate before caching more |
+| 9 | ~~Redis is deployed and used for nothing~~ **Done:** map, listing page and public profile are cached with immediate invalidation | Watch the hit rate before caching more |
 | 10 | Two ways of reaching the same database: Supabase client in auth, Prisma in user | Pick one (Prisma); simpler to test and migrate |
 | 11 | Schema is applied by hand; `_prisma_migrations` only knows `0_init` | Baseline the migration table, run `prisma migrate deploy` in the pipeline |
 | 12 | Email and phone are never verified at registration | Verify email with a code, like password reset |
@@ -647,10 +591,8 @@ These come from reading the code, not from load testing.
 
 - Anyone signed in can see anyone's online status and public profile.
 - A user with neither name nor username is shown to chat partners by email or phone.
-- Forgetting the chat PIN loses history forever (the price of end-to-end encryption). Consider telling users clearly at PIN creation.
-- A forgotten chat PIN is recovered with the account password (a Google account creates one first). On a device that still has the keys only the PIN changes; on any other device the keys are reset and earlier history is lost. Whoever knows the account password can therefore reset the chat keys; the other person in each chat is warned that the key changed.
 - Deleting an account deletes everything: its files in storage, its payment records, and its messages in other people's conversations with it.
-- The one-day rule covers everything that takes the account away from its other devices: signing them out, changing the password, deactivating and deleting. A legitimate owner on a brand-new device therefore waits a day for those too, or uses an older device, or resets the password by email. Recovering a forgotten chat PIN with the password is not under the rule.
+- The one-day rule covers everything that takes the account away from its other devices: signing them out, changing the password, deactivating and deleting. A legitimate owner on a brand-new device therefore waits a day for those too, or uses an older device, or resets the password by email.
 - Only one contact path to an owner (chat vs contact form): decide which is the product's main one.
 
 ### Not covered

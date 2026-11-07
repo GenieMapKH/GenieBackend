@@ -40,8 +40,12 @@ nightly states can be restored.
    (with access to the GitHub repository) can read every backup. Never commit it.
 
 3. In GitHub, repository **Settings → Secrets and variables → Actions**:
-   - Secret **`BACKUP_DATABASE_URL`**: the database URL, as in `DATABASE_URL` in `.env` (the
-     session pooler on port 5432). Prisma's `?pgbouncer=true` may stay: the script drops it.
+   - Secret **`BACKUP_DATABASE_URL`**: a Supabase **Postgres administrator** connection URL using
+     the **session pooler on port 5432** (for example, user `postgres.<project-ref>`). Do not use
+     one of the restricted service logins: `pg_dump` must read and lock tables across all app
+     schemas. Use the database password from Supabase, not an application login password. Avoid
+     the direct `db.<ref>.supabase.co` host because GitHub Actions may not be able to reach it.
+     Prisma's `?pgbouncer=true` may stay: the script drops it.
    - Variable **`BACKUP_AGE_RECIPIENT`**: the public key, `age1...`.
 
 4. **Actions → Database backup → Run workflow** to make the first one now, and check it is green.

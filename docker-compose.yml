@@ -1,7 +1,8 @@
 # One container per service, so a service that crashes or is redeployed only
 # takes down its own routes. Every service is built from the same Dockerfile.
 #
-#   docker compose up -d --build     build and start
+#   docker compose up -d --build     build changed layers and start changed services
+#   docker compose up -d --build --no-deps chat   rebuild/start only chat
 #   docker compose logs -f chat      follow one service's logs
 #   docker compose restart chat      restart one service, the others keep running
 #   docker compose down              stop and remove
@@ -12,6 +13,7 @@
 # `restart: unless-stopped` brings each service back by itself, on its own.
 # Only the gateway publishes a port; the rest are reachable by name inside the
 # compose network. Service-to-service calls are signed with INTERNAL_SERVICE_SECRET.
+# Local builds omit provenance so cached rebuilds keep stable image IDs.
 
 x-service: &service
   restart: unless-stopped
@@ -41,7 +43,7 @@ services:
 
   authentication:
     <<: *service
-    build: { context: ., args: { SERVICE: authentication } }
+    build: { context: ., provenance: false, args: { SERVICE: authentication } }
     environment:
       <<: *shared-environment
       PORT: "4001"
@@ -50,7 +52,7 @@ services:
 
   user:
     <<: *service
-    build: { context: ., args: { SERVICE: user } }
+    build: { context: ., provenance: false, args: { SERVICE: user } }
     environment:
       <<: *shared-environment
       PORT: "4002"
@@ -58,7 +60,7 @@ services:
 
   property:
     <<: *service
-    build: { context: ., args: { SERVICE: property } }
+    build: { context: ., provenance: false, args: { SERVICE: property } }
     environment:
       <<: *shared-environment
       PORT: "4003"
@@ -66,7 +68,7 @@ services:
 
   chat:
     <<: *service
-    build: { context: ., args: { SERVICE: chat } }
+    build: { context: ., provenance: false, args: { SERVICE: chat } }
     environment:
       <<: *shared-environment
       PORT: "4004"
@@ -74,7 +76,7 @@ services:
 
   payment:
     <<: *service
-    build: { context: ., args: { SERVICE: payment } }
+    build: { context: ., provenance: false, args: { SERVICE: payment } }
     environment:
       <<: *shared-environment
       PORT: "4005"
@@ -82,7 +84,7 @@ services:
 
   notification:
     <<: *service
-    build: { context: ., args: { SERVICE: notification } }
+    build: { context: ., provenance: false, args: { SERVICE: notification } }
     environment:
       <<: *shared-environment
       PORT: "4006"
@@ -90,7 +92,7 @@ services:
 
   api-gateway:
     <<: *service
-    build: { context: ., args: { SERVICE: api-gateway } }
+    build: { context: ., provenance: false, args: { SERVICE: api-gateway } }
     ports:
       - "4000:4000"
     environment:

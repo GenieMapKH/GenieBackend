@@ -5,10 +5,14 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { CurrentUserId, JwtAuthGuard } from '@tilomnov/shared';
+import { AuthenticatedUser, JwtAuthGuard } from '@tilomnov/shared';
 import { CheckoutDto, PaymentWebhookDto } from './dto/payment.dto';
 import { PaymentCheckoutService } from './payment-checkout.service';
 import { PaymentWebhookService } from './payment-webhook.service';
@@ -23,12 +27,24 @@ export class PaymentsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('checkout')
-  initiateCheckout(@CurrentUserId() userId: string, @Body() dto: CheckoutDto) {
+  initiateCheckout(
+    @Req() request: { user: AuthenticatedUser },
+    @Body() dto: CheckoutDto,
+  ) {
     return this.checkout.initiate(
-      userId,
+      request.user.userId,
       dto.propertyId,
-      dto.method ?? 'aba_khqr',
+      dto.requestId,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('transactions/:id')
+  state(
+    @Req() request: { user: AuthenticatedUser },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.checkout.state(request.user.userId, id);
   }
 
   /** Called by the payment provider, not by users. Authenticated by signature. */

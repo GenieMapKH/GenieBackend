@@ -67,6 +67,7 @@ model User {
   /// Set while the owner has switched the account off; signing in clears it.
   deactivatedAt DateTime?            @map("deactivated_at") @db.Timestamptz(6)
   payments     PaymentTransaction[]
+  subscription Subscription?
   properties    Property[]
   contacts      PropertyContact[]
   favorites     PropertyFavorite[]
@@ -316,19 +317,42 @@ model PropertyContact {
 model PaymentTransaction {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String   @map("user_id") @db.Uuid
-  propertyId String   @map("property_id") @db.Uuid
+  propertyId String?  @map("property_id") @db.Uuid
+  purpose    String   @default("LISTING_PUBLISH")
+  subscriptionTier String? @map("subscription_tier")
+  requestId  String?  @map("request_id") @db.Uuid
+  currency   String   @default("USD")
+  paidAt     DateTime? @map("paid_at") @db.Timestamptz(6)
   provider   String
   externalId String?  @map("external_id")
   amount     Decimal  @db.Decimal(10, 2)
   status     String   @default("Pending")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription?
 
   @@index([userId])
   @@index([propertyId])
+  @@unique([userId, requestId])
   @@map("payment_transactions")
+  @@schema("payment")
+}
+
+/// The latest purchased period; cancellation stops renewal, never paid access.
+model Subscription {
+  userId String @id @map("user_id") @db.Uuid
+  tier String
+  currentPeriodStart DateTime @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd DateTime @map("current_period_end") @db.Timestamptz(6)
+  cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  transactionId String @unique @map("transaction_id") @db.Uuid
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
+
+  @@map("subscriptions")
   @@schema("payment")
 }
 

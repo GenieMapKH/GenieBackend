@@ -1,0 +1,593 @@
+{
+  "checkedAt": "2026-11-06T13:45:58.915460+00:00",
+  "Staging": {
+    "Authentication": {
+      "deployment": "9019da1c-430f-4bcc-90c6-9618432382af",
+      "status": "SUCCESS",
+      "image": "sha256:4f15954ef66be95be8c92dd85e53b897eae63274d3b40b5dcb915259155a1bdf",
+      "healthcheck": "/health",
+      "workspace": "authentication",
+      "port": "8080",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://nzurymawikvamjjfbdmz.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": []
+    },
+    "Users": {
+      "deployment": "bf1419b0-bc3e-4ba6-8273-ea58a33bcf8f",
+      "status": "SUCCESS",
+      "image": "sha256:b8ef90761257e82912cf9df5e249639159386273502cfce620983fd3850d08e1",
+      "healthcheck": "/health",
+      "workspace": "user",
+      "port": "4002",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://nzurymawikvamjjfbdmz.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003"
+      },
+      "pendingVariableKeys": []
+    },
+    "property": {
+      "deployment": "73a887c4-50da-4ed3-982f-a3166be6f15d",
+      "status": "SUCCESS",
+      "image": "sha256:c15d576a4f2d48150f554b3b8815313920caa4c9bc81cf950ef8454592d6649a",
+      "healthcheck": "/health",
+      "workspace": "property",
+      "port": "4003",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://nzurymawikvamjjfbdmz.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": []
+    },
+    "Chat": {
+      "deployment": "ae69099e-c10b-4f7b-a7cd-aae66d2cc03d",
+      "status": "SUCCESS",
+      "image": "sha256:9056c35bba076999587479a32543abaa609143266f5f24e199e15b63b1df5396",
+      "healthcheck": "/health",
+      "workspace": "chat",
+      "port": "4004",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://nzurymawikvamjjfbdmz.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "Notification": {
+      "deployment": "0fb1bc5d-9d9e-4309-b8fa-97c1ec130ba3",
+      "status": "SUCCESS",
+      "image": "sha256:d0048adc563e4b1586a230e9708697c0d1a02e6b8ed6ef025309ebb9a2ab281c",
+      "healthcheck": "/health",
+      "workspace": "notification",
+      "port": "4006",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": null,
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080"
+      },
+      "pendingVariableKeys": []
+    },
+    "payment": {
+      "deployment": "dd6ae1e5-d571-425d-a429-017d291dbfd9",
+      "status": "SUCCESS",
+      "image": "sha256:1e4ff7a4176d7d12fe4df450c7ac4dc4e8a18bffd677e847b49e45e125e8c320",
+      "healthcheck": "/health",
+      "workspace": "payment",
+      "port": "4005",
+      "databaseProject": "nzurymawikvamjjfbdmz",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": null,
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003"
+      },
+      "pendingVariableKeys": []
+    },
+    "Gateway": {
+      "deployment": "8366b6d4-ccaf-4cc8-94fb-8f533a1d5123",
+      "status": "SUCCESS",
+      "image": "sha256:a3fc147b9b3e3cea3eb64587608d45f74a25cfe91b626d758ef6678017acc3a0",
+      "healthcheck": "/health",
+      "workspace": "api-gateway",
+      "port": "4000",
+      "databaseProject": null,
+      "databaseHost": null,
+      "databasePort": null,
+      "storage": null,
+      "poolMax": null,
+      "poolMin": null,
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "PAYMENT_SERVICE_URL": "http://payment.railway.internal:4005",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": []
+    },
+    "connectionBudget": {
+      "instancesPerService": 1,
+      "services": 6,
+      "maximumSessions": 12,
+      "poolerSessionLimitObserved": 15
+    }
+  },
+  "production": {
+    "Authentication": {
+      "deployment": "2cc293b1-a38a-45fb-ae6c-14ce41f59977",
+      "status": "SUCCESS",
+      "image": "sha256:4f10d8b109dfe74ad2ef6b54c8627e6693331c7f34894fb1d7ba43c2d408d3a7",
+      "healthcheck": "/health",
+      "workspace": "authentication",
+      "port": "8080",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://ovrwutngmsompqpchlgt.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "Users": {
+      "deployment": "858dc6bb-a2b5-4a2c-a1fc-7af70e12bcce",
+      "status": "SUCCESS",
+      "image": "sha256:4f7775d5702da40cb0f09f36db6b3cf11dedf894abdbd412edd39a15981c1a53",
+      "healthcheck": "/health",
+      "workspace": "user",
+      "port": "4002",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://ovrwutngmsompqpchlgt.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "property": {
+      "deployment": "f9d9a7ed-42ce-49d5-8f07-48fd1ebbe101",
+      "status": "SUCCESS",
+      "image": "sha256:6ce9b886681b06b01a7d09b454625f719fd20b3575df573e5b7d0ffa94ba856f",
+      "healthcheck": "/health",
+      "workspace": "property",
+      "port": "4003",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://ovrwutngmsompqpchlgt.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "Chat": {
+      "deployment": "d24fded2-c6aa-43ab-98a0-9bf444e53acf",
+      "status": "SUCCESS",
+      "image": "sha256:623b1fdab4382cb3079811a7bb8746f4906671fe1d759403773c6c0a15959054",
+      "healthcheck": "/health",
+      "workspace": "chat",
+      "port": "4004",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": "https://ovrwutngmsompqpchlgt.supabase.co",
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "Notification": {
+      "deployment": "86c0d8f4-07d3-4496-a971-55d10716f153",
+      "status": "SUCCESS",
+      "image": "sha256:c95493f4c234ba551b34f1eedf5c09ca97ff63c2a31a138fb3d125ef49163efa",
+      "healthcheck": "/health",
+      "workspace": "notification",
+      "port": "4006",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": null,
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "payment": {
+      "deployment": "a7ff4e79-28e1-4d8e-9521-5c1d3b671770",
+      "status": "SUCCESS",
+      "image": "sha256:a0450e3b9888d5cdb0c8e3d86dda11e3a614a308282449bc0fab44cc7dd3103e",
+      "healthcheck": "/health",
+      "workspace": "payment",
+      "port": "4005",
+      "databaseProject": "ovrwutngmsompqpchlgt",
+      "databaseHost": "aws-0-ap-southeast-1.pooler.supabase.com",
+      "databasePort": 5432,
+      "storage": null,
+      "poolMax": "2",
+      "poolMin": "0",
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003"
+      },
+      "pendingVariableKeys": [],
+      "secretManagerMatches": true
+    },
+    "Gateway": {
+      "deployment": "fb253657-302a-44e0-950a-abcbb637f830",
+      "status": "SUCCESS",
+      "image": "sha256:090d027997dc724f8eac86102650166d17c6509d7f49303943233542ed4f4b62",
+      "healthcheck": "/health",
+      "workspace": "api-gateway",
+      "port": "4000",
+      "databaseProject": null,
+      "databaseHost": null,
+      "databasePort": null,
+      "storage": null,
+      "poolMax": null,
+      "poolMin": null,
+      "urls": {
+        "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+        "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+        "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+        "PAYMENT_SERVICE_URL": "http://payment.railway.internal:4005",
+        "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+        "USER_SERVICE_URL": "http://users.railway.internal:4002"
+      },
+      "pendingVariableKeys": []
+    },
+    "connectionBudget": {
+      "instancesPerService": 1,
+      "services": 6,
+      "maximumSessions": 12,
+      "poolerSessionLimitObserved": 15
+    }
+  },
+  "artifacts": {
+    "staging": {
+      "name": "tilomnov-staging.apk",
+      "bytes": 54324629,
+      "sha256": "aa16d2e2e4cdf814e1cc47ea3c0e70009184f2a6eb75edb3ea6da492413d63f2",
+      "packageId": "com.sparkbytekh.tilomnov.staging"
+    },
+    "production": {
+      "name": "tilomnov-production.apk",
+      "bytes": 54322845,
+      "sha256": "79ca11b37fe51504ba0216a0dd26613c26da6d23c67c7812958ef156b421025d",
+      "packageId": "com.sparkbytekh.tilomnov"
+    }
+  },
+  "liveChecks": {
+    "checkedAt": "2026-11-06T13:44:56.952Z",
+    "environments": [
+      {
+        "environment": "staging",
+        "gateway": "https://gateway-staging-c9ff.up.railway.app",
+        "checks": [
+          {
+            "method": "POST",
+            "route": "/auth/login",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/users/me",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/auth/sessions",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/properties?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/properties/my/favorites?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/conversations?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/notifications/preferences",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/public/properties/closest?lat=11.55&lng=104.92&limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/calls/ice-servers",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/backup",
+            "status": 404,
+            "expected": 404,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "POST",
+            "route": "/payments/checkout",
+            "status": 404,
+            "expected": 404,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "production:/users/me",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "method": "POST",
+            "route": "/auth/logout",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/users/me",
+            "status": 401,
+            "expected": 401,
+            "cacheControl": "no-store"
+          }
+        ]
+      },
+      {
+        "environment": "production",
+        "gateway": "https://tilomnovgateway.sparkbytekh.com",
+        "checks": [
+          {
+            "method": "POST",
+            "route": "/auth/login",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/users/me",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/auth/sessions",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/properties?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/properties/my/favorites?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/conversations?limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/notifications/preferences",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/public/properties/closest?lat=11.55&lng=104.92&limit=1",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/calls/ice-servers",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/chat/backup",
+            "status": 404,
+            "expected": 404,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "POST",
+            "route": "/payments/checkout",
+            "status": 404,
+            "expected": 404,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "staging:/users/me",
+            "status": 401,
+            "expected": 401
+          },
+          {
+            "method": "POST",
+            "route": "/auth/logout",
+            "status": 200,
+            "expected": 200,
+            "cacheControl": "no-store"
+          },
+          {
+            "method": "GET",
+            "route": "/users/me",
+            "status": 401,
+            "expected": 401,
+            "cacheControl": "no-store"
+          }
+        ]
+      }
+    ]
+  },
+  "failures": [],
+  "currentDeploymentLogChecks": [
+    {
+      "environment": "Staging",
+      "service": "Authentication",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "Staging",
+      "service": "Users",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "Staging",
+      "service": "property",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "Staging",
+      "service": "Chat",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "Staging",
+      "service": "Notification",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "Staging",
+      "service": "payment",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "Authentication",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "Users",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "property",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "Chat",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "Notification",
+      "databaseOrConnectionErrorLines": 0
+    },
+    {
+      "environment": "production",
+      "service": "payment",
+      "databaseOrConnectionErrorLines": 0
+    }
+  ],
+  "completedAt": "2026-11-06T13:50:18.537175+00:00"
+}

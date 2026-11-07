@@ -10,7 +10,8 @@ export interface PoolOptions {
  * Pool settings from the environment. Every service has its own pool, and
  * all of them share the database's connection limit (see docs/RAILWAY.md).
  *
- * - `DATABASE_POOL_MAX`: most connections at once (default 10).
+ * - `DATABASE_POOL_MAX`: most connections at once (default 2). Six services
+ *   share 15 session slots; leave capacity for rolling deploys and tools.
  * - `DATABASE_POOL_MIN`: connections kept open while idle (default 0). Opening
  *   one costs a TLS handshake and a login: about 0.4 s when the database is
  *   far away, as it is from a developer's machine. Kept connections also hold
@@ -20,7 +21,7 @@ export interface PoolOptions {
  *   stays open unused (default 10, the driver's own default).
  */
 export function poolOptions(env: NodeJS.ProcessEnv = process.env): PoolOptions {
-  const max = positiveInt(env.DATABASE_POOL_MAX) ?? 10;
+  const max = positiveInt(env.DATABASE_POOL_MAX) ?? 2;
   const min = Math.min(nonNegativeInt(env.DATABASE_POOL_MIN) ?? 0, max);
   const idleSeconds = positiveInt(env.DATABASE_POOL_IDLE_SECONDS) ?? 10;
   // Keepalive stops a connection kept open from being dropped silently by
