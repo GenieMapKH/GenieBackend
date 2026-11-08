@@ -14,6 +14,7 @@ import { KnownLoginDevices } from './login-protection/known-login-devices.store'
 import { LoginThrottle } from './login-protection/login-throttle.service';
 import { EmailDeliveryService } from './mail/email-delivery.service';
 import { OtpEmailService } from './mail/otp-email.service';
+import { OrderEmailController } from './mail/order-email.controller';
 import { NotificationClient } from './notifications/notification.client';
 import { PasswordResetOtpRepository } from './password-reset/password-reset-otp.repository';
 import { PasswordResetService } from './password-reset/password-reset.service';
@@ -37,6 +38,10 @@ import { SigningKeyStore } from './signing-keys/signing-key.store';
 import { TokenSigner } from './signing-keys/token-signer.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
 import { UserRepository } from './users/user.repository';
+import { EmailVerificationService } from './verification/email-verification.service';
+import { PhoneProofService } from './verification/phone-proof.service';
+import { VerificationController } from './verification/verification.controller';
+import { AccountPhoneService } from './account/account-phone.service';
 
 @Module({
   controllers: [
@@ -44,8 +49,13 @@ import { UserRepository } from './users/user.repository';
     SessionsController,
     AccountController,
     JwksController,
+    OrderEmailController,
+    VerificationController,
   ],
   providers: [
+    EmailVerificationService,
+    PhoneProofService,
+    AccountPhoneService,
     SigningKeyRepository,
     SigningKeyStore,
     SigningKeyRotationService,

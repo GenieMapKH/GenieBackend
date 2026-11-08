@@ -46,6 +46,8 @@ model User {
   id            String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   phone         String?              @unique
   email         String?              @unique
+  emailVerified Boolean              @default(false) @map("email_verified")
+  phoneVerified Boolean              @default(false) @map("phone_verified")
   passwordHash  String               @map("password_hash")
   /// False while `passwordHash` is a value nobody can match: an account made
   /// by Google sign-in whose owner has not chosen a password yet.
@@ -110,6 +112,16 @@ model User {
   @@index([phone], map: "idx_users_phone", where: raw("(phone IS NOT NULL)"))
   @@index([firebaseUid], map: "idx_users_firebase_uid", where: raw("(firebase_uid IS NOT NULL)"))
   @@map("users")
+  @@schema("account")
+}
+
+model EmailVerification {
+  email String @id
+  codeHash String @map("code_hash")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+
+  @@map("email_verifications")
+  @@index([expiresAt])
   @@schema("account")
 }
 
@@ -323,6 +335,9 @@ model PaymentTransaction {
   requestId  String?  @map("request_id") @db.Uuid
   currency   String   @default("USD")
   paidAt     DateTime? @map("paid_at") @db.Timestamptz(6)
+  paymentMethod String? @map("payment_method")
+  subscriptionPeriodStart DateTime? @map("subscription_period_start") @db.Timestamptz(6)
+  subscriptionPeriodEnd DateTime? @map("subscription_period_end") @db.Timestamptz(6)
   provider   String
   externalId String?  @map("external_id")
   amount     Decimal  @db.Decimal(10, 2)

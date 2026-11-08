@@ -6,6 +6,15 @@ import { PrismaService } from '@tilomnov/shared';
 export class PresenceService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async isVisible(userId: string): Promise<boolean> {
+    return (
+      (await this.prisma.user.findFirst({
+        where: { id: userId, deactivatedAt: null },
+        select: { id: true },
+      })) !== null
+    );
+  }
+
   /** Records that the user just went offline and returns that moment. */
   async markLastSeen(userId: string): Promise<Date> {
     const lastSeenAt = new Date();

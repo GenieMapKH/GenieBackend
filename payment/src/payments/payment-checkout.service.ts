@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { requireMockPayments } from './mock-payment-mode';
+import { PaymentGatewayService } from './payment-gateway.service';
+import { PaymentMethod, PaymentProvider } from './payment-provider.interface';
 import { PaymentStatus, PUBLISH_FEE } from './payment-status';
 import { PropertyPublishingClient } from './property/property-publishing.client';
 
@@ -17,10 +19,18 @@ export class PaymentCheckoutService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly property: PropertyPublishingClient,
+    private readonly gateway: PaymentGatewayService,
+    private readonly provider: PaymentProvider,
   ) {}
 
-  async initiate(userId: string, propertyId: string, requestId: string) {
-    requireMockPayments();
+  async initiate(
+    userId: string,
+    propertyId: string,
+    requestId: string,
+    method: PaymentMethod = 'aba_khqr',
+  ) {
+    if (this.provider.name === 'MOCK' || process.env.PAYMENT_MODE !== 'live')
+      requireMockPayments();
     const previous = await this.prisma.paymentTransaction.findUnique({
       where: { userId_requestId: { userId, requestId } },
     });
@@ -33,7 +43,7 @@ export class PaymentCheckoutService {
           'This checkout reference was already used.',
         );
       }
-      return this.completeMock(previous.id, propertyId, previous.status);
+      return this.gateway.checkout(previous);
     }
     // Only the owner may pay to publish, and only from a publishable status:
     // the property service decides, and parks the listing as Pending.
@@ -46,7 +56,8 @@ export class PaymentCheckoutService {
           userId,
           propertyId,
           requestId,
-          provider: 'MOCK',
+          provider: this.provider.name,
+          paymentMethod: method,
           amount: PUBLISH_FEE,
           status: PaymentStatus.Pending,
         },
@@ -63,36 +74,7 @@ export class PaymentCheckoutService {
       throw error;
     }
 
-    return this.completeMock(transaction.id, propertyId, transaction.status);
-  }
-
-  private async completeMock(
-    transactionId: string,
-    propertyId: string,
-    status: string,
-  ) {
-    if (status === PaymentStatus.Pending) {
-      // Publish first: a lost answer can safely retry this idempotent operation.
-      await this.property.settle(propertyId, 'Active');
-      const updated = await this.prisma.paymentTransaction.updateMany({
-        where: { id: transactionId, status: PaymentStatus.Pending },
-        data: { status: PaymentStatus.Success, paidAt: new Date() },
-      });
-      if (updated.count > 0) {
-        status = PaymentStatus.Success;
-      } else {
-        const saved = await this.prisma.paymentTransaction.findUnique({
-          where: { id: transactionId },
-        });
-        if (!saved) throw new NotFoundException('Transaction not found');
-        status = saved.status;
-      }
-    }
-    return {
-      transactionId,
-      status,
-      isSimulation: true,
-    };
+    return this.gateway.checkout(transaction);
   }
 
   async state(userId: string, transactionId: string) {
@@ -101,6 +83,6 @@ export class PaymentCheckoutService {
       select: { id: true, status: true },
     });
     if (!transaction) throw new NotFoundException('Transaction not found');
-    return { transactionId: transaction.id, status: transaction.status };
+    return this.gateway.reconcile(transaction.id);
   }
 }

@@ -1,13 +1,13 @@
 import { createHmac } from 'crypto';
-import { AbaPaywayProvider } from './aba-payway.provider';
+import { MockPaymentProvider } from './mock-payment.provider';
 
 const sign = (secret: string, transactionId: string, status: string) =>
   createHmac('sha256', secret)
     .update(`${transactionId}|${status}`)
     .digest('hex');
 
-describe('AbaPaywayProvider webhook verification', () => {
-  const provider = new AbaPaywayProvider();
+describe('MockPaymentProvider webhook verification', () => {
+  const provider = new MockPaymentProvider();
   const webhook = { transactionId: 'tx-1', status: 'SUCCESS' };
   const originalSecret = process.env.PAYMENT_WEBHOOK_SECRET;
 

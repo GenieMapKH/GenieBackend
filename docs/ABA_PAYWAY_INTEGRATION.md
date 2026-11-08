@@ -4,6 +4,8 @@ Status (2026-11-06): **bank integration not implemented.** Mock purchases now
 persist in Postgres and the server enforces publishing limits. The ABA adapter
 refuses live checkout. See [the implemented lifecycle and deployment settings](PAYMENT_AND_CONNECTION_FLOW_2026-11-06.md).
 The provider instructions below describe the work still needed for real payments.
+The shared provider-independent settlement, signed pricing and deployment
+requirements are documented in [Payment gateway handoff](PAYMENT_GATEWAY_HANDOFF.md).
 
 Sources: PayWay developer suite —
 [Purchase](https://developer.payway.com.kh/purchase-14530820e0.md),
@@ -35,7 +37,7 @@ App                     payment service              ABA PayWay            ABA M
 Rules:
 
 - **Never trust the app.** The app coming back from ABA Mobile means nothing. A payment is settled only after the pushback **and** a check-transaction call that answers `APPROVED`. PayWay's own docs say the callback alone is not enough.
-- **Idempotent settle.** This already exists: `PaymentWebhookService` moves a transaction from Pending to its final state once (`updateMany where status = Pending`). A repeated pushback is answered `alreadyProcessed`.
+- **Idempotent settle.** This now lives in `PaymentGatewayService`: a transaction lock serializes fulfillment and the Pending-to-final update. Callbacks and polling both request verified settlement. A repeated callback does not grant benefits again.
 - **Amount check.** Compare check-transaction's `total_amount` and `payment_currency` with the stored transaction before settling.
 
 ## PayWay calls to implement in `AbaPaywayProvider`
@@ -80,7 +82,7 @@ The current `PaymentWebhookDto` and HMAC-SHA256 `x-signature` belong to the mock
 
 1. Accept PayWay's payload.
 2. Look up the transaction by `provider_ref`.
-3. Call `checkTransaction`, and settle only on `PAID`.
+3. Call `PaymentGatewayService.reconcile`, which asks `checkTransaction` and settles only on a matching verified `PAID` result.
 
 The current webhook route is public (`/payments/webhook` in the gateway's public routes) and must stay public.
 Optionally, allow-list PayWay's source IPs if ABA publishes them.
@@ -101,8 +103,8 @@ idempotency and publishing enforcement. Subscription state comes from
 - Implement credential-on-file renewal and provider cancellation, respecting the stored cancellation flag.
 - Verify the complete flow on ABA's sandbox before enabling live payments.
 
-`PAYMENTS_ENABLED=true` alone cannot enable bank payments. Server checkout
+The app `PAYMENTS_ENABLED` switch has been removed; payment mode is server-owned. Server checkout
 currently defaults to mock mode in every app environment, persists provider
 `MOCK` and never charges. Set `PAYMENT_MODE=disabled` on the payment service to
-stop simulated purchases and benefits. The placeholder provider returns no
+stop new purchases while retaining existing paid benefits until expiry. The placeholder provider returns no
 payment URLs.

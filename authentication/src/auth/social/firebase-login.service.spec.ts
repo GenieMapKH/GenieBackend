@@ -37,8 +37,17 @@ describe('FirebaseLoginService', () => {
     password_hash: 'hash-of-a-password-someone-chose',
     has_password: true,
   };
-  const linkedUser = { ...existingUser, firebase_uid: 'fb1' };
-  const googleToken = { uid: 'fb1', email: 'a@b.com', email_verified: true };
+  const linkedUser = {
+    ...existingUser,
+    firebase_uid: 'fb1',
+    email_verified: true,
+  };
+  const googleToken = {
+    uid: 'fb1',
+    email: 'a@b.com',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -103,6 +112,9 @@ describe('FirebaseLoginService', () => {
     expect(patch.password_hash).not.toBe(existingUser.password_hash);
     // The app then offers "Create password" instead of asking for one that no longer works.
     expect(patch.has_password).toBe(false);
+    expect(patch.phone).toBeNull();
+    expect(patch.phone_verified).toBe(false);
+    expect(patch.email_verified).toBe(true);
     expect(sessions.endAllSessions).toHaveBeenCalledWith('u1');
   });
 
@@ -129,7 +141,9 @@ describe('FirebaseLoginService', () => {
       email: 'victim@b.com',
     });
 
-    await service.login('id-token', client);
+    await expect(service.login('id-token', client)).rejects.toMatchObject({
+      status: 401,
+    });
 
     expect(users.findByEmail).not.toHaveBeenCalled();
     expect(users.update).not.toHaveBeenCalledWith('u1', expect.anything());
@@ -140,6 +154,7 @@ describe('FirebaseLoginService', () => {
       uid: 'fb2',
       email: 'new@b.com',
       email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
       name: 'New Person',
       picture: GOOGLE_PHOTO,
     });

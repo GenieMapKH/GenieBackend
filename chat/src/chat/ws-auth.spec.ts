@@ -15,11 +15,16 @@ describe('verifyAccessToken', () => {
   it('returns the user and the session an access token was issued to', async () => {
     await expect(
       verifyAccessToken(sign({ typ: 'access', sid: 'session-1' })),
-    ).resolves.toEqual({ userId: 'user-1', sessionId: 'session-1' });
+    ).resolves.toEqual({
+      userId: 'user-1',
+      sessionId: 'session-1',
+      expiresAt: expect.any(Number),
+    });
     // A token from before sessions existed.
     await expect(verifyAccessToken(sign({ typ: 'access' }))).resolves.toEqual({
       userId: 'user-1',
       sessionId: null,
+      expiresAt: expect.any(Number),
     });
   });
 
@@ -57,6 +62,8 @@ describe('verifyAccessToken', () => {
       ({
         handshake: { headers: {}, auth: { token } },
         data: {} as Record<string, unknown>,
+        once: jest.fn(),
+        disconnect: jest.fn(),
       }) as never;
     const revoked = (...signedOut: string[]) =>
       ({ has: async (id: string) => signedOut.includes(id) }) as never;
@@ -69,6 +76,7 @@ describe('verifyAccessToken', () => {
       expect((socket as { data: unknown }).data).toEqual({
         userId: 'user-1',
         sessionId: 'phone',
+        expiresAt: expect.any(Number),
       });
     });
 
@@ -87,6 +95,26 @@ describe('verifyAccessToken', () => {
       await expect(
         authenticateSocket(socketWith(undefined), revoked()),
       ).rejects.toThrow('No token provided');
+    });
+
+    it('disconnects an idle socket at token expiry without leaking timers into shared socket data', async () => {
+      jest.useFakeTimers();
+      try {
+        const socket = socketWith(sign({ typ: 'access' }, 2)) as unknown as {
+          disconnect: jest.Mock;
+          data: object;
+        };
+        await authenticateSocket(socket as never, revoked());
+        expect(
+          Object.values(socket.data).some(
+            (value) => value !== null && typeof value === 'object',
+          ),
+        ).toBe(false);
+        jest.advanceTimersByTime(2100);
+        expect(socket.disconnect).toHaveBeenCalledWith(true);
+      } finally {
+        jest.useRealTimers();
+      }
     });
   });
 });

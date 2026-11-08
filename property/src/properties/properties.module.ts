@@ -35,6 +35,7 @@ import { PropertySearchService } from './services/property-search.service';
 import { PublicPropertyCache } from './services/public-property-cache.service';
 import { PropertyPhotoStorage } from './storage/property-photo-storage';
 import { PublishingAllowanceService } from './services/publishing-allowance.service';
+import { ExpiredPublishingService } from './services/expired-publishing.service';
 
 @Module({
   imports: [SupabaseModule],
@@ -46,6 +47,7 @@ import { PublishingAllowanceService } from './services/publishing-allowance.serv
     InternalAccountsController,
   ],
   providers: [
+    ExpiredPublishingService,
     PublishingAllowanceService,
     PropertyStatusService,
     PublicPropertyCache,

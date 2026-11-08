@@ -5,13 +5,16 @@ export function otpEmailSubject(otp: string): string {
 }
 
 /** HTML body of the password-reset code email. */
-export function otpEmailHtml(otp: string): string {
+export function otpEmailHtml(
+  otp: string,
+  purpose: 'reset' | 'verification' = 'reset',
+): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Reset Verification Code</title>
+  <title>${purpose === 'reset' ? 'Password Reset' : 'Email'} Verification Code</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #F1F5F9; padding: 40px 16px;">
@@ -30,7 +33,7 @@ export function otpEmailHtml(otp: string): string {
             <td style="padding: 0 40px 32px;">
               <h1 style="margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #0F172A; text-align: center;">Password Reset Code</h1>
               <p style="margin: 0 0 24px; font-size: 15px; line-height: 24px; color: #475569; text-align: center;">
-                We received a request to reset the password for your Tilomnov account. Use the 6-digit verification code below to complete your reset:
+                ${purpose === 'reset' ? 'We received a request to reset the password for your Tilomnov account. Use the 6-digit verification code below to complete your reset:' : 'Use the 6-digit code below to verify this email address for your Tilomnov account:'}
               </p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 0 0 24px; background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 16px; text-align: center;">
                 <tr>
@@ -52,7 +55,7 @@ export function otpEmailHtml(otp: string): string {
                 </tr>
               </table>
               <p style="margin: 0; font-size: 14px; line-height: 22px; color: #64748B; text-align: center;">
-                If you did not request this password reset, please ignore this email or contact support if you have security concerns.
+                If you did not request this code, please ignore this email or contact support if you have security concerns.
               </p>
             </td>
           </tr>

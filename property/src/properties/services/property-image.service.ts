@@ -67,17 +67,32 @@ export class PropertyImageService {
 
     if (added.length > 0) {
       const thumbnails = await this.thumbnails.createFor(added);
-      const lastOrder = Math.max(
-        0,
-        ...property.images.map((image) => image.order),
-      );
-      await this.prisma.propertyImage.createMany({
-        data: added.map((fileName, index) => ({
-          propertyId,
-          url: this.storage.getPublicUrl(fileName),
-          thumbnailUrl: thumbnails.get(fileName) ?? null,
-          order: lastOrder + index + 1,
-        })),
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${propertyId}, 3))`;
+        const current = await tx.property.findFirst({
+          where: { id: propertyId, userId, status: { not: 'Deleted' } },
+          select: { images: { select: { url: true, order: true } } },
+        });
+        if (!current)
+          throw new BadRequestException('Property is no longer available');
+        const attachedNow = new Set(current.images.map((image) => image.url));
+        const fresh = added.filter(
+          (fileName) => !attachedNow.has(this.storage.getPublicUrl(fileName)),
+        );
+        this.ensureRoomFor(current.images.length, fresh.length);
+        const lastOrder = Math.max(
+          0,
+          ...current.images.map((image) => image.order),
+        );
+        if (fresh.length)
+          await tx.propertyImage.createMany({
+            data: fresh.map((fileName, index) => ({
+              propertyId,
+              url: this.storage.getPublicUrl(fileName),
+              thumbnailUrl: thumbnails.get(fileName) ?? null,
+              order: lastOrder + index + 1,
+            })),
+          });
       });
 
       // New photos of a published listing should show up right away.

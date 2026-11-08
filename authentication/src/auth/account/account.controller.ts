@@ -26,6 +26,8 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { AccountEmailService } from './account-email.service';
 import { AccountService } from './account.service';
 import { PasswordProofService } from './password-proof.service';
+import { AccountPhoneService } from './account-phone.service';
+import { ChangePhoneDto } from '../dto/change-phone.dto';
 
 /** Account security for the signed-in user: password, email, deactivate, delete. */
 @ApiTags('auth')
@@ -46,6 +48,7 @@ export class AccountController {
     @Inject(PasswordProofService)
     private readonly passwordProofs: PasswordProofService,
     @Inject(AuthAttemptLimits) private readonly limits: AuthAttemptLimits,
+    private readonly accountPhone: AccountPhoneService,
   ) {}
 
   @Post('change-password')
@@ -94,9 +97,21 @@ export class AccountController {
     @Body() dto: AddEmailDto,
   ) {
     await this.withLimitedTries(user.userId, () =>
-      this.accountEmail.addEmail(user, dto.email, dto.password),
+      this.accountEmail.addEmail(user, dto.email, dto.password, dto.emailProof),
     );
     return { message: 'Email added' };
+  }
+
+  @Post('account/phone')
+  @HttpCode(HttpStatus.OK)
+  async changePhone(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ChangePhoneDto,
+  ) {
+    await this.withLimitedTries(user.userId, () =>
+      this.accountPhone.change(user, dto.phoneToken, dto),
+    );
+    return { message: 'Phone number verified' };
   }
 
   @Post('account/password-proof')

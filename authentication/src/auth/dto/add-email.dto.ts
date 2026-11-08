@@ -16,4 +16,8 @@ export class AddEmailDto {
   @IsNotEmpty({ message: 'Enter your password' })
   @MaxLength(200)
   password!: string;
+
+  @IsString()
+  @MaxLength(4096)
+  emailProof!: string;
 }

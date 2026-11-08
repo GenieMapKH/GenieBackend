@@ -17,9 +17,15 @@
 
 x-service: &service
   restart: unless-stopped
-  env_file:
-    - .env
   environment: &shared-environment
+    NODE_ENV: production
+    APP_ENV: ${APP_ENV:-development}
+    DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-2}
+    DATABASE_POOL_MIN: ${DATABASE_POOL_MIN:-0}
+    DATABASE_POOL_IDLE_SECONDS: ${DATABASE_POOL_IDLE_SECONDS:-10}
+    SENTRY_DSN: ${SENTRY_DSN:-}
+    SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
+    SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     REDIS_URL: redis://redis:6379
     AUTH_SERVICE_URL: http://authentication:4001
     USER_SERVICE_URL: http://user:4002
@@ -27,7 +33,6 @@ x-service: &service
     CHAT_SERVICE_URL: http://chat:4004
     PAYMENT_SERVICE_URL: http://payment:4005
     NOTIFICATION_SERVICE_URL: http://notification:4006
-    INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET in .env (32+ characters)}
 
 services:
   redis:
@@ -46,49 +51,93 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: authentication } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4001"
-      # Its own database login (migration 34); the shared one until that is set.
-      DATABASE_URL: ${AUTHENTICATION_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${AUTHENTICATION_DATABASE_URL:?set the authentication service database login}
+      JWT_KEY_ENCRYPTION_KEY: ${JWT_KEY_ENCRYPTION_KEY:?set JWT_KEY_ENCRYPTION_KEY}
+      JWT_KEY_ROTATION_DAYS: ${JWT_KEY_ROTATION_DAYS:-30}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY:-}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
+      IP_LOCATION_API_URL: ${IP_LOCATION_API_URL:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
 
   user:
     <<: *service
     build: { context: ., provenance: false, args: { SERVICE: user } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4002"
-      DATABASE_URL: ${USER_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${USER_DATABASE_URL:?set the user service database login}
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set the storage service key}
 
   property:
     <<: *service
     build: { context: ., provenance: false, args: { SERVICE: property } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4003"
-      DATABASE_URL: ${PROPERTY_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${PROPERTY_DATABASE_URL:?set the property service database login}
+      DATABASE_READ_URL: ${PROPERTY_DATABASE_READ_URL:-}
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set the storage service key}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_PLACES_REGION_CODES: ${GOOGLE_PLACES_REGION_CODES:-kh}
+      MEILISEARCH_URL: ${MEILISEARCH_URL:-}
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-}
+      FEED_OWNER_SPREAD_HOURS: ${FEED_OWNER_SPREAD_HOURS:-3}
 
   chat:
     <<: *service
     build: { context: ., provenance: false, args: { SERVICE: chat } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4004"
-      DATABASE_URL: ${CHAT_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${CHAT_DATABASE_URL:?set the chat service database login}
+      SUPABASE_URL: ${SUPABASE_URL:?set SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?set the storage service key}
+      CHAT_MESSAGE_SECRET: ${CHAT_MESSAGE_SECRET:?set CHAT_MESSAGE_SECRET}
+      CLOUDFLARE_TURN_KEY_ID: ${CLOUDFLARE_TURN_KEY_ID:-}
+      CLOUDFLARE_TURN_API_TOKEN: ${CLOUDFLARE_TURN_API_TOKEN:-}
+      CALL_STUN_URLS: ${CALL_STUN_URLS:-}
+      TURN_URLS: ${TURN_URLS:-}
+      TURN_SECRET: ${TURN_SECRET:-}
 
   payment:
     <<: *service
     build: { context: ., provenance: false, args: { SERVICE: payment } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4005"
-      DATABASE_URL: ${PAYMENT_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${PAYMENT_DATABASE_URL:?set the payment service database login}
+      PAYMENT_MODE: ${PAYMENT_MODE:-mock}
+      PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
 
   notification:
     <<: *service
     build: { context: ., provenance: false, args: { SERVICE: notification } }
     environment:
       <<: *shared-environment
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
+      INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4006"
-      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:-${DATABASE_URL}}
+      DATABASE_URL: ${NOTIFICATION_DATABASE_URL:?set the notification service database login}
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}
 
   api-gateway:
     <<: *service
@@ -98,3 +147,5 @@ services:
     environment:
       <<: *shared-environment
       PORT: "4000"
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}

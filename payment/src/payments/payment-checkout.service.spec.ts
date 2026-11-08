@@ -13,6 +13,14 @@ describe('PaymentCheckoutService', () => {
   };
   const prisma = { paymentTransaction: transactionTable };
   const property = { begin: jest.fn(), revert: jest.fn(), settle: jest.fn() };
+  const gateway = {
+    checkout: jest.fn(async (t) => ({
+      transactionId: t.id,
+      status: 'Success',
+    })),
+    reconcile: jest.fn(),
+  };
+  const provider = { name: 'MOCK' };
   let service: PaymentCheckoutService;
 
   beforeEach(() => {
@@ -28,7 +36,12 @@ describe('PaymentCheckoutService', () => {
       status: 'Pending',
     });
     property.settle.mockResolvedValue(undefined);
-    service = new PaymentCheckoutService(prisma as never, property as never);
+    service = new PaymentCheckoutService(
+      prisma as never,
+      property as never,
+      gateway as never,
+      provider as never,
+    );
   });
 
   it('records a mock transaction and publishes on the server before reporting success', async () => {
@@ -41,15 +54,17 @@ describe('PaymentCheckoutService', () => {
         propertyId: LISTING,
         requestId: 'aba_khqr',
         provider: 'MOCK',
+        paymentMethod: 'aba_khqr',
         amount: 1,
         status: 'Pending',
       },
     });
-    expect(property.settle).toHaveBeenCalledWith(LISTING, 'Active');
+    expect(gateway.checkout).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'tx-1', status: 'Pending' }),
+    );
     expect(result).toEqual({
       transactionId: 'tx-1',
       status: 'Success',
-      isSimulation: true,
     });
   });
 
@@ -95,13 +110,19 @@ describe('PaymentCheckoutService', () => {
     });
   });
 
-  it('does not report paid when a concurrent settlement stored a failure', async () => {
-    transactionTable.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ status: 'Failed' });
-    transactionTable.updateMany.mockResolvedValue({ count: 0 });
-    await expect(
-      service.initiate(ME, LISTING, 'request-1'),
-    ).resolves.toMatchObject({ status: 'Failed' });
+  it('polls only an account-owned transaction through provider verification', async () => {
+    transactionTable.findFirst.mockResolvedValue({
+      id: 'tx-1',
+      status: 'Pending',
+    });
+    gateway.reconcile.mockResolvedValue({
+      transactionId: 'tx-1',
+      status: 'Pending',
+    });
+    expect(await service.state(ME, 'tx-1')).toEqual({
+      transactionId: 'tx-1',
+      status: 'Pending',
+    });
+    expect(gateway.reconcile).toHaveBeenCalledWith('tx-1');
   });
 });

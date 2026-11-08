@@ -4,9 +4,12 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@tilomnov/prisma-client';
 import { ServiceClient } from '@tilomnov/shared';
 import { SubscriptionService } from './subscription.service';
+import { PaymentGatewayService } from './payment-gateway.service';
+import { MockPaymentProvider } from './mock-payment.provider';
 import { PublishingAllowanceService } from '../../../property/src/properties/services/publishing-allowance.service';
 import { PropertyLifecycleService } from '../../../property/src/properties/services/property-lifecycle.service';
 import { PropertyStatusService } from '../../../property/src/properties/property-status.service';
+import { ExpiredPublishingService } from '../../../property/src/properties/services/expired-publishing.service';
 
 // Opt in only against a disposable local DB with baseline + migrations 35–37.
 const databaseTests = process.env.TEST_DATABASE_URL ? describe : describe.skip;
@@ -17,6 +20,9 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   let payment: PrismaClient;
   let property: PrismaClient;
   let subscriptions: SubscriptionService;
+  let gateway: PaymentGatewayService;
+  const provider = new MockPaymentProvider();
+  const email = { send: jest.fn().mockResolvedValue(undefined) };
   let lifecycle: PropertyLifecycleService;
   let call: jest.SpyInstance;
   const input = {
@@ -54,12 +60,26 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     await Promise.all([payment.$connect(), property.$connect()]);
     process.env.PAYMENT_MODE = 'mock';
     process.env.APP_ENV = 'test';
-    subscriptions = new SubscriptionService(payment as never);
+    process.env.INTERNAL_SERVICE_SECRET =
+      'integration-test-payment-secret-32-characters';
+    gateway = new PaymentGatewayService(
+      payment as never,
+      provider,
+      {} as never,
+      email as never,
+    );
+    subscriptions = new SubscriptionService(
+      payment as never,
+      gateway,
+      provider,
+    );
     call = jest
       .spyOn(ServiceClient.prototype, 'call')
       .mockImplementation(async (_method, path) => {
         const userId = path.split('/')[3];
-        return subscriptions.allowance(userId);
+        return path.endsWith('/publishing')
+          ? subscriptions.publishingEntitlements(userId)
+          : subscriptions.allowance(userId);
       });
     const allowance = new PublishingAllowanceService(property as never);
     lifecycle = new PropertyLifecycleService(
@@ -124,7 +144,8 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
       subscriptions.purchase(alice, 'gold', requestId),
     ]);
     expect(first.transactionId).toBe(repeat.transactionId);
-    const fresh = new SubscriptionService(payment as never);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const fresh = new SubscriptionService(payment as never, gateway, provider);
     const saved = await fresh.current(alice);
     expect(saved?.tier).toBe('gold');
     expect(saved?.currentPeriodEnd.getUTCDate()).toBe(
@@ -145,18 +166,20 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
       subscriptions.cancel(alice),
       subscriptions.cancel(alice),
     ]);
-    const after = await new SubscriptionService(payment as never).current(
-      alice,
-    );
+    const after = await new SubscriptionService(
+      payment as never,
+      gateway,
+      provider,
+    ).current(alice);
     expect(after?.cancelAtPeriodEnd).toBe(true);
     expect(after?.tier).toBe(before?.tier);
     expect(after?.currentPeriodEnd).toEqual(before?.currentPeriodEnd);
     expect(await subscriptions.current(bob)).toBeNull();
   });
 
-  it('revokes the paid allowance at expiry and when mock payments are disabled', async () => {
+  it('keeps paid benefits when checkout is disabled and revokes them at expiry', async () => {
     process.env.PAYMENT_MODE = 'disabled';
-    expect(await subscriptions.current(alice)).toBeNull();
+    expect(await subscriptions.current(alice)).toMatchObject({ tier: 'gold' });
     process.env.PAYMENT_MODE = 'mock';
     const expired = new Date(Date.now() - 1000);
     await payment.subscription.update({
@@ -170,9 +193,26 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     await expect(lifecycle.create(alice, input)).rejects.toMatchObject({
       status: 402,
     });
+    const changes = { changed: jest.fn().mockResolvedValue(undefined) };
+    const expiry = new ExpiredPublishingService(
+      property as never,
+      changes as never,
+    );
+    await Promise.all([expiry.reconcile(alice), expiry.reconcile(alice)]);
+    expect(
+      await property.property.count({
+        where: { userId: alice, status: 'Active' },
+      }),
+    ).toBe(1);
+    expect(
+      await property.property.count({
+        where: { userId: alice, status: 'Expired' },
+      }),
+    ).toBe(1);
+    expect(changes.changed).toHaveBeenCalledTimes(1);
   });
 
-  it('rolls back the transaction if saving the subscription fails', async () => {
+  it('keeps a recoverable pending payment if saving the subscription fails', async () => {
     await owner.query(`CREATE FUNCTION payment.reject_test_subscription() RETURNS trigger LANGUAGE plpgsql AS $$
       BEGIN RAISE EXCEPTION 'write failed'; END $$;
       CREATE TRIGGER reject_test_subscription BEFORE INSERT ON payment.subscriptions
@@ -183,7 +223,10 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
       ).rejects.toThrow('write failed');
       expect(
         await payment.paymentTransaction.count({ where: { userId: bob } }),
-      ).toBe(0);
+      ).toBe(1);
+      expect(
+        await payment.paymentTransaction.findFirst({ where: { userId: bob } }),
+      ).toMatchObject({ status: 'Pending', paidAt: null });
     } finally {
       await owner.query(
         'DROP TRIGGER reject_test_subscription ON payment.subscriptions; DROP FUNCTION payment.reject_test_subscription()',

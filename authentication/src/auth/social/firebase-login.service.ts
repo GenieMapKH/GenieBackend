@@ -63,10 +63,12 @@ export class FirebaseLoginService {
     const token = await this.firebase.verifyIdToken(idToken);
     // An SMS code proves a phone number for a password reset
     // (`PhonePasswordResetService`); it is not a way to sign in.
-    if (token.firebase?.sign_in_provider === 'phone') {
-      throw new UnauthorizedException(
-        'Sign in with your password, or reset it with your phone number',
-      );
+    if (
+      token.firebase?.sign_in_provider !== 'google.com' ||
+      token.email_verified !== true ||
+      !token.email
+    ) {
+      throw new UnauthorizedException('Sign in with a verified Google account');
     }
     return {
       uid: token.uid,
@@ -80,7 +82,7 @@ export class FirebaseLoginService {
 
   /**
    * Attaches the Firebase identity to an account that already exists with the
-   * same email or phone. An email is only trusted when Firebase verified it,
+   * same email. An email is only trusted when Firebase verified it,
    * otherwise anyone could claim someone else's account.
    *
    * Registration never checked who owns that email or phone, so the account's
@@ -94,8 +96,6 @@ export class FirebaseLoginService {
     let existing: UserRecord | null = null;
     if (profile.email && profile.emailVerified) {
       existing = await this.users.findByEmail(profile.email);
-    } else if (profile.phone) {
-      existing = await this.users.findByPhone(profile.phone);
     }
     if (!existing) return null;
 
@@ -103,6 +103,9 @@ export class FirebaseLoginService {
       firebase_uid: profile.uid,
       password_hash: await this.unusablePasswordHash(),
       has_password: false,
+      email_verified: true,
+      // A pre-registrant must not retain recovery through an unproven phone.
+      ...(!existing.email_verified && { phone: null, phone_verified: false }),
     };
     await this.users.update(existing.id, patch);
     await this.sessions.endAllSessions(existing.id);
@@ -119,6 +122,8 @@ export class FirebaseLoginService {
         password_hash: await this.unusablePasswordHash(),
         role: DEFAULT_USER_ROLE,
         firebase_uid: profile.uid,
+        email_verified: profile.emailVerified,
+        phone_verified: false,
       });
     } catch {
       this.logger.error(
@@ -146,6 +151,19 @@ export class FirebaseLoginService {
     profile: FirebaseProfile,
   ): Promise<UserRecord> {
     const patch: UserPatch = {};
+    if (
+      !user.email_verified &&
+      profile.emailVerified &&
+      profile.email === user.email
+    ) {
+      Object.assign(patch, {
+        email_verified: true,
+        phone: null,
+        phone_verified: false,
+        password_hash: await this.unusablePasswordHash(),
+        has_password: false,
+      });
+    }
     if (!user.name && profile.displayName) patch.name = profile.displayName;
 
     const followsGoogle = !!user.avatar_url && isGooglePhoto(user.avatar_url);
@@ -159,6 +177,7 @@ export class FirebaseLoginService {
     if (Object.keys(patch).length === 0) return user;
 
     await this.users.update(user.id, patch);
+    if (patch.email_verified) await this.sessions.endAllSessions(user.id);
     return { ...user, ...patch };
   }
 }

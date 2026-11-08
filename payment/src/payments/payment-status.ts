@@ -3,6 +3,7 @@ export const PaymentStatus = {
   Pending: 'Pending',
   Success: 'Success',
   Failed: 'Failed',
+  RefundRequired: 'RefundRequired',
 } as const;
 
 /** USD, tax included; matches the displayed one-time publishing fee. */

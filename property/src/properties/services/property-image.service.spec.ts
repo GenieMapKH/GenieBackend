@@ -20,6 +20,11 @@ describe('PropertyImageService', () => {
     deleteMany: jest.fn(),
   };
   const query = { findOwned: jest.fn() };
+  const tx = {
+    $executeRaw: jest.fn(),
+    property: { findFirst: jest.fn() },
+    propertyImage: imageTable,
+  };
   const listingChanges = { changed: jest.fn() };
   const thumbnails = { createFor: jest.fn() };
   const client = {
@@ -62,18 +67,35 @@ describe('PropertyImageService', () => {
         removed.push(...paths);
       });
     query.findOwned.mockResolvedValue(listing());
+    tx.property.findFirst.mockImplementation(() => query.findOwned());
     imageTable.findMany.mockResolvedValue([]);
     thumbnails.createFor.mockImplementation(
       async (names: string[]) =>
         new Map(names.map((name) => [name, `${PUBLIC}${name}.thumb.jpg`])),
     );
     images = new PropertyImageService(
-      { propertyImage: imageTable } as never,
+      {
+        propertyImage: imageTable,
+        $transaction: (run: (db: typeof tx) => unknown) => run(tx),
+      } as never,
       query as never,
       photos,
       listingChanges as never,
       thumbnails as never,
     );
+  });
+
+  it('rechecks capacity under the listing lock when another confirmation filled the last place', async () => {
+    tx.property.findFirst.mockResolvedValueOnce(
+      listing(Array.from({ length: 30 }, (_, n) => `existing-${n}`)),
+    );
+    await expect(
+      images.confirmUploads(ME, LISTING, [
+        `${ME}/${LISTING}/${FILE}-front.jpg`,
+      ]),
+    ).rejects.toThrow(BadRequestException);
+    expect(tx.$executeRaw).toHaveBeenCalled();
+    expect(imageTable.createMany).not.toHaveBeenCalled();
   });
 
   describe('upload URLs', () => {

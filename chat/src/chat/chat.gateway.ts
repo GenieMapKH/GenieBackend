@@ -50,6 +50,7 @@ export class ChatGateway
 
   /** Stops one account from flooding others: 30 messages per 10 seconds. */
   private readonly sendRateLimiter: RateLimit;
+  private readonly presenceRateLimiter: RateLimit;
 
   constructor(
     private readonly chatService: ChatService,
@@ -59,6 +60,7 @@ export class ChatGateway
     private readonly blocks: BlockChecker,
   ) {
     this.sendRateLimiter = rateLimits.create('chat-send', 30, 10);
+    this.presenceRateLimiter = rateLimits.create('chat-presence', 60, 60);
   }
 
   /**
@@ -184,6 +186,14 @@ export class ChatGateway
     if (!dto) {
       return { status: 'error', message: 'Invalid user' };
     }
+    try {
+      await this.presenceRateLimiter.consume(socketUser(client).userId);
+    } catch {
+      return { status: 'error', message: 'Too many presence requests' };
+    }
+    if (!(await this.presenceService.isVisible(dto.userId))) {
+      return { status: 'error', message: 'Invalid user' };
+    }
     if (
       await this.blocks.eitherBlocked(socketUser(client).userId, dto.userId)
     ) {
@@ -193,6 +203,12 @@ export class ChatGateway
       };
     }
 
+    if (
+      client.rooms.size >= 103 &&
+      !client.rooms.has(presenceRoom(dto.userId))
+    ) {
+      return { status: 'error', message: 'Too many presence subscriptions' };
+    }
     await client.join(presenceRoom(dto.userId));
     const online = (await this.connectedDevices(dto.userId)) > 0;
     return {

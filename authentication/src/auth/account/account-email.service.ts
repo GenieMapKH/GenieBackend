@@ -5,6 +5,7 @@ import {
 } from '../sessions/established-device.service';
 import { UserRepository } from '../users/user.repository';
 import { IdentityProofService } from './identity-proof.service';
+import { EmailVerificationService } from '../verification/email-verification.service';
 
 /**
  * Adds an email to an account made with only a phone number. Once added,
@@ -23,6 +24,7 @@ export class AccountEmailService {
     @Inject(EstablishedDeviceService)
     private readonly devices: EstablishedDeviceService,
     @Inject(IdentityProofService) private readonly proofs: IdentityProofService,
+    private readonly emails: EmailVerificationService,
   ) {}
 
   /** `email` is already normalized (`AddEmailDto`). */
@@ -30,16 +32,19 @@ export class AccountEmailService {
     caller: SessionCaller,
     email: string,
     password: string,
+    emailProof: string,
   ): Promise<void> {
     await this.devices.require(caller);
     const user = await this.proofs.verify(caller.userId, { password });
 
-    if (user.email) {
+    this.emails.requireProof(email, emailProof);
+    if (user.email && user.email !== email) {
       throw new ConflictException('This account already has an email');
     }
-    if (await this.users.findByEmail(email)) {
+    const owner = await this.users.findByEmail(email);
+    if (owner && owner.id !== user.id) {
       throw new ConflictException('Email or phone already exists');
     }
-    await this.users.update(user.id, { email });
+    await this.users.update(user.id, { email, email_verified: true });
   }
 }

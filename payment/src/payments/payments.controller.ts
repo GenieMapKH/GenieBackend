@@ -35,6 +35,7 @@ export class PaymentsController {
       request.user.userId,
       dto.propertyId,
       dto.requestId,
+      dto.method,
     );
   }
 

@@ -19,7 +19,7 @@
     "@nestjs/passport": "^11.0.5",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
-    "@sentry/nestjs": "11.6.0",
+    "@sentry/nestjs": "^11.11.0",
     "@supabase/supabase-js": "^2.112.3",
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",

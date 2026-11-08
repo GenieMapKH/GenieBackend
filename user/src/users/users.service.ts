@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
@@ -17,6 +18,8 @@ const PROFILE_SELECT = {
   id: true,
   email: true,
   phone: true,
+  emailVerified: true,
+  phoneVerified: true,
   username: true,
   name: true,
   firstName: true,
@@ -154,6 +157,10 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.phone !== undefined)
+      throw new BadRequestException(
+        'Change or verify your phone number through Account Security.',
+      );
     try {
       const profile = await this.prisma.user.update({
         where: { id: userId },

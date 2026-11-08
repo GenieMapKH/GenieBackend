@@ -14,115 +14,232 @@ describe('subscription periods', () => {
 });
 
 describe('SubscriptionService', () => {
-  const tx = {
-    $executeRaw: jest.fn(),
-    paymentTransaction: { findUnique: jest.fn(), create: jest.fn() },
-    subscription: {
-      findUnique: jest.fn(),
-      upsert: jest.fn(),
-      updateMany: jest.fn(),
-    },
-  };
-  const prisma = { ...tx, $transaction: jest.fn((run) => run(tx)) };
-  const service = new SubscriptionService(prisma as never);
-  const now = new Date('2026-11-06T14:23:45.678Z');
-  const current = {
+  const now = new Date('2026-11-16T00:00:00.000Z');
+  const active = {
     userId: 'alice',
     tier: 'gold',
-    currentPeriodStart: now,
-    currentPeriodEnd: monthAfter(now),
+    transactionId: 'original',
+    currentPeriodStart: new Date('2026-11-01T00:00:00.000Z'),
+    currentPeriodEnd: new Date('2026-12-01T00:00:00.000Z'),
     cancelAtPeriodEnd: false,
-    transaction: { provider: 'MOCK' },
+    cancelledAt: null,
   };
+  const tx = {
+    $executeRaw: jest.fn(),
+    paymentTransaction: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+    },
+    subscription: { findUnique: jest.fn(), updateMany: jest.fn() },
+  };
+  const prisma = { ...tx, $transaction: jest.fn((run) => run(tx)) };
+  const gateway = {
+    checkout: jest.fn(async (t) => ({ transactionId: t.id, status: t.status })),
+  };
+  const provider = { name: 'MOCK' };
+  const service = new SubscriptionService(
+    prisma as never,
+    gateway as never,
+    provider as never,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers().setSystemTime(now);
-    process.env.APP_ENV = 'test';
     process.env.PAYMENT_MODE = 'mock';
-    tx.paymentTransaction.findUnique.mockResolvedValue(null);
+    process.env.INTERNAL_SERVICE_SECRET =
+      'subscription-pricing-test-secret-32-characters';
     tx.subscription.findUnique.mockResolvedValue(null);
-    tx.paymentTransaction.create.mockResolvedValue({
+    tx.paymentTransaction.findUnique.mockResolvedValue(null);
+    tx.paymentTransaction.findFirst.mockResolvedValue(null);
+    tx.paymentTransaction.create.mockImplementation(async ({ data }) => ({
       id: 'tx-1',
-      status: 'Success',
-    });
+      ...data,
+    }));
   });
   afterEach(() => jest.useRealTimers());
 
-  it('persists the account, server price and exact period atomically', async () => {
-    await expect(
-      service.purchase('alice', 'gold', 'request-1'),
-    ).resolves.toMatchObject({
-      transactionId: 'tx-1',
-      status: 'Success',
-      isSimulation: true,
+  it('protects paid listings and in-flight remote fulfillment, without protecting failed payments', async () => {
+    tx.paymentTransaction.findMany.mockResolvedValue([
+      { propertyId: 'paid-listing' },
+    ]);
+    expect(await service.publishingEntitlements('alice')).toEqual({
+      listingLimit: 1,
+      expiresAt: null,
+      protectedPropertyIds: ['paid-listing'],
     });
-    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+    expect(tx.paymentTransaction.findMany).toHaveBeenCalledWith({
+      where: {
         userId: 'alice',
-        amount: 8.9,
-        currency: 'USD',
-        provider: 'MOCK',
-        paidAt: now,
-      }),
+        purpose: 'LISTING_PUBLISH',
+        status: { in: ['Success', 'Pending'] },
+        propertyId: { not: null },
+      },
+      select: { propertyId: true },
+      distinct: ['propertyId'],
     });
-    expect(tx.subscription.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId: 'alice' },
-        create: expect.objectContaining({
-          userId: 'alice',
-          tier: 'gold',
-          currentPeriodStart: now,
-          currentPeriodEnd: monthAfter(now),
-          transactionId: 'tx-1',
-        }),
-      }),
-    );
-    expect(tx.$executeRaw).toHaveBeenCalled();
-  });
-
-  it('a retry returns the same transaction without extending the paid period', async () => {
-    tx.paymentTransaction.findUnique.mockResolvedValue({
-      id: 'tx-1',
-      purpose: 'SUBSCRIPTION',
-      subscriptionTier: 'gold',
-      status: 'Success',
-    });
-    await service.purchase('alice', 'gold', 'request-1');
-    expect(tx.subscription.upsert).not.toHaveBeenCalled();
-    expect(tx.paymentTransaction.create).not.toHaveBeenCalled();
-  });
-
-  it('rejects reuse of a checkout reference for a different plan', async () => {
-    tx.paymentTransaction.findUnique.mockResolvedValue({
-      purpose: 'SUBSCRIPTION',
-      subscriptionTier: 'silver',
-    });
-    await expect(
-      service.purchase('alice', 'gold', 'request-1'),
-    ).rejects.toThrow(ConflictException);
   });
 
   it.each(['silver', 'gold', 'diamond'] as const)(
-    'can simulate buying %s while Gold is active',
+    'quotes and records a full month for a new %s subscriber',
     async (tier) => {
-      tx.subscription.findUnique.mockResolvedValue(current);
-      await expect(
-        service.purchase('alice', tier, 'request-1'),
-      ).resolves.toMatchObject({ status: 'Success', isSimulation: true });
-      expect(tx.subscription.upsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          update: expect.objectContaining({ tier }),
+      const price = { silver: 5.9, gold: 8.9, diamond: 16.9 }[tier];
+      const quote = await service.quote('alice', tier);
+      expect(quote).toMatchObject({
+        amount: price,
+        currency: 'USD',
+        isUpgrade: false,
+      });
+      await service.purchase(
+        'alice',
+        tier,
+        'request-1',
+        'aba_pay',
+        quote.quote,
+      );
+      expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          amount: price,
+          status: 'Pending',
+          subscriptionTier: tier,
         }),
+      });
+      expect(gateway.checkout).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'tx-1', status: 'Pending' }),
       );
     },
   );
 
-  it('cancellation changes only renewal and preserves paid benefits', async () => {
-    tx.subscription.findUnique.mockResolvedValue({
-      ...current,
-      cancelAtPeriodEnd: true,
+  it('charges only half of the Gold-to-Diamond difference halfway through the month', async () => {
+    tx.subscription.findUnique.mockResolvedValue(active);
+    const quote = await service.quote('alice', 'diamond');
+    expect(quote.amount).toBe(4);
+    expect(quote.periodEnd).toBe(active.currentPeriodEnd.toISOString());
+    await service.purchase(
+      'alice',
+      'diamond',
+      'request-1',
+      'aba_pay',
+      quote.quote,
+    );
+    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        amount: 4,
+        subscriptionPeriodStart: active.currentPeriodStart,
+        subscriptionPeriodEnd: active.currentPeriodEnd,
+      }),
     });
+  });
+
+  it.each(['silver', 'gold'] as const)(
+    'blocks active Gold from buying %s, including after cancellation',
+    async (tier) => {
+      tx.subscription.findUnique.mockResolvedValue({
+        ...active,
+        cancelAtPeriodEnd: true,
+      });
+      await expect(service.purchase('alice', tier, 'request')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(tx.paymentTransaction.create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('allows any plan after expiry', async () => {
+    tx.subscription.findUnique.mockResolvedValue({
+      ...active,
+      currentPeriodEnd: now,
+    });
+    expect((await service.quote('alice', 'silver')).amount).toBe(5.9);
+    expect(await service.current('alice')).toBeNull();
+  });
+
+  it('does not revoke existing benefits when checkout is disabled or the provider changes', async () => {
+    tx.subscription.findUnique.mockResolvedValue(active);
+    process.env.PAYMENT_MODE = 'disabled';
+    expect(await service.current('alice')).toEqual(active);
+    expect(await service.allowance('alice')).toEqual({
+      listingLimit: 50,
+      expiresAt: active.currentPeriodEnd,
+    });
+    await expect(
+      service.purchase('alice', 'diamond', 'request'),
+    ).rejects.toThrow(NotImplementedException);
+  });
+
+  it('returns an existing intent before checking expired quotes or eligibility', async () => {
+    const original = {
+      id: 'tx-1',
+      purpose: 'SUBSCRIPTION',
+      subscriptionTier: 'gold',
+      status: 'Success',
+    };
+    tx.paymentTransaction.findUnique.mockResolvedValue(original);
+    await service.purchase('alice', 'gold', 'request', 'aba_pay', 'expired');
+    expect(gateway.checkout).toHaveBeenCalledWith(original);
+    expect(tx.paymentTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects reuse of an intent for a different tier', async () => {
+    tx.paymentTransaction.findUnique.mockResolvedValue({
+      purpose: 'SUBSCRIPTION',
+      subscriptionTier: 'silver',
+    });
+    await expect(service.purchase('alice', 'gold', 'request')).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('does not accept a forged quote, another account quote, or a stale subscription quote', async () => {
+    const quote = await service.quote('alice', 'gold');
+    await expect(
+      service.purchase(
+        'alice',
+        'gold',
+        'request',
+        'aba_pay',
+        quote.quote + 'x',
+      ),
+    ).rejects.toThrow(ConflictException);
+    await expect(
+      service.purchase('bob', 'gold', 'request', 'aba_pay', quote.quote),
+    ).rejects.toThrow(ConflictException);
+    tx.subscription.findUnique.mockResolvedValue(active);
+    await expect(
+      service.purchase('alice', 'gold', 'request', 'aba_pay', quote.quote),
+    ).rejects.toThrow(ConflictException);
+    expect(tx.paymentTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('expires a quote without charging a revised amount silently', async () => {
+    const quote = await service.quote('alice', 'gold');
+    jest.advanceTimersByTime(301_000);
+    await expect(
+      service.purchase('alice', 'gold', 'request', 'aba_pay', quote.quote),
+    ).rejects.toThrow(ConflictException);
+    expect(gateway.checkout).not.toHaveBeenCalled();
+  });
+
+  it('blocks a second subscription payment while one is pending', async () => {
+    tx.paymentTransaction.findFirst.mockResolvedValue({ id: 'pending' });
+    await expect(service.purchase('alice', 'gold', 'request')).rejects.toThrow(
+      ConflictException,
+    );
+    expect(tx.paymentTransaction.create).not.toHaveBeenCalled();
+  });
+
+  it('does not call the provider if saving the purchase fails', async () => {
+    tx.paymentTransaction.create.mockRejectedValueOnce(new Error('db down'));
+    await expect(service.purchase('alice', 'gold', 'request')).rejects.toThrow(
+      'db down',
+    );
+    expect(gateway.checkout).not.toHaveBeenCalled();
+  });
+
+  it('cancellation preserves the paid tier and dates', async () => {
+    tx.subscription.findUnique.mockResolvedValue(active);
     await service.cancel('alice');
     expect(tx.subscription.updateMany).toHaveBeenCalledWith({
       where: {
@@ -132,44 +249,6 @@ describe('SubscriptionService', () => {
       },
       data: { cancelAtPeriodEnd: true, cancelledAt: now },
     });
-    expect(await service.allowance('alice')).toEqual({
-      listingLimit: 50,
-      expiresAt: current.currentPeriodEnd,
-    });
+    expect(await service.current('alice')).toEqual(active);
   });
-
-  it('expires at the precise timestamp, even without a scheduled job', async () => {
-    tx.subscription.findUnique.mockResolvedValue({
-      ...current,
-      currentPeriodEnd: now,
-    });
-    expect(await service.current('alice')).toBeNull();
-    expect(await service.allowance('alice')).toEqual({
-      listingLimit: 1,
-      expiresAt: null,
-    });
-  });
-
-  it('supports persisted simulated subscriptions in production builds', async () => {
-    process.env.APP_ENV = 'production';
-    delete process.env.PAYMENT_MODE;
-    tx.subscription.findUnique.mockResolvedValue(current);
-    expect(await service.current('alice')).toMatchObject({ tier: 'gold' });
-    await expect(
-      service.purchase('alice', 'diamond', 'request-1'),
-    ).resolves.toMatchObject({ status: 'Success', isSimulation: true });
-  });
-
-  it.each(['disabled', 'live', ''])(
-    'cannot grant a mock plan in PAYMENT_MODE=%s',
-    async (mode) => {
-      process.env.PAYMENT_MODE = mode;
-      tx.subscription.findUnique.mockResolvedValue(current);
-      expect(await service.current('alice')).toBeNull();
-      await expect(
-        service.purchase('alice', 'diamond', 'request-1'),
-      ).rejects.toThrow(NotImplementedException);
-      expect(prisma.$transaction).not.toHaveBeenCalled();
-    },
-  );
 });

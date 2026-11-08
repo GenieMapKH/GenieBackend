@@ -444,6 +444,7 @@ describe('AccountController', () => {
       {} as never,
       passwordProofs as never,
       new AuthAttemptLimits(),
+      {} as never,
     );
   });
 

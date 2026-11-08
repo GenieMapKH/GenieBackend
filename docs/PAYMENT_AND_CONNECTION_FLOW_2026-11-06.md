@@ -6,22 +6,22 @@ Mock purchases now go through the authenticated payment API and persist in
 Postgres. The app never grants a subscription or publishes a paid listing on
 its own. There is no bank charge, automatic renewal job or live ABA integration.
 
-Apply `37_subscriptions` before deploying these backend services, including on
+Apply `37_subscriptions` and `38_payment_checkout_period` before deploying these backend services, including on
 a database created from `prisma/prod_schema.sql` (that snapshot stops at 34):
 
 ```powershell
-node scripts/apply-migrations.js 37_subscriptions
+node scripts/apply-migrations.js 37_subscriptions 38_payment_checkout_period
 ```
 
-For production, use `node scripts/apply-migrations.js 37_subscriptions --prod`.
+For production, use `node scripts/apply-migrations.js 37_subscriptions 38_payment_checkout_period --prod`.
 It requires the production postgres/admin `DATABASE_URL` in `.env.prod-db`;
 see [database migration commands](DATABASE_SCHEMAS.md).
 
 Until real payments are integrated, the payment service defaults to
-`PAYMENT_MODE=mock`, including for production app builds. Keep the app's
-`PAYMENTS_ENABLED` off. A previously configured `PAYMENT_MODE=disabled` must be
+`PAYMENT_MODE=mock`, including for production app builds. The app uses
+the common checkout client (the old `PAYMENTS_ENABLED` app switch has been removed). A previously configured `PAYMENT_MODE=disabled` must be
 changed to `mock` to allow purchases. Setting it to `disabled` stops mock
-checkouts and hides stored mock subscriptions and their benefits. Keep staging
+checkouts. Existing paid benefits remain until their saved expiry, including when the provider changes. Keep staging
 and production databases separate. No migration or deployment was run against
 the remote database as part of this change.
 
@@ -32,7 +32,7 @@ from its verified claims, ignoring client account IDs and forwarded headers.
 
 | Method | Path (under `/v1`) | Request/result |
 |---|---|---|
-| POST | `/payments/subscriptions/checkout` | `{ tier, method, requestId }`; mock returns `{ transactionId, status: 'Success', isSimulation: true }` |
+| POST | `/payments/subscriptions/checkout` | `{ tier, method, requestId, quote }`; mock returns `{ transactionId, status: 'Success', isSimulation: true }` |
 | GET | `/payments/subscriptions/current` | `{ subscription: { tier, currentPeriodStart, currentPeriodEnd, cancelAtPeriodEnd, ... } }`, or `{ subscription: null }` |
 | POST | `/payments/subscriptions/cancel` | Sets cancellation on the caller's subscription; does not change tier or paid dates |
 | POST | `/payments/checkout` | `{ propertyId, method?, requestId }`; owner-only mock one-time publish, $1 USD |
@@ -41,24 +41,49 @@ from its verified claims, ignoring client account IDs and forwarded headers.
 `requestId` is a UUID unique per account. Repeated requests return the same
 transaction without buying another month. The app retains it after a failed
 request until it receives an answer. It is kept in memory; after an app restart,
-a completed subscription is reloaded. A new mock purchase reference may buy
-any paid tier again. A listing stuck Pending after an interrupted checkout needs its
+a completed subscription is reloaded. An active subscription can only upgrade to a higher tier; same-tier and downgrade purchases return 409. An expired account can buy any paid tier. The same checkout reference always returns or resumes its original transaction. A listing stuck Pending after an interrupted checkout needs its
 original reference to resume; automatic abandoned-checkout recovery is deferred
 until the bank integration supplies a transaction reconciliation process.
 
-The first paid month starts at the server's purchase timestamp. Its end is
+The first paid month starts at the server's confirmation timestamp. Its end is
 one calendar month later at the same UTC time, clamped to the final day of a
 shorter month. Cancellation only sets `cancelAtPeriodEnd` and `cancelledAt`.
 Access remains until that exact end time. Reads and publishing checks enforce
 expiry without waiting for a scheduled job. The app also reloads at expiry.
 
-Simulation offers every paid plan, including the current and lower tiers.
-Each new purchase replaces the current plan with a new full month at the
-displayed full price; no proration and no actual charge. The existing success
-screen and downloadable receipt are shown after the server saves the purchase.
-Receipt emails remain mocked. Renewal and downgrade billing rules must be
-implemented before live payments; live app builds still offer upgrades only.
-Mock renewal records intent only; no money can move automatically.
+The app uses one checkout client for all providers. The server creates a
+Pending payment and only publishes a listing or activates a subscription after
+`PaymentGatewayService` checks the provider's transaction ID, amount, USD currency
+and final status. Both callbacks and authenticated status polling enter this
+shared settlement path. Settlement and subscription writes run under a per-account
+transaction lock. Listing fulfillment is idempotent, and a failed remote write
+leaves the payment Pending for a safe retry.
+
+Subscription checkout first requests `GET /payments/subscriptions/quote/:tier`.
+The server signs an account- and tier-bound price quote valid for five minutes.
+Submit its `quote` token with the checkout request. New plans cost the full
+monthly price and start when payment is confirmed. Upgrades cost the difference
+between monthly prices, multiplied by the fraction of the billing period left,
+rounded to cents (minimum one cent). Upgrades preserve the original start/end
+and cancellation choice. Price changes or quote expiry require the user to
+review again; a checkout retry uses its originally saved amount. At most one
+subscription payment per account can be Pending.
+
+Order confirmation emails are sent after commit through a signed
+payment-to-authentication request. Authentication uses the saved account email
+and its existing Brevo/Resend/SMTP configuration. Deploy both services; payment
+needs `AUTH_SERVICE_URL` and the matching `INTERNAL_SERVICE_SECRET`, also used to
+sign price quotes. Delivery failures are logged and do not roll back payment.
+No mail outbox, automatic retry or historical backfill exists yet. One-time listing confirmations use the same backend delivery.
+
+The default provider remains `MOCK`: only the provider is simulated; the app
+has no simulation-specific pricing, grant logic or messages. `PAYMENT_MODE=live`
+selects the ABA adapter, which fails closed until purchase and verification
+calls are implemented. Removing test wording does not enable bank charges.
+There is no automatic bank renewal. Downgrades become available after expiry;
+recurring renewals and scheduled downgrades need provider consent/tokenization.
+See [current gateway handoff](PAYMENT_GATEWAY_HANDOFF.md) for implementation and
+verification still required before live payments.
 
 The property service asks the payment service over a signed internal request
 for its allowance. Create-as-Active, publish and relist all count Active and

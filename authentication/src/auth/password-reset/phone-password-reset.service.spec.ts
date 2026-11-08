@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthAttemptLimits } from '../attempt-limiter';
+import { PhoneProofService } from '../verification/phone-proof.service';
 import { PhonePasswordResetService } from './phone-password-reset.service';
 
 // firebase-admin pulls in ESM-only packages Jest cannot load.
@@ -27,9 +28,9 @@ describe('PhonePasswordResetService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    users.findByPhone.mockResolvedValue({ id: 'u1' });
+    users.findByPhone.mockResolvedValue({ id: 'u1', phone_verified: true });
     service = new PhonePasswordResetService(
-      firebase as never,
+      new PhoneProofService(firebase as never),
       users as never,
       sessions as never,
       new AuthAttemptLimits(),
@@ -52,6 +53,18 @@ describe('PhonePasswordResetService', () => {
     );
     expect(patch.has_password).toBe(true);
     expect(sessions.endAllSessions).toHaveBeenCalledWith('u1');
+  });
+
+  it('does not trust a legacy recovery number without recorded ownership verification', async () => {
+    firebase.verifyIdToken.mockResolvedValue(smsToken());
+    users.findByPhone.mockResolvedValue({
+      id: 'pre-registered-victim',
+      phone_verified: false,
+    });
+    await expect(
+      service.reset('sms-proof', 'attacker-password'),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(users.update).not.toHaveBeenCalled();
   });
 
   it('refuses a token Firebase does not accept', async () => {
