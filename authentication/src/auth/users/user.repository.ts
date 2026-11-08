@@ -12,6 +12,8 @@ export interface UserRecord {
   id: string;
   email: string | null;
   phone: string | null;
+  email_verified?: boolean;
+  phone_verified?: boolean;
   password_hash: string;
   /**
    * False while `password_hash` is a value nobody can match: an account made
@@ -44,6 +46,8 @@ const USER_COLUMNS = {
   id: true,
   email: true,
   phone: true,
+  emailVerified: true,
+  phoneVerified: true,
   passwordHash: true,
   hasPassword: true,
   role: true,
@@ -198,6 +202,8 @@ function toUserRecord(row: UserRow): UserRecord {
     id: row.id,
     email: row.email,
     phone: row.phone,
+    email_verified: row.emailVerified,
+    phone_verified: row.phoneVerified,
     password_hash: row.passwordHash,
     has_password: row.hasPassword,
     role: row.role,
@@ -214,6 +220,10 @@ function toUserData(patch: UserPatch): Prisma.UserUpdateManyMutationInput {
   const data: Prisma.UserUpdateManyMutationInput = {};
   if (patch.email !== undefined) data.email = patch.email;
   if (patch.phone !== undefined) data.phone = patch.phone;
+  if (patch.email_verified !== undefined)
+    data.emailVerified = patch.email_verified;
+  if (patch.phone_verified !== undefined)
+    data.phoneVerified = patch.phone_verified;
   if (patch.password_hash !== undefined)
     data.passwordHash = patch.password_hash;
   if (patch.has_password !== undefined) data.hasPassword = patch.has_password;

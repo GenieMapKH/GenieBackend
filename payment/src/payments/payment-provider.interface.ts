@@ -8,13 +8,14 @@ export interface CheckoutRequest {
   transactionId: string;
   /** US dollars, tax included. */
   amount: number;
+  currency: string;
   method: PaymentMethod;
 }
 
 /** Where the user goes to pay a checkout the provider has accepted. */
 export interface ProviderCheckout {
   /** The provider's hosted payment page (works without the banking app). */
-  checkoutUrl: string;
+  checkoutUrl?: string;
   /** Opens the banking app straight on the payment, when the provider gives one. */
   abapayDeeplink?: string;
   /** The raw KHQR payload, for drawing the QR in the app. */
@@ -23,6 +24,13 @@ export interface ProviderCheckout {
 
 /** A transaction as the provider reports it when asked directly. */
 export type ProviderTransactionState = 'PAID' | 'PENDING' | 'FAILED';
+
+export interface ProviderTransaction {
+  state: ProviderTransactionState;
+  transactionId: string;
+  amount: number;
+  currency: string;
+}
 
 /** The webhook fields every provider adapter must be able to authenticate. */
 export interface ProviderWebhook {
@@ -34,16 +42,21 @@ export interface ProviderWebhook {
  * What the payment module needs from an external payment provider (ABA
  * PayWay, ...). See docs/ABA_PAYWAY_INTEGRATION.md for the PayWay mapping.
  */
-export interface PaymentProvider {
+export abstract class PaymentProvider {
+  abstract readonly name: string;
   /** Starts a payment and says where the user should go to pay it. */
-  initiateCheckout(request: CheckoutRequest): Promise<ProviderCheckout>;
+  abstract initiateCheckout(
+    request: CheckoutRequest,
+  ): Promise<ProviderCheckout>;
 
   /**
    * Asks the provider itself how a transaction stands. A webhook only says a
    * payment *may* be done: it is settled after this answers PAID.
    */
-  checkTransaction(transactionId: string): Promise<ProviderTransactionState>;
+  abstract checkTransaction(
+    request: CheckoutRequest,
+  ): Promise<ProviderTransaction>;
 
   /** True only when the webhook really came from the provider. Must fail closed. */
-  verifyWebhook(webhook: ProviderWebhook, signature: string): boolean;
+  abstract verifyWebhook(webhook: ProviderWebhook, signature: string): boolean;
 }

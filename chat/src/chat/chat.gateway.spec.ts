@@ -11,7 +11,11 @@ const LAST_SEEN = new Date('2026-01-01T10:00:00Z');
 
 describe('ChatGateway', () => {
   const chatService = { sendMessage: jest.fn() };
-  const presenceService = { markLastSeen: jest.fn(), getLastSeen: jest.fn() };
+  const presenceService = {
+    markLastSeen: jest.fn(),
+    getLastSeen: jest.fn(),
+    isVisible: jest.fn(),
+  };
   const blocks = { eitherBlocked: jest.fn() };
   let socketsLeft: [string, string][];
   /** Stands in for the list of signed-out sessions; `signOut` is what the gateway registered. */
@@ -32,6 +36,7 @@ describe('ChatGateway', () => {
   /** A connected socket; records which rooms a broadcast was sent to. */
   function socketFor(userId: string, id = `socket-${userId}`) {
     const sentTo: string[] = [];
+    const joined = new Set<string>();
     const broadcast = {
       to: jest.fn((room: string) => {
         sentTo.push(room);
@@ -44,13 +49,16 @@ describe('ChatGateway', () => {
       data: { userId },
       join: jest.fn((room: string) => {
         rooms.set(room, (rooms.get(room) ?? new Set()).add(id));
+        joined.add(room);
       }),
       leave: jest.fn((room: string) => {
         rooms.get(room)?.delete(id);
+        joined.delete(room);
       }),
       to: broadcast.to,
       emit: broadcast.emit,
-      rooms: sentTo,
+      rooms: joined,
+      broadcastRooms: sentTo,
     };
   }
 
@@ -71,6 +79,7 @@ describe('ChatGateway', () => {
     );
     presenceService.markLastSeen.mockResolvedValue(LAST_SEEN);
     presenceService.getLastSeen.mockResolvedValue(LAST_SEEN);
+    presenceService.isVisible.mockResolvedValue(true);
 
     revokedSessions.has.mockResolvedValue(false);
     blocks.eitherBlocked.mockResolvedValue(false);
@@ -96,6 +105,30 @@ describe('ChatGateway', () => {
     };
   });
 
+  it('rejects nonexistent targets and caps presence subscriptions', async () => {
+    const client = socketFor(ALICE);
+    presenceService.isVisible.mockResolvedValueOnce(false);
+    expect(
+      await gateway.handleWatchPresence(client as never, { userId: BOB }),
+    ).toMatchObject({ status: 'error' });
+    expect(client.join).not.toHaveBeenCalled();
+    for (let n = 0; n < 103; n++) client.rooms.add(`room-${n}`);
+    expect(
+      await gateway.handleWatchPresence(client as never, { userId: BOB }),
+    ).toMatchObject({ status: 'error' });
+    expect(client.join).not.toHaveBeenCalled();
+  });
+
+  it('rate limits presence events per account', async () => {
+    const client = socketFor(ALICE);
+    for (let n = 0; n < 60; n++)
+      await gateway.handleWatchPresence(client as never, { userId: BOB });
+    expect(
+      await gateway.handleWatchPresence(client as never, { userId: BOB }),
+    ).toMatchObject({ status: 'error' });
+    expect(presenceService.isVisible).toHaveBeenCalledTimes(60);
+  });
+
   describe('handshake', () => {
     async function runHandshake(token: string | undefined) {
       let middleware: (
@@ -118,7 +151,11 @@ describe('ChatGateway', () => {
     it('accepts a socket that authenticates', async () => {
       const authenticate = jest
         .spyOn(wsAuth, 'authenticateSocket')
-        .mockResolvedValue({ userId: ALICE, sessionId: 'phone' });
+        .mockResolvedValue({
+          userId: ALICE,
+          sessionId: 'phone',
+          expiresAt: Date.now() + 60000,
+        });
 
       const { client, next } = await runHandshake('good-token');
 
@@ -321,7 +358,7 @@ describe('ChatGateway', () => {
       const ack = await gateway.handleSendMessage(client as never, payload);
 
       expect(chatService.sendMessage).toHaveBeenCalledWith(ALICE, payload);
-      expect(client.rooms).toEqual([`user:${BOB}`, `user:${ALICE}`]);
+      expect(client.broadcastRooms).toEqual([`user:${BOB}`, `user:${ALICE}`]);
       expect(client.emit).toHaveBeenCalledWith(
         'newMessage',
         expect.objectContaining({ id: MESSAGE_ID }),

@@ -8,7 +8,7 @@ import { RegisterDto } from './register.dto';
 import { ResetPasswordDto } from './reset-password.dto';
 
 function parse<T extends object>(dto: new () => T, plain: object) {
-  const instance = plainToInstance(dto, plain);
+  const instance = plainToInstance(dto, { phoneToken: 'sms-proof', ...plain });
   return {
     instance,
     errors: validateSync(instance, { whitelist: true }).map((e) => e.property),

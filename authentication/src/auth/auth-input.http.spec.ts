@@ -64,7 +64,9 @@ describe('sign-up and sign-in input (HTTP)', () => {
   beforeEach(() => jest.resetAllMocks());
 
   const register = (body: object) =>
-    request(app.getHttpServer()).post('/auth/register').send(body);
+    request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ phoneToken: 'sms-proof', ...body });
   const login = (body: object) =>
     request(app.getHttpServer()).post('/auth/login').send(body);
 
@@ -72,6 +74,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
     await register({
       phone: '012 345 678',
       password: 'password123',
+      phoneToken: 'sms-proof',
       role: 'admin',
       email: '',
     }).expect(201);
@@ -79,7 +82,17 @@ describe('sign-up and sign-in input (HTTP)', () => {
     expect(credentials.register).toHaveBeenCalledWith({
       phone: '+85512345678',
       password: 'password123',
+      phoneToken: 'sms-proof',
     });
+  });
+
+  it('rejects registration without an SMS ownership proof', async () => {
+    await register({
+      phone: '012345678',
+      password: 'password123',
+      phoneToken: undefined,
+    }).expect(400);
+    expect(credentials.register).not.toHaveBeenCalled();
   });
 
   it('passes the optional email and name through, cleaned', async () => {
@@ -88,6 +101,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
       email: ' Dara@Gmail.com ',
       name: ' Dara ',
       password: 'password123',
+      phoneToken: 'sms-proof',
     }).expect(201);
 
     expect(credentials.register).toHaveBeenCalledWith({
@@ -95,6 +109,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
       email: 'dara@gmail.com',
       name: 'Dara',
       password: 'password123',
+      phoneToken: 'sms-proof',
     });
   });
 

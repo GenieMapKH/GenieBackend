@@ -14,6 +14,7 @@ import helmet from 'helmet';
 import { warmUpAuthKeys } from '@tilomnov/shared';
 import { AppModule } from './app.module';
 import { buildCorsOptions } from './cors.config';
+import { trustedProxies } from './trusted-proxies';
 
 async function bootstrap() {
   // bodyParser is off: request bodies are streamed straight to the services.
@@ -21,7 +22,7 @@ async function bootstrap() {
     bodyParser: false,
   });
 
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustedProxies());
   app.use(helmet());
   // Gzips what the services answer (JSON listings shrink several times) for
   // clients that accept it. Small bodies are sent as they are; WebSocket

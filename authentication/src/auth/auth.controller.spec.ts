@@ -138,28 +138,31 @@ describe('AuthController attempt limits', () => {
     credentials.register.mockRejectedValue(new Error('Email already exists'));
     for (let i = 0; i < 25; i++) {
       await controller
-        .register({ phone: '+85512345678', password: 'pw' }, fromNetwork)
+        .register(
+          { phone: '+85512345678', password: 'pw', phoneToken: 'sms-proof' },
+          fromNetwork,
+        )
         .catch(() => undefined);
     }
 
     credentials.register.mockResolvedValue(undefined);
     for (let i = 0; i < 20; i++) {
       await controller.register(
-        { phone: '+85512345678', password: 'pw' },
+        { phone: '+85512345678', password: 'pw', phoneToken: 'sms-proof' },
         fromNetwork,
       );
     }
     expect(
       await tooMany(() =>
         controller.register(
-          { phone: '+85512345678', password: 'pw' },
+          { phone: '+85512345678', password: 'pw', phoneToken: 'sms-proof' },
           fromNetwork,
         ),
       ),
     ).toBe(true);
     // Another network is not affected.
     await controller.register(
-      { phone: '+85512345678', password: 'pw' },
+      { phone: '+85512345678', password: 'pw', phoneToken: 'sms-proof' },
       { ...client, ipAddress: '198.51.100.1' },
     );
   });

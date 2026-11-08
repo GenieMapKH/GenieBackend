@@ -73,4 +73,13 @@ export class RegisterDto {
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxBytes(BCRYPT_MAX_PASSWORD_BYTES)
   password!: string;
+
+  @IsString()
+  @MaxLength(10000)
+  phoneToken!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  emailProof?: string;
 }

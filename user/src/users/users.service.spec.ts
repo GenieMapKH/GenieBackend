@@ -170,13 +170,14 @@ describe('UsersService', () => {
     ).rejects.toThrow(new ConflictException('Username is already taken'));
   });
 
-  it('blames the phone number when the username was free', async () => {
+  it('refuses recovery-phone changes through ordinary profile editing', async () => {
     prisma.user.update.mockRejectedValue(uniqueViolation);
     prisma.user.findUnique.mockResolvedValue(null);
 
     await expect(
       service.updateProfile(ME, { username: 'sokha', phone: '012345678' }),
-    ).rejects.toThrow(new ConflictException('Phone number is already taken'));
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
   describe('what the profile says about signing in', () => {

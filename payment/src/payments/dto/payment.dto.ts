@@ -1,4 +1,11 @@
-import { IsIn, IsNumber, IsOptional, IsUUID } from 'class-validator';
+import {
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import {
   PAYMENT_METHODS,
   type PaymentMethod,
@@ -27,6 +34,15 @@ export class SubscriptionCheckoutDto {
 
   @IsIn(PAYMENT_METHODS)
   method: PaymentMethod;
+
+  @IsString()
+  @MaxLength(2048)
+  quote: string;
+}
+
+export class SubscriptionQuoteParams {
+  @IsIn(['silver', 'gold', 'diamond'])
+  tier: PaidTier;
 }
 
 export class PaymentWebhookDto {

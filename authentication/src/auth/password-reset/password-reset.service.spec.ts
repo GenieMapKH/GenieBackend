@@ -43,7 +43,7 @@ describe('PasswordResetService', () => {
     });
 
     it('stores only a hash of a 6-digit code and emails the code', async () => {
-      users.findByEmail.mockResolvedValue({ id: 'u1' });
+      users.findByEmail.mockResolvedValue({ id: 'u1', email_verified: true });
 
       await service.requestReset('a@b.com');
       await flushBackgroundWork();
@@ -59,7 +59,7 @@ describe('PasswordResetService', () => {
     });
 
     it('still succeeds when the email provider fails', async () => {
-      users.findByEmail.mockResolvedValue({ id: 'u1' });
+      users.findByEmail.mockResolvedValue({ id: 'u1', email_verified: true });
       mailer.sendOtp.mockRejectedValue(new Error('smtp down'));
 
       await expect(service.requestReset('a@b.com')).resolves.toBeDefined();
@@ -67,7 +67,7 @@ describe('PasswordResetService', () => {
     });
 
     it('answers before storing or sending anything, so the reply takes as long either way', async () => {
-      users.findByEmail.mockResolvedValue({ id: 'u1' });
+      users.findByEmail.mockResolvedValue({ id: 'u1', email_verified: true });
       let finishStoring!: () => void;
       otps.invalidateAllFor.mockReturnValue(
         new Promise<void>((resolve) => (finishStoring = resolve)),
@@ -107,7 +107,7 @@ describe('PasswordResetService', () => {
 
     it('changes the password, burns the code and signs the user out everywhere', async () => {
       otps.findLatestActive.mockResolvedValue(record);
-      users.findByEmail.mockResolvedValue({ id: 'u1' });
+      users.findByEmail.mockResolvedValue({ id: 'u1', email_verified: true });
 
       await service.resetPassword('a@b.com', '123456', 'new-password');
 
@@ -123,7 +123,7 @@ describe('PasswordResetService', () => {
 
     it('lets only one of two resets sent at once with the same code through', async () => {
       otps.findLatestActive.mockResolvedValue(record);
-      users.findByEmail.mockResolvedValue({ id: 'u1' });
+      users.findByEmail.mockResolvedValue({ id: 'u1', email_verified: true });
       otps.claim.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
 
       const results = await Promise.allSettled([

@@ -42,7 +42,7 @@ export class PasswordResetService {
     const otpHash = await bcrypt.hash(otp, BCRYPT_ROUNDS);
     const user = await this.users.findByEmail(email);
 
-    if (user) {
+    if (user?.email_verified) {
       this.issueCode(email, otp, otpHash).catch((err: Error | undefined) => {
         this.logger.error(`Failed to issue OTP: ${err?.message}`);
       });
@@ -78,7 +78,7 @@ export class PasswordResetService {
     const user = await this.users.findByEmail(email);
     // Used up before the password changes: of two resets sent at once with
     // the same code, only the first one gets here.
-    if (!user || !(await this.otps.claim(record.id))) {
+    if (!user?.email_verified || !(await this.otps.claim(record.id))) {
       throw new BadRequestException('Invalid or expired verification code');
     }
 

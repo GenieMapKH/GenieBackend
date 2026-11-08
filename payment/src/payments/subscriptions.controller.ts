@@ -15,7 +15,10 @@ import {
   JwtAuthGuard,
   serviceCallGuard,
 } from '@tilomnov/shared';
-import { SubscriptionCheckoutDto } from './dto/payment.dto';
+import {
+  SubscriptionCheckoutDto,
+  SubscriptionQuoteParams,
+} from './dto/payment.dto';
 import { SubscriptionService } from './subscription.service';
 
 @UseGuards(JwtAuthGuard)
@@ -39,7 +42,17 @@ export class SubscriptionsController {
       request.user.userId,
       dto.tier,
       dto.requestId,
+      dto.method,
+      dto.quote,
     );
+  }
+
+  @Get('quote/:tier')
+  quote(
+    @Req() request: { user: AuthenticatedUser },
+    @Param() params: SubscriptionQuoteParams,
+  ) {
+    return this.subscriptions.quote(request.user.userId, params.tier);
   }
 
   @Post('cancel')
@@ -59,5 +72,10 @@ export class InternalSubscriptionsController {
   @Get(':userId/allowance')
   allowance(@Param('userId', ParseUUIDPipe) userId: string) {
     return this.subscriptions.allowance(userId);
+  }
+
+  @Get(':userId/publishing')
+  publishing(@Param('userId', ParseUUIDPipe) userId: string) {
+    return this.subscriptions.publishingEntitlements(userId);
   }
 }

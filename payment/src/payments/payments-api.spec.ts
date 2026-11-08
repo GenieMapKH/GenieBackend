@@ -26,9 +26,11 @@ describe('payment API trust boundaries', () => {
   );
   const subscriptions = {
     purchase: jest.fn(),
+    quote: jest.fn(),
     current: jest.fn(),
     cancel: jest.fn(),
     allowance: jest.fn(),
+    publishingEntitlements: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -96,12 +98,15 @@ describe('payment API trust boundaries', () => {
         method: 'aba_pay',
         userId: bob,
         amount: 0,
+        quote: 'signed-price',
       })
       .expect(201);
     expect(subscriptions.purchase).toHaveBeenCalledWith(
       alice,
       'gold',
       requestId,
+      'aba_pay',
+      'signed-price',
     );
     await request(app.getHttpServer())
       .post('/v1/payments/subscriptions/cancel')
@@ -110,6 +115,21 @@ describe('payment API trust boundaries', () => {
       .send({ userId: bob })
       .expect(201);
     expect(subscriptions.cancel).toHaveBeenCalledWith(alice);
+  });
+
+  it('binds a validated quote to the authenticated account', async () => {
+    await request(app.getHttpServer())
+      .get('/v1/payments/subscriptions/quote/gold')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/v1/payments/subscriptions/quote/invalid')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/v1/payments/subscriptions/quote/diamond')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(subscriptions.quote).toHaveBeenCalledWith(alice, 'diamond');
   });
 
   it('validates plan, payment method and idempotency reference before purchase', async () => {
@@ -147,5 +167,24 @@ describe('payment API trust boundaries', () => {
       .set('Authorization', `Bearer ${signServiceToken('property')}`)
       .expect(200);
     expect(subscriptions.allowance).toHaveBeenCalledWith(alice);
+  });
+
+  it('protects paid-listing entitlements with the property service guard', async () => {
+    const path = `/internal/subscriptions/${alice}/publishing`;
+    for (const bearer of [undefined, token, signServiceToken('chat')]) {
+      const req = request(app.getHttpServer()).get(path);
+      if (bearer) req.set('Authorization', `Bearer ${bearer}`);
+      await req.expect(401);
+    }
+    subscriptions.publishingEntitlements.mockResolvedValue({
+      listingLimit: 1,
+      expiresAt: null,
+      protectedPropertyIds: [],
+    });
+    await request(app.getHttpServer())
+      .get(path)
+      .set('Authorization', `Bearer ${signServiceToken('property')}`)
+      .expect(200);
+    expect(subscriptions.publishingEntitlements).toHaveBeenCalledWith(alice);
   });
 });
