@@ -53,6 +53,7 @@ function toProfile<Row extends ProfileRow>(row: Row) {
 /** What any signed-in user may see about another user. No contact details. */
 const PUBLIC_PROFILE_SELECT = {
   id: true,
+  role: true,
   username: true,
   name: true,
   avatarUrl: true,

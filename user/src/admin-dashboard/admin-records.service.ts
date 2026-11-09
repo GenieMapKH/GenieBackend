@@ -8,6 +8,7 @@ const PAGE_SIZE = 50;
 const ACCOUNT_INFO = {
   id: true,
   username: true,
+  avatarUrl: true,
   name: true,
   firstName: true,
   lastName: true,
@@ -18,6 +19,7 @@ const ACCOUNT_INFO = {
   role: true,
   createdAt: true,
   deactivatedAt: true,
+  bannedAt: true,
   lastSeenAt: true,
 } as const;
 
@@ -35,11 +37,35 @@ export class AdminRecordsService {
 
   async list(query: AdminRecordsQuery) {
     const { section, offset } = query;
+    const q = query.q?.trim();
+    const uuid =
+      q &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q)
+        ? q
+        : undefined;
+    const accountSearch = q
+      ? {
+          OR: [
+            ...(uuid ? [{ id: uuid }] : []),
+            ...[
+              'username',
+              'name',
+              'firstName',
+              'lastName',
+              'email',
+              'phone',
+            ].map((field) => ({
+              [field]: { contains: q, mode: 'insensitive' },
+            })),
+          ],
+        }
+      : {};
     const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     if (['active-users', 'all-users', 'new-users'].includes(section)) {
       const rows = await this.prisma.user.findMany({
         where: {
           role: 'user',
+          ...accountSearch,
           ...(section === 'active-users' && { deactivatedAt: null }),
           ...(section === 'new-users' && { createdAt: { gte: since } }),
         },
@@ -52,7 +78,19 @@ export class AdminRecordsService {
     }
     if (section === 'reports') {
       const rows = await this.prisma.report.findMany({
-        where: { status: 'open' },
+        where: {
+          status: 'open',
+          ...(q && {
+            OR: [
+              ...(uuid ? [{ id: uuid }, { propertyId: uuid }] : []),
+              ...['reason', 'details'].map((field) => ({
+                [field]: { contains: q, mode: 'insensitive' },
+              })),
+              { reporter: accountSearch },
+              { reportedUser: accountSearch },
+            ],
+          }),
+        },
         select: {
           id: true,
           propertyId: true,
@@ -76,6 +114,8 @@ export class AdminRecordsService {
     ].includes(section);
     const search = new URLSearchParams({ section, offset: String(offset) });
     if (query.tier) search.set('tier', query.tier);
+    if (q) search.set('q', q);
+    if (query.purpose) search.set('purpose', query.purpose);
     const page = await this.dashboard.internalGet<RemotePage>(
       payment ? 'payment' : 'property',
       payment ? 'PAYMENT_SERVICE_URL' : 'PROPERTY_SERVICE_URL',

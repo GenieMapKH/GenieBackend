@@ -24,8 +24,9 @@ export class InternalAdminDashboardController {
   list(
     @Query('section') section: string,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('q') q?: string,
   ) {
-    return this.records.list(section, offset);
+    return this.records.list(section, offset, q);
   }
 
   @Get()

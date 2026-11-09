@@ -107,6 +107,23 @@ describe('UserRepository.create', () => {
   });
 });
 
+describe('administrator ban storage', () => {
+  it('maps the permanent flag and never clears deactivation for a concurrently banned account', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const repository = new UserRepository({ user: { updateMany } } as never);
+    await repository.update('u1', { deactivated_at: null });
+    expect(updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'u1', bannedAt: null },
+      data: { deactivatedAt: null },
+    });
+    await repository.update('u1', { banned_at: '2026-11-09T00:00:00Z' });
+    expect(updateMany).toHaveBeenLastCalledWith({
+      where: { id: 'u1' },
+      data: { bannedAt: new Date('2026-11-09T00:00:00Z') },
+    });
+  });
+});
+
 describe('UserRepository email handling', () => {
   it('looks an email up in lowercase, ignoring surrounding spaces', async () => {
     const prisma = fakePrisma();

@@ -92,7 +92,7 @@ export class SessionService {
     }
 
     const user = await this.users.findById(sub);
-    if (!user) {
+    if (!user || user.banned_at) {
       throw new UnauthorizedException('User no longer exists');
     }
     if (user.role === 'admin' && !adminMfa) {

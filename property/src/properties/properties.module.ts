@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { SupabaseModule } from '@tilomnov/shared';
 import { InternalAccountsController } from './internal/internal-accounts.controller';
+import { InternalAdminPropertiesController } from './internal/internal-admin-properties.controller';
+import { AdminPropertiesService } from './services/admin-properties.service';
 import { InternalPublicationController } from './internal/internal-publication.controller';
 import {
   GoogleNearbyPlaceProvider,
@@ -42,6 +44,7 @@ import { AdminListingRecordsService } from './services/admin-listing-records.ser
 @Module({
   imports: [SupabaseModule],
   controllers: [
+    InternalAdminPropertiesController,
     PropertiesController,
     PublicPropertiesController,
     NearbyRouteController,
@@ -50,6 +53,7 @@ import { AdminListingRecordsService } from './services/admin-listing-records.ser
     InternalAdminDashboardController,
   ],
   providers: [
+    AdminPropertiesService,
     AdminListingRecordsService,
     ExpiredPublishingService,
     PublishingAllowanceService,

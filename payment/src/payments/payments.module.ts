@@ -15,6 +15,7 @@ import {
 } from './subscriptions.controller';
 import { InternalAdminDashboardController } from './internal-admin-dashboard.controller';
 import { AdminPaymentRecordsService } from './admin-payment-records.service';
+import { AdminIncomeService } from './admin-income.service';
 
 @Module({
   controllers: [
@@ -24,6 +25,7 @@ import { AdminPaymentRecordsService } from './admin-payment-records.service';
     InternalAdminDashboardController,
   ],
   providers: [
+    AdminIncomeService,
     AdminPaymentRecordsService,
     AbaPaywayProvider,
     MockPaymentProvider,

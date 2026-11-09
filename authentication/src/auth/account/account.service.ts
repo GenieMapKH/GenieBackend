@@ -1,4 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { BCRYPT_ROUNDS } from '../auth.constants';
@@ -92,6 +97,29 @@ export class AccountService {
     await this.devices.require(caller);
     const user = await this.proofs.verify(caller.userId, proof);
 
+    await this.eraseAccount(user);
+  }
+
+  async adminDelete(userId: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new NotFoundException('Account not found');
+    if (user.role !== 'user')
+      throw new ForbiddenException('Administrator accounts cannot be deleted');
+    await this.eraseAccount(user);
+  }
+
+  async adminBan(userId: string): Promise<void> {
+    const user = await this.users.findById(userId);
+    if (!user) throw new NotFoundException('Account not found');
+    if (user.role !== 'user')
+      throw new ForbiddenException('Administrator accounts cannot be banned');
+    const now = new Date().toISOString();
+    await this.users.update(userId, { banned_at: now, deactivated_at: now });
+    await this.sessions.endAllSessions(userId);
+    await this.content.visibilityChanged(userId);
+  }
+
+  private async eraseAccount(user: UserRecord): Promise<void> {
     // Hidden before anything is removed, so nobody is shown a listing whose photos are already gone.
     await this.users.update(user.id, {
       deactivated_at: new Date().toISOString(),
@@ -114,6 +142,8 @@ export class AccountService {
 
   /** Called on every successful sign-in: that is how a deactivated account comes back. */
   async reactivate(user: UserRecord): Promise<void> {
+    if (user.banned_at)
+      throw new ForbiddenException('This account has been banned');
     if (!user.deactivated_at) return;
     await this.users.update(user.id, { deactivated_at: null });
     await this.content.visibilityChanged(user.id);

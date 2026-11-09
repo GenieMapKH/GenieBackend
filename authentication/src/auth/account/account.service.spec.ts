@@ -178,6 +178,46 @@ describe('AccountService', () => {
 
   afterEach(() => jest.useRealTimers());
 
+  it('bans regular accounts, revokes sessions and never reactivates a banned account', async () => {
+    await service.adminBan('u1');
+    expect(users.update).toHaveBeenCalledWith('u1', {
+      banned_at: expect.any(String),
+      deactivated_at: expect.any(String),
+    });
+    expect(sessions.endAllSessions).toHaveBeenCalledWith('u1');
+    expect(content.visibilityChanged).toHaveBeenCalledWith('u1');
+    await expect(
+      service.reactivate({
+        ...account(),
+        phone: null,
+        username: null,
+        name: null,
+        avatar_url: null,
+        banned_at: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it('protects administrator accounts from bans and deletion', async () => {
+    users.findById.mockResolvedValue(account({ role: 'admin' }));
+    await expect(service.adminBan('u1')).rejects.toThrow(ForbiddenException);
+    await expect(service.adminDelete('u1')).rejects.toThrow(ForbiddenException);
+    expect(users.update).not.toHaveBeenCalled();
+    expect(users.delete).not.toHaveBeenCalled();
+    expect(content.eraseFiles).not.toHaveBeenCalled();
+  });
+
+  it('admin deletion reuses file cleanup and does not delete the account when cleanup fails', async () => {
+    content.eraseFiles.mockRejectedValue(new Error('Storage unavailable'));
+    await expect(service.adminDelete('u1')).rejects.toThrow(
+      'Storage unavailable',
+    );
+    expect(users.delete).not.toHaveBeenCalled();
+    expect(users.update).toHaveBeenLastCalledWith('u1', {
+      deactivated_at: null,
+    });
+  });
+
   describe('changePassword', () => {
     it('stores a hash of the new password and signs out every other device', async () => {
       await service.changePassword(caller, PASSWORD, 'a-new-password');

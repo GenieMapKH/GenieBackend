@@ -6,14 +6,42 @@ import { PLANS } from './plan-catalog';
 export class AdminPaymentRecordsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(section: string, offset: number, tier?: string) {
+  async list(
+    section: string,
+    offset: number,
+    tier?: string,
+    q?: string,
+    purpose?: string,
+  ) {
+    if (
+      purpose !== undefined &&
+      !['SUBSCRIPTION', 'LISTING_PUBLISH'].includes(purpose)
+    )
+      throw new BadRequestException('Invalid payment purpose');
+    if (q !== undefined && (typeof q !== 'string' || q.length > 100))
+      throw new BadRequestException('Invalid search query');
+    q = q?.trim();
+    const uuid =
+      q &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(q)
+        ? q
+        : undefined;
     if (!Number.isSafeInteger(offset) || offset < 0)
       throw new BadRequestException('Invalid page offset');
     if (tier && (!Object.keys(PLANS).includes(tier) || tier === 'free'))
       throw new BadRequestException('Invalid subscription tier');
     if (section === 'subscriptions') {
       const rows = await this.prisma.subscription.findMany({
-        where: { currentPeriodEnd: { gt: new Date() }, ...(tier && { tier }) },
+        where: {
+          currentPeriodEnd: { gt: new Date() },
+          ...(tier && { tier }),
+          ...(q && {
+            OR: [
+              ...(uuid ? [{ userId: uuid }, { transactionId: uuid }] : []),
+              { tier: { contains: q, mode: 'insensitive' as const } },
+            ],
+          }),
+        },
         select: {
           userId: true,
           tier: true,
@@ -32,13 +60,29 @@ export class AdminPaymentRecordsService {
     if (!['successful-payments', 'pending-payments'].includes(section))
       throw new BadRequestException('Invalid payment section');
     const rows = await this.prisma.paymentTransaction.findMany({
-      where:
-        section === 'pending-payments'
+      where: {
+        currency: 'USD',
+        purpose: purpose ?? { in: ['SUBSCRIPTION', 'LISTING_PUBLISH'] },
+        ...(q && {
+          OR: [
+            ...(uuid
+              ? [{ id: uuid }, { userId: uuid }, { propertyId: uuid }]
+              : []),
+            ...['purpose', 'subscriptionTier'].map((field) => ({
+              [field]: { contains: q, mode: 'insensitive' },
+            })),
+          ],
+        }),
+        ...(section === 'pending-payments'
           ? { status: 'Pending' }
           : {
               status: 'Success',
-              paidAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            },
+              paidAt: {
+                gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+                lte: new Date(),
+              },
+            }),
+      },
       select: {
         id: true,
         userId: true,

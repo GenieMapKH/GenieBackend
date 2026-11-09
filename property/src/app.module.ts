@@ -6,6 +6,7 @@ import {
   RedisModule,
 } from '@tilomnov/shared';
 import { AlertsModule } from './alerts/alerts.module';
+import { AdvertisementsModule } from './advertisements/advertisements.module';
 import { FeedModule } from './feed/feed.module';
 import { PropertiesModule } from './properties/properties.module';
 import { SearchModule } from './search/search.module';
@@ -17,6 +18,7 @@ import { SentryErrorsModule } from '@tilomnov/shared/sentry';
  */
 @Module({
   imports: [
+    AdvertisementsModule,
     SentryErrorsModule,
     RedisModule,
     PrismaModule,

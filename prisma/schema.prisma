@@ -68,6 +68,7 @@ model User {
   sex           String?
   /// Set while the owner has switched the account off; signing in clears it.
   deactivatedAt DateTime?            @map("deactivated_at") @db.Timestamptz(6)
+  bannedAt DateTime? @map("banned_at") @db.Timestamptz(6)
   payments     PaymentTransaction[]
   subscription Subscription?
   properties    Property[]
@@ -123,6 +124,29 @@ model EmailVerification {
   @@map("email_verifications")
   @@index([expiresAt])
   @@schema("account")
+}
+
+model ModerationAction {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actorId String @map("actor_id") @db.Uuid
+  targetId String @map("target_id") @db.Uuid
+  action String
+  reason String
+  status String @default("requested")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([targetId, createdAt], map: "moderation_actions_target_idx")
+  @@map("moderation_actions")
+  @@schema("account")
+}
+
+model Advertisement {
+  id String @id @db.Uuid
+  imagePath String @unique @map("image_path")
+  imageUrl String @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@index([createdAt], map: "advertisements_created_idx")
+  @@map("advertisements")
+  @@schema("listing")
 }
 
 model Property {

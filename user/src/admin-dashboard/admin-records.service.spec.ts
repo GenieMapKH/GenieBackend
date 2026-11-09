@@ -36,6 +36,7 @@ describe('admin detail lists', () => {
     });
     expect(query.select).toMatchObject({
       username: true,
+      avatarUrl: true,
       email: true,
       phone: true,
     });
@@ -102,6 +103,10 @@ describe('admin detail lists', () => {
   });
 
   it.each([
+    { section: 'successful-payments', purpose: 'unknown' },
+    { section: 'all-users', q: 'x'.repeat(101) },
+    { section: 'all-users', q: ['name'] },
+    { section: 'all-users', q: 123 },
     { section: 'passwords' },
     { section: 'all-users', offset: -1 },
     { section: 'all-users', offset: 1.5 },
@@ -110,5 +115,82 @@ describe('admin detail lists', () => {
   ])('rejects malformed detail requests: %p', async (input) => {
     const query = plainToInstance(AdminRecordsQuery, input);
     expect(await validate(query)).not.toHaveLength(0);
+  });
+
+  it('searches account fields before pagination and retains enabled-account restrictions', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+    await service.list({ section: 'active-users', offset: 50, q: ' Sokha ' });
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          role: 'user',
+          deactivatedAt: null,
+          OR: expect.arrayContaining([
+            { username: { contains: 'Sokha', mode: 'insensitive' } },
+            { email: { contains: 'Sokha', mode: 'insensitive' } },
+          ]),
+        }),
+        skip: 50,
+        take: 51,
+      }),
+    );
+    const query = prisma.user.findMany.mock.calls[0][0];
+    expect(query.where.OR).not.toContainEqual(
+      expect.objectContaining({ id: expect.anything() }),
+    );
+  });
+
+  it('matches a full UUID exactly and treats whitespace as no search', async () => {
+    const id = 'abcdef01-1234-1234-1234-123456789abc';
+    prisma.user.findMany.mockResolvedValue([]);
+    await service.list({ section: 'all-users', offset: 0, q: id });
+    expect(prisma.user.findMany.mock.calls[0][0].where.OR).toContainEqual({
+      id,
+    });
+    await service.list({ section: 'all-users', offset: 0, q: '   ' });
+    expect(prisma.user.findMany.mock.calls[1][0].where).toEqual({
+      role: 'user',
+    });
+  });
+
+  it('forwards encoded search to the owning service', async () => {
+    dashboard.internalGet.mockResolvedValue({ items: [], nextOffset: null });
+    prisma.user.findMany.mockResolvedValue([]);
+    await service.list({ section: 'leads', offset: 50, q: 'Home & land' });
+    expect(dashboard.internalGet).toHaveBeenCalledWith(
+      'property',
+      'PROPERTY_SERVICE_URL',
+      4003,
+      '/records?section=leads&offset=50&q=Home+%26+land',
+    );
+  });
+
+  it('forwards the payment purpose together with search and pagination', async () => {
+    dashboard.internalGet.mockResolvedValue({ items: [], nextOffset: null });
+    prisma.user.findMany.mockResolvedValue([]);
+    await service.list({
+      section: 'successful-payments',
+      offset: 50,
+      q: 'post',
+      purpose: 'LISTING_PUBLISH',
+    });
+    expect(dashboard.internalGet).toHaveBeenCalledWith(
+      'payment',
+      'PAYMENT_SERVICE_URL',
+      4005,
+      '/records?section=successful-payments&offset=50&q=post&purpose=LISTING_PUBLISH',
+    );
+  });
+
+  it('searches report text and account identities while keeping only open reports', async () => {
+    prisma.report.findMany.mockResolvedValue([]);
+    await service.list({ section: 'reports', offset: 0, q: 'spam' });
+    expect(prisma.report.findMany.mock.calls[0][0].where).toMatchObject({
+      status: 'open',
+      OR: expect.arrayContaining([
+        { reason: { contains: 'spam', mode: 'insensitive' } },
+        { reporter: expect.objectContaining({ OR: expect.any(Array) }) },
+      ]),
+    });
   });
 });

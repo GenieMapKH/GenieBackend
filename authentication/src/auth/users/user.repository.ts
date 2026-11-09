@@ -29,6 +29,7 @@ export interface UserRecord {
   firebase_uid: string | null;
   /** ISO time, set while the owner has switched the account off. */
   deactivated_at: string | null;
+  banned_at?: string | null;
 }
 
 export type NewUser = Partial<Omit<UserRecord, 'id' | 'username'>> &
@@ -56,6 +57,7 @@ const USER_COLUMNS = {
   avatarUrl: true,
   firebaseUid: true,
   deactivatedAt: true,
+  bannedAt: true,
 } satisfies Prisma.UserSelect;
 
 type UserRow = Prisma.UserGetPayload<{ select: typeof USER_COLUMNS }>;
@@ -137,7 +139,7 @@ export class UserRepository {
   async update(id: string, patch: UserPatch): Promise<void> {
     try {
       await this.prisma.user.updateMany({
-        where: { id },
+        where: { id, ...(patch.deactivated_at === null && { bannedAt: null }) },
         data: toUserData(patch),
       });
     } catch (error) {
@@ -212,6 +214,7 @@ function toUserRecord(row: UserRow): UserRecord {
     avatar_url: row.avatarUrl,
     firebase_uid: row.firebaseUid,
     deactivated_at: row.deactivatedAt?.toISOString() ?? null,
+    banned_at: row.bannedAt?.toISOString() ?? null,
   };
 }
 
@@ -236,5 +239,7 @@ function toUserData(patch: UserPatch): Prisma.UserUpdateManyMutationInput {
     data.deactivatedAt =
       patch.deactivated_at === null ? null : new Date(patch.deactivated_at);
   }
+  if (patch.banned_at !== undefined)
+    data.bannedAt = patch.banned_at === null ? null : new Date(patch.banned_at);
   return data;
 }

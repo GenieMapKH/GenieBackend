@@ -22,6 +22,7 @@ export interface PublisherSummary {
  * (`ContactDetailsInterceptor`).
  */
 export interface PublisherProfile extends PublisherSummary {
+  isAdmin: boolean;
   email: string | null;
   phone: string | null;
 }
@@ -43,6 +44,7 @@ const PUBLISHER_SELECT = {
 
 const PROFILE_SELECT = {
   ...PUBLISHER_SELECT,
+  role: true,
   email: true,
   phone: true,
 } as const;
@@ -117,6 +119,7 @@ export class PeopleSearchService {
     const publishes = summary.listingCount > 0;
     return {
       ...summary,
+      isAdmin: row.role === 'admin',
       email: publishes ? row.email : null,
       phone: publishes ? row.phone : null,
     };
