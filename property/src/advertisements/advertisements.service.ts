@@ -16,6 +16,7 @@ import { AD_PATH } from './advertisements.dto';
 const UPLOADS = 'advertisement-uploads';
 const PUBLIC = 'advertisements';
 const MAX_BYTES = 5 * 1024 * 1024;
+const AD_COLUMNS = { id: true, imageUrl: true, width: true, height: true };
 @Injectable()
 export class AdvertisementsService implements OnModuleInit {
   private readonly logger = new Logger(AdvertisementsService.name);
@@ -43,7 +44,7 @@ export class AdvertisementsService implements OnModuleInit {
   }
   list() {
     return this.prisma.advertisement.findMany({
-      select: { id: true, imageUrl: true },
+      select: AD_COLUMNS,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -63,28 +64,34 @@ export class AdvertisementsService implements OnModuleInit {
       throw new BadRequestException('Unknown advertisement upload');
     const existing = await this.prisma.advertisement.findUnique({
       where: { imagePath: path },
+      select: AD_COLUMNS,
     });
-    if (existing) return { id: existing.id, imageUrl: existing.imageUrl };
+    if (existing) return existing;
     if (!(await this.storage.createSignedDownloadUrl(UPLOADS, path, 60)))
       throw new BadRequestException('Upload the advertisement first');
     const bytes = await this.storage.downloadFile(UPLOADS, path);
     if (bytes.length > MAX_BYTES)
       throw new BadRequestException('Advertisement image is too large');
     let image: Buffer;
+    let width: number;
+    let height: number;
     try {
-      image = await sharp(bytes, {
+      const normalized = await sharp(bytes, {
         limitInputPixels: 40000000,
         failOn: 'error',
       })
         .rotate()
         .resize({
           width: 1600,
-          height: 1000,
+          height: 1600,
           fit: 'inside',
           withoutEnlargement: true,
         })
         .jpeg({ quality: 85 })
-        .toBuffer();
+        .toBuffer({ resolveWithObject: true });
+      image = normalized.data;
+      width = normalized.info.width;
+      height = normalized.info.height;
     } catch {
       throw new BadRequestException('Please upload a valid image');
     }
@@ -95,6 +102,7 @@ export class AdvertisementsService implements OnModuleInit {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(4242, 1)`;
       const previous = await tx.advertisement.findUnique({
         where: { imagePath: path },
+        select: AD_COLUMNS,
       });
       if (previous) return previous;
       if ((await tx.advertisement.count()) >= 100)
@@ -106,11 +114,14 @@ export class AdvertisementsService implements OnModuleInit {
           id,
           imagePath: path,
           imageUrl: this.storage.publicUrl(PUBLIC, publicPath),
+          width,
+          height,
         },
+        select: AD_COLUMNS,
       });
     });
     await this.cleanup(UPLOADS, path);
-    return { id: ad.id, imageUrl: ad.imageUrl };
+    return ad;
   }
   async remove(id: string) {
     await this.prisma.advertisement.deleteMany({ where: { id } });
