@@ -8,6 +8,27 @@ Dashboard labels move around; if one is missing, the setting is in the service's
 
 ## Existing staging and production deployment
 
+### Branch flow
+
+GitHub Actions runs the full build, tests, dependency audit and Prisma validation
+on every branch push, and again for pull requests targeting `main`. Use feature
+branches for development. After all checks pass, every pushed branch except
+`main` deploys all seven services to the shared staging environment. The most
+recent branch deployment becomes the code running in staging. Merge the reviewed
+change to `main` for production; production Railway services should deploy from
+`main`.
+
+Before branch deployments can run, add these GitHub Actions settings:
+
+- Secret `RAILWAY_STAGING_TOKEN`: a Railway project token scoped to the staging
+  environment only.
+- Variable `RAILWAY_PROJECT_ID`: the Railway project ID.
+- Variable `RAILWAY_STAGING_ENVIRONMENT`: the staging environment ID (or name).
+
+Staging must have its own databases, Redis, signing keys, and secrets. The
+workflow serializes branch deployments and never gives its token access to
+production.
+
 Both environments use the same service ports and private hosts below. Their private
 networks, Redis instances, databases and signing keys stay separate. APK gateway URLs:
 
@@ -91,8 +112,8 @@ Per service (everything else comes from the shared list):
 |---|---|
 | all seven | `SERVICE=<its name>`, `PORT=<its port>`, `HOST=::` (see the note below) |
 | `api-gateway` | `REDIS_URL`, `CORS_ORIGINS`, and the six addresses: `AUTH_SERVICE_URL=http://authentication.railway.internal:8080`, `USER_SERVICE_URL=http://users.railway.internal:4002`, `PROPERTY_SERVICE_URL=http://geniebackend.railway.internal:4003`, `CHAT_SERVICE_URL=http://chat.railway.internal:4004`, `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005`, `NOTIFICATION_SERVICE_URL=http://geniebackend-1e79da11.railway.internal:4006` |
-| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=2`, `JWT_KEY_ENCRYPTION_KEY` (its signing keys rotate by themselves; `JWT_PUBLIC_KEY` only during the switch, see docs/SECRET_ROTATION.md), `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push) |
-| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL` |
+| `authentication` | `DATABASE_URL` (its own login; it no longer uses `SUPABASE_*`), `DATABASE_POOL_MAX=2`, `JWT_KEY_ENCRYPTION_KEY` (its signing keys rotate by themselves; `JWT_PUBLIC_KEY` only during the switch, see docs/SECRET_ROTATION.md), `FIREBASE_SERVICE_ACCOUNT_JSON`, email provider keys, `REDIS_URL`, `IP_LOCATION_API_URL`, plus `USER_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `NOTIFICATION_SERVICE_URL` (sign-in alerts by push), `ADMIN_LOGIN_EMAIL`, `ADMIN_APP_LINK_URL` (see docs/ADMIN_DASHBOARD.md) |
+| `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_SERVICE_URL`, `CHAT_SERVICE_URL` |
 | `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
 | `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_MESSAGE_SECRET` (32+ characters; preserve and back up), `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
 | `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
@@ -100,6 +121,7 @@ Per service (everything else comes from the shared list):
 
 Rules that matter:
 
+- Set `PAYMENT_SERVICE_URL=http://payment.railway.internal:4005` on `property` as well as the gateway. Publishing and subscription-expiry checks call payment directly; without it they try localhost and publishing fails even with an active paid plan.
 - `JWT_KEY_ENCRYPTION_KEY` goes **only** on `authentication`. `JWT_PRIVATE_KEY` is no longer read: delete it.
 - `SERVICE` is also a Docker build argument: Railway passes variables to the build, and the `Dockerfile`
   picks the service to build from it. A missing `SERVICE` fails the build with a clear message.

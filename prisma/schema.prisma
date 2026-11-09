@@ -142,7 +142,7 @@ model Property {
   /// 'percent' or 'amount' (USD off `price`); null for no discount.
   discountType     String?              @map("discount_type")
   discountValue    Decimal?             @map("discount_value") @db.Decimal(12, 2)
-  /// Sale, Rent or To Let (see property-options.ts).
+  /// Sale, Rent, To Let or Takeover Payments (see property-options.ts).
   listingType      String?              @map("listing_type")
   titleType        String?              @map("title_type")
   contactPhone     String?              @map("contact_phone")
@@ -195,6 +195,7 @@ model Property {
   nearbyPlaces     PropertyNearbyPlace[]
   views            PropertyView[]
   promotions       Promotion[]
+  takeover         PropertyTakeover?
 
   @@index([userId])
   @@index([status])
@@ -207,6 +208,49 @@ model Property {
   /// The feed: followed owners' live listings, newest published first (migration 27).
   @@index([userId, publishedAt(sort: Desc), id], map: "properties_active_owner_published_idx", where: raw("(status = 'Active'::text)"))
   @@map("properties")
+  @@schema("listing")
+}
+
+/// Seller-reported obligations for a takeover listing. The listing price is
+/// sellerAmount + remainingBalance; future interest and fees are separate.
+model PropertyTakeover {
+  propertyId       String   @id @map("property_id") @db.Uuid
+  providerType     String?  @map("provider_type")
+  providerName     String?  @map("provider_name")
+  projectName      String?  @map("project_name")
+  sellerAmount     Decimal? @map("seller_amount") @db.Decimal(12, 2)
+  remainingBalance Decimal? @map("remaining_balance") @db.Decimal(12, 2)
+  balanceAsOf      DateTime? @map("balance_as_of") @db.Date
+  paymentAmount    Decimal? @map("payment_amount") @db.Decimal(12, 2)
+  paymentFrequency String?  @map("payment_frequency")
+  remainingMonths  Int?     @map("remaining_months")
+  nextPaymentDate  DateTime? @map("next_payment_date") @db.Date
+  interestType     String?  @map("interest_type")
+  annualInterestRate Decimal? @map("annual_interest_rate") @db.Decimal(5, 2)
+  transferStatus   String?  @map("transfer_status")
+  transferFee      Decimal? @map("transfer_fee") @db.Decimal(12, 2)
+  transferFeePayer String?  @map("transfer_fee_payer")
+  arrearsAmount    Decimal? @map("arrears_amount") @db.Decimal(12, 2)
+  arrearsPayer     String?  @map("arrears_payer")
+  hasAdditionalPayments Boolean? @map("has_additional_payments")
+  notes            String?
+  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  additionalPayments PropertyTakeoverPayment[]
+
+  @@map("property_takeovers")
+  @@schema("listing")
+}
+
+/// Larger scheduled payments already included in the remaining balance.
+model PropertyTakeoverPayment {
+  propertyId String @map("property_id") @db.Uuid
+  order      Int
+  amount     Decimal? @db.Decimal(12, 2)
+  dueDate    DateTime? @map("due_date") @db.Date
+  takeover   PropertyTakeover @relation(fields: [propertyId], references: [propertyId], onDelete: Cascade)
+
+  @@id([propertyId, order])
+  @@map("property_takeover_payments")
   @@schema("listing")
 }
 

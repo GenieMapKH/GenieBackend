@@ -50,7 +50,30 @@ describe('SignInService', () => {
     });
 
     expect(account.reactivate).toHaveBeenCalledWith(user);
-    expect(tokens.issue).toHaveBeenCalledWith('u1', 'user', CLIENT);
+    expect(tokens.issue).toHaveBeenCalledWith(
+      'u1',
+      'user',
+      CLIENT,
+      undefined,
+      false,
+    );
+  });
+
+  it('requires the email challenge for an admin session', async () => {
+    await expect(
+      service.complete({ ...user, role: 'admin' } as never, CLIENT),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(tokens.issue).not.toHaveBeenCalled();
+    await service.complete({ ...user, role: 'admin' } as never, CLIENT, {
+      adminEmailVerified: true,
+    });
+    expect(tokens.issue).toHaveBeenCalledWith(
+      'u1',
+      'admin',
+      CLIENT,
+      undefined,
+      true,
+    );
   });
 
   it('tells the owner when the account was already in use on another device', async () => {

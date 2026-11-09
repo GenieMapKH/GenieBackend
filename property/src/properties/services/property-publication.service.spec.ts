@@ -34,6 +34,18 @@ describe('PropertyPublicationService', () => {
   });
 
   describe('beginPublish', () => {
+    it('refuses payment to publish an incomplete takeover', async () => {
+      query.findOwned.mockResolvedValue({
+        id: LISTING,
+        status: 'Draft',
+        listingType: 'Takeover Payments',
+        takeover: null,
+      });
+      await expect(service.beginPublish(ME, LISTING)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(propertyTable.updateMany).not.toHaveBeenCalled();
+    });
     it('parks the listing as Pending and says what it was', async () => {
       const result = await service.beginPublish(ME, LISTING);
 
@@ -82,6 +94,32 @@ describe('PropertyPublicationService', () => {
   });
 
   describe('settlePublish', () => {
+    it('checks the terms again before a paid takeover goes live', async () => {
+      propertyTable.findUnique.mockResolvedValue({
+        ...PLACE,
+        status: 'Pending',
+        listingType: 'Takeover Payments',
+        takeover: null,
+      });
+      await expect(service.settlePublish(LISTING, 'Active')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(propertyTable.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('ignores a repeated settlement after an owner has unpublished and edited a takeover', async () => {
+      propertyTable.findUnique.mockResolvedValue({
+        ...PLACE,
+        status: 'Draft',
+        listingType: 'Takeover Payments',
+        takeover: null,
+      });
+      propertyTable.updateMany.mockResolvedValue({ count: 0 });
+      await expect(
+        service.settlePublish(LISTING, 'Active'),
+      ).resolves.toBeUndefined();
+      expect(listingChanges.changed).not.toHaveBeenCalled();
+    });
     it('publishes a Pending listing never live before, dated now, and refreshes what visitors see', async () => {
       await service.settlePublish(LISTING, 'Active');
 

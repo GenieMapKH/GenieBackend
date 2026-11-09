@@ -82,7 +82,21 @@ docker compose down --remove-orphans   # stop (and remove the old single-contain
 ```
 
 Redis, seven services, one image definition (`Dockerfile`, chosen with `--build-arg SERVICE=...`).
-Compose needs a filled-in `.env`, including `INTERNAL_SERVICE_SECRET`.
+Compose reads `.env` by default. Fill in `INTERNAL_SERVICE_SECRET` and the other
+required settings from `.env.example`, including all six dedicated database logins:
+`AUTHENTICATION_DATABASE_URL`, `USER_DATABASE_URL`, `PROPERTY_DATABASE_URL`,
+`CHAT_DATABASE_URL`, `PAYMENT_DATABASE_URL`, and `NOTIFICATION_DATABASE_URL`.
+The shared `DATABASE_URL` does not substitute for these service credentials.
+See [database service logins](docs/DATABASE_SCHEMAS.md) for their permissions and setup.
+
+Validate the configuration without printing secrets or starting containers:
+
+```bash
+docker compose config --quiet
+```
+
+Keep local development on staging credentials. `.env.prod-db` is a separate
+production configuration; Compose does not load it automatically.
 
 The build caches dependencies, Prisma generation and the shared library separately. A source edit
 in `chat` compiles only Chat; unchanged services reuse their existing image layers. Changes to
@@ -207,7 +221,7 @@ without `/v1` and are answered as v1. How versions are added and retired:
 | GET | `/users/username-available` | JWT | is this username free (see below) |
 | POST / PUT / DELETE | `/users/me/avatar...` | JWT | profile picture (see below) |
 | GET / PUT / DELETE | `/users/:id/follow` | JWT | follow counts / follow / unfollow; each answers `{ followerCount, followingCount, isFollowing }` (see docs/SYSTEM_DESIGN.md 9a) |
-| GET | `/feed?limit=&cursor=` | JWT | live listings of the people you follow, newest published first: `{ items, nextCursor }` (card fields only; see docs/SYSTEM_DESIGN.md 9a) |
+| GET | `/feed?limit=&cursor=&sort=&since=&until=&propertyType=&minPrice=&maxPrice=` | JWT | followed listings sorted by newest, saves or buyer price, with date/category/price filters: `{ items, nextCursor }` (see docs/SYSTEM_DESIGN.md 9a) |
 | POST | `/properties/:id/lead` | JWT | `{ channel: call\|chat }`: a buyer tapped Call or Chat (204; once per person and channel; see docs/SYSTEM_DESIGN.md 9) |
 | GET | `/properties/:id/insights` | JWT, owner | `{ totals: { views, saves, calls, chats }, days: [{ date, views, saves, leads }] }` for the last 14 days |
 | GET / PUT / DELETE | `/users/:id/block` | JWT | block status / block / unblock; each answers `{ isBlocked, canMessage }` (see docs/SYSTEM_DESIGN.md 9b) |

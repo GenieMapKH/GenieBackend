@@ -1,8 +1,11 @@
 name: CI
 
+permissions:
+  contents: read
+
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
     branches: [main]
 
@@ -47,3 +50,38 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build --build-arg SERVICE=${{ matrix.service }} -t tilomnov-${{ matrix.service }}:ci .
+
+  deploy-staging:
+    name: Deploy branch to staging
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    needs: [build-and-test, docker]
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency:
+      group: railway-staging-deploy
+      cancel-in-progress: false
+    timeout-minutes: 45
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_STAGING_TOKEN }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_STAGING_ENVIRONMENT: ${{ vars.RAILWAY_STAGING_ENVIRONMENT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli
+
+      - name: Deploy all backend services to staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${RAILWAY_TOKEN:?Add the staging-scoped Railway token as RAILWAY_STAGING_TOKEN}"
+          : "${RAILWAY_PROJECT_ID:?Set the GitHub Actions variable RAILWAY_PROJECT_ID}"
+          : "${RAILWAY_STAGING_ENVIRONMENT:?Set the GitHub Actions variable RAILWAY_STAGING_ENVIRONMENT}"
+          for service in Authentication Users property Chat payment Notification Gateway; do
+            railway up --project "$RAILWAY_PROJECT_ID" --environment "$RAILWAY_STAGING_ENVIRONMENT" --service "$service"
+          done

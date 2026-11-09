@@ -47,20 +47,33 @@ export class TokenIssuerService {
     role: string,
     client: ClientContext,
     previous?: RefreshTokenRecord,
+    adminEmailVerified = false,
   ): Promise<IssuedTokens> {
     const session = continueOrStartSession(client, previous);
+    const adminMfa = role === 'admin' && adminEmailVerified;
 
     // `sid` names the session: it marks the asking device in the session list,
     // and is what a sign-out cuts off (see `RevokedSessionStore`).
     const accessToken = this.signer.sign(
-      { sub: userId, role, typ: ACCESS_TOKEN_TYPE, sid: session.id },
+      {
+        sub: userId,
+        role,
+        typ: ACCESS_TOKEN_TYPE,
+        sid: session.id,
+        ...(adminMfa && { adminMfa: true }),
+      },
       ACCESS_TOKEN_TTL_SECONDS,
     );
 
     // The jti ties the signed token to its database row so it can be revoked.
     const jti = randomUUID();
     const refreshToken = this.signer.sign(
-      { sub: userId, jti, typ: REFRESH_TOKEN_TYPE },
+      {
+        sub: userId,
+        jti,
+        typ: REFRESH_TOKEN_TYPE,
+        ...(adminMfa && { adminMfa: true }),
+      },
       `${REFRESH_TOKEN_TTL_DAYS}d`,
     );
 

@@ -17,20 +17,24 @@ export interface CallEndedEvent extends CallEvent {
 }
 
 /**
- * An ordinary "Dara is calling" notification on every device, shown by the
- * system even when the app is closed; it opens the app on the call. On
- * Android the app, when it can start, replaces it (same tag) with one that
- * rings full screen.
+ * Android must receive data only: FCM otherwise displays a basic notification
+ * and withholds the call data until it is tapped. The background handler rings.
  */
 export function incomingCallPush(
   event: CallEvent,
   target: PushTarget,
 ): PushContent {
   return {
-    alert: {
-      title: inLocale(texts.incomingCall, target.locale)(event.callerName),
-      body: inLocale(texts.tapToAnswer, target.locale),
-    },
+    alert:
+      target.platform === 'android'
+        ? undefined
+        : {
+            title: inLocale(
+              texts.incomingCall,
+              target.locale,
+            )(event.callerName),
+            body: inLocale(texts.tapToAnswer, target.locale),
+          },
     data: {
       type: 'call_incoming',
       callId: event.callId,
@@ -63,10 +67,16 @@ export function callEndedPush(
   };
   if (event.missed) {
     return {
-      alert: {
-        title: inLocale(texts.missedCall, target.locale),
-        body: inLocale(texts.missedCallFrom, target.locale)(event.callerName),
-      },
+      alert:
+        target.platform === 'android'
+          ? undefined
+          : {
+              title: inLocale(texts.missedCall, target.locale),
+              body: inLocale(
+                texts.missedCallFrom,
+                target.locale,
+              )(event.callerName),
+            },
       data,
       channel: 'missed_calls',
       tag: `call:${event.callId}`,

@@ -89,7 +89,7 @@ flowchart LR
 6. Two RS256 JWTs come back: access (15 min, `typ=access`) and refresh (30 days, `typ=refresh`).
 7. App keeps them in `flutter_secure_storage`.
 
-**Register** is the same path with `POST /auth/register { phone, email?, name?, password }`: a **phone number is required** (many users have no email), email and name are optional (blank means none), password 8+ characters (at most 72 bytes), role always `user`, email and phone are **not verified**. 409 if another account has the phone or email.
+**Register** is the same path with `POST /auth/register { phone, email?, name?, password, emailProof?, phoneToken? }`: a **phone number is required** (many users have no email), email and name are optional (blank means none), password 8+ characters (at most 72 bytes), role always `user`. SMS verification is temporarily optional as of 2026-11-09: without `phoneToken`, the phone remains **unverified**; a supplied Firebase SMS proof must match the number before marking it verified. A supplied email requires `emailProof` and is saved verified. 409 if another account has the phone or email. Password recovery accepts only verified contacts; new phone-only accounts must verify a recovery contact while signed in before they can recover a forgotten password.
 
 - **Phone numbers are stored as E.164** (`+85512345678`) by `normalizePhoneNumber` (`@tilomnov/shared`), on register, login and profile edits. Without a country code a number is read as Cambodian: `012 345 678`, `12345678`, `855 12 345 678`, `+855 012 345 678` are all the same account. Accounts made before this may hold the number as typed (`012345678`, `85512345678`); lookups also try those spellings. The phone cannot be cleared from the profile (`PATCH /users/me` refuses `phone: null`): it is how phone-only accounts sign in.
 - **Input checks** (DTOs, `whitelist` drops unknown fields): emails trimmed, lower-cased, at most 254 characters; names trimmed, at most 60, no control characters or `<`/`>`; a NUL anywhere in a body is refused (`RejectNullBytesPipe`; bcrypt stops reading at one). Non-string values are refused. The database is only reached through the Supabase client and Prisma, which send values as parameters; the one `ilike` lookup escapes `%` and `_`.
@@ -334,6 +334,24 @@ Redis and dropped on every follow/unfollow) and reads the feed itself, so it nev
 | `PUT /users/:id/follow` | the same, after following; twice changes nothing | 400 (yourself, bad id), 401, 404, 409 (already following 500) |
 | `DELETE /users/:id/follow` | the same, after unfollowing; allowed for a deactivated account; twice changes nothing | 400, 401 |
 | `GET /feed?limit=&cursor=` | `{ items, nextCursor }`: `Active` listings of followed, not deactivated owners, newest first by feed rank (`publishedAt`, moved older for each newer live listing of the same owner, see below; ties by id); send `nextCursor` back as `cursor`; `limit` 1-50, default 20. Items are card fields only: no description, nearby places, keywords, counts or owner contact; at most 5 photos. Open a listing with `GET /public/properties/:id` | 400 (bad `limit` or a cursor this server did not hand out), 401, 503 (user service down) |
+
+The Feed filter sheet applies these query parameters before pagination:
+
+- `sort=newest`: actual publication time descending; `top`: most saves first;
+  `priceLow` / `priceHigh`: discounted buyer price ascending / descending.
+  Numeric sorts break ties by publication time descending, then id ascending.
+  Older clients omitting `sort` retain the owner-spread ranking described below.
+- `since` / `until`: ISO 8601 publication bounds, inclusive / exclusive. The app
+  converts selected local dates to UTC, ending at midnight after the last day.
+- `propertyType`: one of the existing property categories; `minPrice` / `maxPrice`:
+  inclusive USD buyer-price limits from 0 through 9,999,999,999.99.
+
+Invalid values, reversed ranges, and cursors from a different sort return 400.
+Keep all filters unchanged when sending the next cursor. Top/price cursors also
+carry the numeric ranking value; the app resets pagination when filters change.
+Only the unfiltered first page is kept on the device; filtered requests never
+show or overwrite that cached page. The sheet supports Apply, Reset and cancel.
+No database migration is required. Ship the property service before the Flutter update.
 
 `published_at` (migration 27) is set the first time a listing goes live (created live, published,
 or paid for), and again only when it comes back on the market after being Sold or Expired. A

@@ -8,6 +8,7 @@ import { PasswordProofService } from './account/password-proof.service';
 import { UserContentClient } from './account/user-content.client';
 import { AuthAttemptLimits } from './attempt-limiter';
 import { AuthController } from './auth.controller';
+import { AdminLoginService } from './admin-login.service';
 import { CredentialsAuthService } from './credentials/credentials-auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { KnownLoginDevices } from './login-protection/known-login-devices.store';
@@ -81,6 +82,7 @@ import { AccountPhoneService } from './account/account-phone.service';
     AccountEmailService,
     SignInService,
     CredentialsAuthService,
+    AdminLoginService,
     FirebaseLoginService,
     PasswordResetService,
     PhonePasswordResetService,

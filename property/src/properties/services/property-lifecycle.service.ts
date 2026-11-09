@@ -21,6 +21,12 @@ import { PropertyQueryService } from './property-query.service';
 import { ListingChanges } from './listing-changes.service';
 import { CachedListing, Position } from './public-property-cache.service';
 import { PublishingAllowanceService } from './publishing-allowance.service';
+import {
+  assertTakeoverComplete,
+  TakeoverListing,
+  takeoverPrice,
+} from '../takeover';
+import { TAKEOVER_LISTING_TYPE } from '../property-options';
 
 /** The keyword codes of a property read with PROPERTY_WITH_RELATIONS. */
 const keywordCodes = (property: { keywords?: { keyword: string }[] }) =>
@@ -49,6 +55,7 @@ export class PropertyLifecycleService {
   ) {}
 
   async create(userId: string, dto: CreatePropertyDto) {
+    if (dto.status === PUBLIC_STATUS) assertTakeoverComplete(dto);
     assertValidDiscount(dto);
     const create = (db: Pick<PrismaService, 'property'>) =>
       db.property.create({
@@ -67,6 +74,16 @@ export class PropertyLifecycleService {
 
   async update(userId: string, id: string, dto: UpdatePropertyDto) {
     const before = await this.query.findOwned(userId, id);
+    const after = { ...before, ...dto };
+    if (before.status === PUBLIC_STATUS || before.status === 'Pending') {
+      assertTakeoverComplete(after);
+    }
+    if (after.listingType === TAKEOVER_LISTING_TYPE) {
+      dto = {
+        ...dto,
+        price: takeoverPrice(after.takeover) ?? Number(before.price),
+      };
+    }
     const pricedBefore = pricedOf(before);
     const pricedAfter = {
       price: dto.price ?? pricedBefore.price,
@@ -90,7 +107,12 @@ export class PropertyLifecycleService {
       this.prisma.property.update({
         where: { id },
         data: {
-          ...toUpdateData(dto, before.propertyType),
+          ...toUpdateData(
+            dto,
+            before.propertyType,
+            before.listingType,
+            before.takeover != null,
+          ),
           ...priceDropColumns(before, pricedAfter, drop),
         },
         include: PROPERTY_WITH_RELATIONS,
@@ -168,13 +190,15 @@ export class PropertyLifecycleService {
   }
 
   private async setStatus(
-    before: OnMapState & {
-      id: string;
-      userId: string;
-      publishedAt: Date | null;
-    },
+    before: OnMapState &
+      TakeoverListing & {
+        id: string;
+        userId: string;
+        publishedAt: Date | null;
+      },
     to: string,
   ) {
+    if (to === PUBLIC_STATUS) assertTakeoverComplete(before);
     if (before.status === 'Pending') {
       throw new BadRequestException(
         'This property has a payment in progress. Please wait for confirmation.',

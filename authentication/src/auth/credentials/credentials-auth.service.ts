@@ -27,7 +27,11 @@ export class CredentialsAuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
-    if ((await this.phones.verify(dto.phoneToken)) !== dto.phone)
+    // shortcut: SMS proof is optional during the delivery outage, require it when signup SMS returns.
+    if (
+      dto.phoneToken &&
+      (await this.phones.verify(dto.phoneToken)) !== dto.phone
+    )
       throw new BadRequestException(
         'The SMS proof belongs to a different phone number',
       );
@@ -51,7 +55,7 @@ export class CredentialsAuthService {
       password_hash: passwordHash,
       has_password: true,
       role: DEFAULT_USER_ROLE,
-      phone_verified: true,
+      phone_verified: !!dto.phoneToken,
       email_verified: !!dto.email,
     });
   }
@@ -65,6 +69,10 @@ export class CredentialsAuthService {
     if (!user || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Administrators must prove possession of their email through AdminLoginService.
+    if (user.role === 'admin')
+      throw new UnauthorizedException('Invalid credentials');
 
     return this.signIn.complete(user, client);
   }

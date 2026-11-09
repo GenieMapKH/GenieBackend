@@ -12,6 +12,9 @@ export const FEED_CARD_SELECT = {
   price: true,
   propertyType: true,
   listingType: true,
+  takeover: {
+    select: { sellerAmount: true, paymentAmount: true, paymentFrequency: true },
+  },
   discountType: true,
   discountValue: true,
   status: true,

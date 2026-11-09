@@ -36,6 +36,7 @@ import { PublicPropertyCache } from './services/public-property-cache.service';
 import { PropertyPhotoStorage } from './storage/property-photo-storage';
 import { PublishingAllowanceService } from './services/publishing-allowance.service';
 import { ExpiredPublishingService } from './services/expired-publishing.service';
+import { InternalAdminDashboardController } from './internal/internal-admin-dashboard.controller';
 
 @Module({
   imports: [SupabaseModule],
@@ -45,6 +46,7 @@ import { ExpiredPublishingService } from './services/expired-publishing.service'
     NearbyRouteController,
     InternalPublicationController,
     InternalAccountsController,
+    InternalAdminDashboardController,
   ],
   providers: [
     ExpiredPublishingService,

@@ -64,9 +64,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
   beforeEach(() => jest.resetAllMocks());
 
   const register = (body: object) =>
-    request(app.getHttpServer())
-      .post('/auth/register')
-      .send({ phoneToken: 'sms-proof', ...body });
+    request(app.getHttpServer()).post('/auth/register').send(body);
   const login = (body: object) =>
     request(app.getHttpServer()).post('/auth/login').send(body);
 
@@ -86,13 +84,15 @@ describe('sign-up and sign-in input (HTTP)', () => {
     });
   });
 
-  it('rejects registration without an SMS ownership proof', async () => {
+  it('accepts registration without an SMS ownership proof', async () => {
     await register({
       phone: '012345678',
       password: 'password123',
-      phoneToken: undefined,
-    }).expect(400);
-    expect(credentials.register).not.toHaveBeenCalled();
+    }).expect(201);
+    expect(credentials.register).toHaveBeenCalledWith({
+      phone: '+85512345678',
+      password: 'password123',
+    });
   });
 
   it('passes the optional email and name through, cleaned', async () => {
@@ -119,6 +119,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
     { phone: { $ne: null }, password: 'password123' },
     { phone: '012345678', name: '<script>x</script>', password: 'password123' },
     { phone: '012345678', password: 'short' },
+    { phone: '012345678', password: 'password123', phoneToken: 123 },
     { phone: '012345678', password: 'password\u0000123' },
   ])('refuses %j before it reaches the service', async (body) => {
     await register(body).expect(400);

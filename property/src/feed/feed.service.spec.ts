@@ -91,7 +91,8 @@ describe('FeedService', () => {
     // The cursor condition is a nested SQL fragment with its own values.
     const condition = values.find(
       (value): value is { sql: string; values: unknown[] } =>
-        typeof (value as { sql?: unknown })?.sql === 'string',
+        typeof (value as { sql?: unknown })?.sql === 'string' &&
+        (value as { sql: string }).sql.includes('feed_at <'),
     );
     expect(condition?.sql).toContain('feed_at <');
     expect(condition?.values).toEqual([after.feedAt, after.feedAt, LISTING]);
@@ -136,6 +137,20 @@ describe('FeedService', () => {
 
     expect(page.nextCursor).toBeNull();
   });
+
+  it.each(['top', 'priceLow', 'priceHigh'] as const)(
+    'carries %s ranking values into the next cursor',
+    async (sort) => {
+      const first = {
+        id: LISTING,
+        feedAt: at('2026-11-08T00:00:00Z'),
+        sortValue: '150.00000000000000000000',
+      };
+      prisma.$queryRaw.mockResolvedValue([first, { ...first, id: AGENT }]);
+      const page = await service.page(ME, { limit: 1, sort });
+      expect(decodeFeedCursor(page.nextCursor!)).toEqual({ ...first, sort });
+    },
+  );
 
   it('fails when the user service cannot say who is followed', async () => {
     followed.idsFollowedBy.mockRejectedValue(new Error('unreachable'));

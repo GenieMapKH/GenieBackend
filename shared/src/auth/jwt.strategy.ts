@@ -11,6 +11,7 @@ interface AccessTokenPayload {
   typ?: string;
   /** The session (signed-in device). Missing from tokens issued before sessions existed. */
   sid?: string;
+  adminMfa?: boolean;
 }
 
 /** What `req.user` holds once the access token is verified. */
@@ -18,6 +19,7 @@ export interface AuthenticatedUser {
   userId: string;
   role: string;
   sessionId: string | null;
+  adminMfa: boolean;
 }
 
 @Injectable()
@@ -52,6 +54,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: payload.sub,
       role: payload.role,
       sessionId: typeof payload.sid === 'string' ? payload.sid : null,
+      adminMfa: payload.adminMfa === true,
     };
   }
 }

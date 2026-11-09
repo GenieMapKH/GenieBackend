@@ -13,12 +13,14 @@ import {
   InternalSubscriptionsController,
   SubscriptionsController,
 } from './subscriptions.controller';
+import { InternalAdminDashboardController } from './internal-admin-dashboard.controller';
 
 @Module({
   controllers: [
     PaymentsController,
     SubscriptionsController,
     InternalSubscriptionsController,
+    InternalAdminDashboardController,
   ],
   providers: [
     AbaPaywayProvider,

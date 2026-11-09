@@ -3,6 +3,7 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 import { createApiVersionMiddleware } from './api-versions';
 import { AppController } from './app.controller';
+import { AdminAppLinksController } from './admin-app-links.controller';
 import { AuthMiddleware } from './auth.middleware';
 import {
   createRateLimitMiddleware,
@@ -20,7 +21,7 @@ import {
 
 @Module({
   imports: [SentryErrorsModule],
-  controllers: [AppController],
+  controllers: [AppController, AdminAppLinksController],
   providers: [RedisConnection, RevokedSessions],
 })
 export class AppModule implements NestModule {

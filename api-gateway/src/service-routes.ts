@@ -73,7 +73,11 @@ export const SERVICE_ROUTES: ServiceRoute[] = [
     authenticated: true,
     exclude: [PAYMENT_WEBHOOK],
   },
-  { service: 'user', prefixes: ['/users', '/reports'], authenticated: true },
+  {
+    service: 'user',
+    prefixes: ['/users', '/reports', '/admin'],
+    authenticated: true,
+  },
   {
     service: 'chat',
     prefixes: ['/chat'],

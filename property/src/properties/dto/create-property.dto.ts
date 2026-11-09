@@ -8,11 +8,15 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsObject,
   IsString,
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { TakeoverDto } from './takeover.dto';
 import {
   BUILDING_TYPES,
   COMPLETION_STATUSES,
@@ -37,6 +41,12 @@ const CREATE_STATUSES = ['Draft', 'Active'] as const;
  * service (see property-type-fields.ts).
  */
 export class CreatePropertyDto {
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => TakeoverDto)
+  takeover?: TakeoverDto | null;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)

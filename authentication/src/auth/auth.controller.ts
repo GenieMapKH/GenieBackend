@@ -9,6 +9,11 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AuthAttemptLimits } from './attempt-limiter';
+import { AdminLoginService } from './admin-login.service';
+import {
+  AdminLoginCompleteDto,
+  AdminLoginStartDto,
+} from './dto/admin-login.dto';
 import { CredentialsAuthService } from './credentials/credentials-auth.service';
 import { FirebaseLoginDto } from './dto/firebase-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -50,7 +55,26 @@ export class AuthController {
     @Inject(LoginThrottle) private readonly loginThrottle: LoginThrottle,
     @Inject(PhonePasswordResetService)
     private readonly phonePasswordReset: PhonePasswordResetService,
+    @Inject(AdminLoginService) private readonly adminLogin: AdminLoginService,
   ) {}
+
+  @Post('admin/login/start')
+  @HttpCode(HttpStatus.OK)
+  startAdminLogin(
+    @Body() dto: AdminLoginStartDto,
+    @Client() client: ClientContext,
+  ) {
+    return this.adminLogin.start(dto.email, dto.password, client);
+  }
+
+  @Post('admin/login/complete')
+  @HttpCode(HttpStatus.OK)
+  completeAdminLogin(
+    @Body() dto: AdminLoginCompleteDto,
+    @Client() client: ClientContext,
+  ) {
+    return this.adminLogin.complete(dto.token, client);
+  }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)

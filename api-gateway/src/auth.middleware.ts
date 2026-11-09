@@ -38,24 +38,32 @@ export class AuthMiddleware implements NestMiddleware {
       );
     }
 
-    const { userId, sessionId } = await this.verify(token);
+    const { userId, sessionId, role, adminMfa } = await this.verify(token);
     if (sessionId && (await this.revokedSessions.has(sessionId))) {
       throw new UnauthorizedException('This device was signed out');
     }
 
     req.headers['x-user-id'] = userId;
+    req.headers['x-user-role'] = role;
+    req.headers['x-admin-mfa'] = adminMfa ? 'true' : 'false';
     next();
   }
 
   /** `sessionId` is missing from tokens issued before sessions existed. */
-  private async verify(
-    token: string,
-  ): Promise<{ userId: string; sessionId?: string }> {
+  private async verify(token: string): Promise<{
+    userId: string;
+    sessionId?: string;
+    role: string;
+    adminMfa: boolean;
+  }> {
     try {
       const payload = await verifySignedToken(token, ACCESS_TOKEN);
       return {
         userId: payload.sub,
         sessionId: typeof payload.sid === 'string' ? payload.sid : undefined,
+        // Missing roles on legacy tokens are regular-user sessions.
+        role: typeof payload.role === 'string' ? payload.role : 'user',
+        adminMfa: payload.adminMfa === true,
       };
     } catch (error) {
       // Our outage, not a bad token: a 401 would make the app sign out.
