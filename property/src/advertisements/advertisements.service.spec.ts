@@ -40,10 +40,12 @@ describe('administrator photo advertisements', () => {
     jest.resetAllMocks();
     rows.findUnique.mockResolvedValue(null);
     rows.count.mockResolvedValue(0);
-    rows.create.mockResolvedValue({
-      id,
-      imageUrl: 'https://storage.test/ads/photo.jpg',
-    });
+    rows.create.mockImplementation(({ data }) => ({
+      id: data.id,
+      imageUrl: data.imageUrl,
+      width: data.width,
+      height: data.height,
+    }));
     prisma.$transaction.mockImplementation((work: (tx: unknown) => unknown) =>
       work(prisma),
     );
@@ -57,6 +59,8 @@ describe('administrator photo advertisements', () => {
     await expect(service.create(actor, path)).resolves.toEqual({
       id,
       imageUrl: 'https://storage.test/ads/photo.jpg',
+      width: 2,
+      height: 2,
     });
     const [bucket, file, bytes, type] = storage.uploadFile.mock.calls[0];
     expect(bucket).toBe('advertisements');
@@ -68,11 +72,41 @@ describe('administrator photo advertisements', () => {
     ]);
     await service.list();
     expect(rows.findMany).toHaveBeenCalledWith({
-      select: { id: true, imageUrl: true },
+      select: { id: true, imageUrl: true, width: true, height: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
   });
+  it.each([
+    [2400, 1200, 1, 1600, 800],
+    [1200, 2400, 1, 800, 1600],
+    [2000, 2000, 1, 1600, 1600],
+    [80, 120, 6, 120, 80],
+  ])(
+    'preserves image shape and stores rotated output dimensions (%i x %i, EXIF %i)',
+    async (width, height, orientation, expectedWidth, expectedHeight) => {
+      storage.downloadFile.mockResolvedValue(
+        await sharp({
+          create: { width, height, channels: 3, background: 'red' },
+        })
+          .withMetadata({ orientation })
+          .jpeg()
+          .toBuffer(),
+      );
+      const ad = await service.create(actor, path);
+      expect(ad).toMatchObject({
+        width: expectedWidth,
+        height: expectedHeight,
+      });
+      const metadata = await sharp(
+        storage.uploadFile.mock.calls[0][2] as Buffer,
+      ).metadata();
+      expect(metadata).toMatchObject({
+        width: expectedWidth,
+        height: expectedHeight,
+      });
+    },
+  );
   it('rejects copied paths, missing uploads, executable content and oversized files', async () => {
     await expect(service.create(id, path)).rejects.toThrow(BadRequestException);
     await expect(service.create(actor, '../file')).rejects.toThrow(
