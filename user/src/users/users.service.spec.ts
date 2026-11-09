@@ -230,6 +230,21 @@ describe('UsersService', () => {
     });
   });
 
+  it('reads the public admin role without exposing credentials or contacts', async () => {
+    prisma.user.findFirst.mockResolvedValue({
+      id: SOMEONE_ELSE,
+      role: 'admin',
+    });
+    expect(await service.getPublicProfile(SOMEONE_ELSE)).toMatchObject({
+      role: 'admin',
+    });
+    const { select } = prisma.user.findFirst.mock.calls[0][0];
+    expect(select.role).toBe(true);
+    expect(select.passwordHash).toBeUndefined();
+    expect(select.email).toBeUndefined();
+    expect(select.phone).toBeUndefined();
+  });
+
   it('hides a deactivated account from other people', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
 

@@ -16,6 +16,7 @@ export interface Conversation {
   participantId: string;
   participantName: string;
   participantAvatar: string | null;
+  participantIsAdmin?: boolean;
   lastMessage: {
     id: string;
     ciphertext: string;
@@ -270,7 +271,7 @@ export class ChatService {
     const [partners, unread] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: shown.map((row) => row.partnerId) }, ...VISIBLE },
-        select: { id: true, ...DISPLAY_FIELDS },
+        select: { id: true, role: true, ...DISPLAY_FIELDS },
       }),
       // Messages hidden by "delete for me" (the chat or one message) do not count as unread.
       this.prisma.$queryRaw<{ senderId: string; count: number }[]>`
@@ -314,6 +315,7 @@ export class ChatService {
               participantId: partnerId,
               participantName: displayName(partner),
               participantAvatar: partner.avatarUrl || null,
+              participantIsAdmin: partner.role === 'admin',
               lastMessage: this.protection.open(lastMessage, {
                 id: lastMessage.id,
                 senderId: lastMessage.senderId,

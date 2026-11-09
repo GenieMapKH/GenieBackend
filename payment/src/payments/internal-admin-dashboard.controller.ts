@@ -11,6 +11,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { PrismaService, serviceCallGuard } from '@tilomnov/shared';
 import { PaymentProvider } from './payment-provider.interface';
 import { AdminPaymentRecordsService } from './admin-payment-records.service';
+import { AdminIncomeService } from './admin-income.service';
 
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
@@ -20,6 +21,7 @@ export class InternalAdminDashboardController {
     private readonly prisma: PrismaService,
     private readonly provider: PaymentProvider,
     private readonly records: AdminPaymentRecordsService,
+    private readonly income: AdminIncomeService,
   ) {}
 
   @Get('records')
@@ -27,14 +29,15 @@ export class InternalAdminDashboardController {
     @Query('section') section: string,
     @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
     @Query('tier') tier?: string,
+    @Query('q') q?: string,
+    @Query('purpose') purpose?: string,
   ) {
-    return this.records.list(section, offset, tier);
+    return this.records.list(section, offset, tier, q, purpose);
   }
 
   @Get()
   async overview() {
     const now = new Date();
-    const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const [activeSubscriptions, tiers, pendingTransactions, settled] =
       await Promise.all([
         this.prisma.subscription.count({
@@ -46,11 +49,7 @@ export class InternalAdminDashboardController {
           _count: { _all: true },
         }),
         this.prisma.paymentTransaction.count({ where: { status: 'Pending' } }),
-        this.prisma.paymentTransaction.aggregate({
-          where: { status: 'Success', paidAt: { gte: since } },
-          _count: { _all: true },
-          _sum: { amount: true },
-        }),
+        this.income.summary(now),
       ]);
     return {
       activeSubscriptions,
@@ -58,8 +57,7 @@ export class InternalAdminDashboardController {
         tiers.map(({ tier, _count }) => [tier, _count._all]),
       ),
       pendingTransactions,
-      successfulTransactions7d: settled._count._all,
-      volumeUsd7d: Number(settled._sum.amount ?? 0),
+      ...settled,
       simulated: this.provider.name === 'MOCK',
     };
   }

@@ -67,6 +67,21 @@ describe('SessionService', () => {
   });
 
   describe('refresh', () => {
+    it('never renews a banned account even when its stored token was previously active', async () => {
+      refreshTokens.findById.mockResolvedValue(
+        storedToken({ token_hash: hashRefreshToken(REFRESH_TOKEN) }),
+      );
+      refreshTokens.revokeIfActive.mockResolvedValue(true);
+      users.findById.mockResolvedValue({
+        id: 'u1',
+        role: 'user',
+        banned_at: '2026-11-09T00:00:00Z',
+      });
+      await expect(service.refresh(REFRESH_TOKEN, CLIENT)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(issuer.issue).not.toHaveBeenCalled();
+    });
     it('rotates: revokes the used token and issues a new pair in the same session', async () => {
       const used = storedToken({
         token_hash: bcrypt.hashSync(REFRESH_TOKEN, 4),

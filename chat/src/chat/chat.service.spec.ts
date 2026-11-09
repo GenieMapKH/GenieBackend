@@ -291,6 +291,7 @@ describe('ChatService', () => {
           email: null,
           phone: null,
           avatarUrl: 'bob.png',
+          role: 'admin',
         },
         {
           id: 'carol',
@@ -308,6 +309,7 @@ describe('ChatService', () => {
           participantId: 'carol',
           participantName: 'Property Owner',
           participantAvatar: null,
+          participantIsAdmin: false,
           lastMessage: expect.objectContaining({
             id: 'last-carol',
             senderId: 'carol',
@@ -319,6 +321,7 @@ describe('ChatService', () => {
           participantId: 'bob',
           participantName: 'Bob',
           participantAvatar: 'bob.png',
+          participantIsAdmin: true,
           lastMessage: expect.objectContaining({ id: 'last-bob' }),
           unreadCount: 3,
         },

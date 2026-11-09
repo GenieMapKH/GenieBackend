@@ -35,6 +35,7 @@ describe('PeopleSearchService', () => {
 
     expect(await people.findProfile('u-1')).toEqual({
       id: 'u-1',
+      isAdmin: false,
       name: 'Sokha Realty',
       username: 'sokha_realty',
       avatarUrl: null,
@@ -57,6 +58,12 @@ describe('PeopleSearchService', () => {
       id: 'u-1',
       deactivatedAt: null,
     });
+  });
+
+  it('identifies administrators from the saved role', async () => {
+    users.findFirst.mockResolvedValue({ ...row, role: 'admin' });
+    expect(await people.findProfile('u-1')).toMatchObject({ isAdmin: true });
+    expect(users.findFirst.mock.calls[0][0].select.role).toBe(true);
   });
 
   it('is 404 for a missing or deactivated account', async () => {

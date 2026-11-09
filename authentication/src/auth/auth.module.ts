@@ -43,9 +43,11 @@ import { EmailVerificationService } from './verification/email-verification.serv
 import { PhoneProofService } from './verification/phone-proof.service';
 import { VerificationController } from './verification/verification.controller';
 import { AccountPhoneService } from './account/account-phone.service';
+import { AdminAccountsController } from './account/admin-accounts.controller';
 
 @Module({
   controllers: [
+    AdminAccountsController,
     AuthController,
     SessionsController,
     AccountController,
