@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { AdminLoginService, AdminLoginPending } from '../admin-login.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { BCRYPT_ROUNDS, DEFAULT_USER_ROLE } from '../auth.constants';
@@ -24,10 +25,15 @@ export class CredentialsAuthService {
     @Inject(SignInService) private readonly signIn: SignInService,
     private readonly emails: EmailVerificationService,
     private readonly phones: PhoneProofService,
+    private readonly adminLogin: AdminLoginService,
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
-    if ((await this.phones.verify(dto.phoneToken)) !== dto.phone)
+    // shortcut: SMS proof is optional during the delivery outage, require it when signup SMS returns.
+    if (
+      dto.phoneToken &&
+      (await this.phones.verify(dto.phoneToken)) !== dto.phone
+    )
       throw new BadRequestException(
         'The SMS proof belongs to a different phone number',
       );
@@ -51,12 +57,15 @@ export class CredentialsAuthService {
       password_hash: passwordHash,
       has_password: true,
       role: DEFAULT_USER_ROLE,
-      phone_verified: true,
+      phone_verified: !!dto.phoneToken,
       email_verified: !!dto.email,
     });
   }
 
-  async login(dto: LoginDto, client: ClientContext): Promise<TokenPair> {
+  async login(
+    dto: LoginDto,
+    client: ClientContext,
+  ): Promise<TokenPair | AdminLoginPending> {
     const user = await this.findByIdentifier(dto);
 
     // Same error for "unknown user" and "wrong password" so accounts can't be probed.
@@ -65,6 +74,8 @@ export class CredentialsAuthService {
     if (!user || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    if (user.role === 'admin') return this.adminLogin.start(user);
 
     return this.signIn.complete(user, client);
   }

@@ -1,11 +1,14 @@
 import { Prisma } from '@tilomnov/prisma-client';
 import { PrismaService } from '@tilomnov/shared';
 import { FeedCursor } from './feed-cursor';
+import { FeedFilters, feedConditions } from './feed-filters';
+import { sortedFeedPositions } from './sorted-feed-listing-ids';
 
 /** A listing's place in the feed: when it is ranked, not when it was published. */
 export interface FeedPosition {
   id: string;
   feedAt: Date;
+  sortValue?: string;
 }
 
 /**
@@ -25,7 +28,11 @@ export async function nextFeedPositions(
   take: number,
   spreadHours: number,
   after?: FeedCursor,
+  filters: FeedFilters = {},
 ): Promise<FeedPosition[]> {
+  if (filters.sort && filters.sort !== 'newest') {
+    return sortedFeedPositions(prisma, ownerIds, take, filters, after);
+  }
   const afterCursor = after
     ? Prisma.sql`WHERE feed_at < ${after.feedAt}
          OR (feed_at = ${after.feedAt} AND id > ${after.id}::uuid)`
@@ -42,12 +49,13 @@ export async function nextFeedPositions(
           date_trunc('milliseconds', published_at)
             - interval '1 hour' * (
                 (row_number() OVER (ORDER BY published_at DESC, id ASC) - 1)
-                * ${spreadHours}::float8
+                * ${filters.sort === 'newest' ? 0 : spreadHours}::float8
               ) AS feed_at
         FROM listing.properties
         WHERE user_id = f.owner_id
           AND status = 'Active'
           AND published_at IS NOT NULL
+          ${feedConditions(filters)}
       ) ranked
       ${afterCursor}
       ORDER BY feed_at DESC, id ASC

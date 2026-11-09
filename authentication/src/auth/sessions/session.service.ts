@@ -23,6 +23,7 @@ import { TokenIssuerService, TokenPair } from './token-issuer.service';
 interface RefreshPayload {
   sub?: string;
   jti?: string;
+  adminMfa?: boolean;
 }
 
 /** One signed-in device, as the app lists it. */
@@ -66,7 +67,7 @@ export class SessionService {
     refreshToken: string,
     client: ClientContext,
   ): Promise<TokenPair> {
-    const { sub, jti } = this.verifyRefreshToken(refreshToken);
+    const { sub, jti, adminMfa } = this.verifyRefreshToken(refreshToken);
 
     const record = await this.refreshTokens.findById(jti);
     if (!record) {
@@ -94,12 +95,18 @@ export class SessionService {
     if (!user) {
       throw new UnauthorizedException('User no longer exists');
     }
+    if (user.role === 'admin' && !adminMfa) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
 
     const { sessionId: _sessionId, ...tokens } = await this.issuer.issue(
       sub,
       user.role,
       client,
       record,
+      adminMfa,
     );
     return tokens;
   }
@@ -189,7 +196,11 @@ export class SessionService {
     );
   }
 
-  private verifyRefreshToken(token: string): { sub: string; jti: string } {
+  private verifyRefreshToken(token: string): {
+    sub: string;
+    jti: string;
+    adminMfa: boolean;
+  } {
     let payload: RefreshPayload;
     try {
       payload = this.signer.verifyRefreshToken<RefreshPayload>(token);
@@ -199,6 +210,10 @@ export class SessionService {
     if (!payload.sub || !payload.jti) {
       throw new UnauthorizedException('Invalid refresh token payload');
     }
-    return { sub: payload.sub, jti: payload.jti };
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+      adminMfa: payload.adminMfa === true,
+    };
   }
 }

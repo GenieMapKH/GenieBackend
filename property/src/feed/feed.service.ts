@@ -6,6 +6,7 @@ import { FeedCursor, encodeFeedCursor } from './feed-cursor';
 import { nextFeedPositions } from './feed-listing-ids';
 import { FEED_SPREAD_HOURS } from './feed-spread';
 import { FollowedAccounts } from './followed-accounts';
+import { FeedFilters } from './feed-filters';
 
 type FeedCard = Prisma.PropertyGetPayload<{ select: typeof FEED_CARD_SELECT }>;
 
@@ -33,7 +34,7 @@ export class FeedService {
 
   async page(
     userId: string,
-    page: { limit: number; after?: FeedCursor },
+    page: FeedFilters & { limit: number; after?: FeedCursor },
   ): Promise<FeedPage> {
     const ownerIds = await this.followed.idsFollowedBy(userId);
     if (ownerIds.length === 0) return { items: [], nextCursor: null };
@@ -45,6 +46,7 @@ export class FeedService {
       page.limit + 1,
       this.spreadHours,
       page.after,
+      page,
     );
     const shown = positions.slice(0, page.limit);
     const last = shown[shown.length - 1];
@@ -55,7 +57,12 @@ export class FeedService {
       // the page one short, never the next page shifted.
       nextCursor:
         positions.length > page.limit && last
-          ? encodeFeedCursor({ feedAt: last.feedAt, id: last.id })
+          ? encodeFeedCursor({
+              feedAt: last.feedAt,
+              id: last.id,
+              sort: page.sort,
+              sortValue: last.sortValue,
+            })
           : null,
     };
   }

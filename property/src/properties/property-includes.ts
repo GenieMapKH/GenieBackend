@@ -24,6 +24,7 @@ export const OWNER_SUMMARY_SELECT = {
  * `_count` each read also sends is added by `PropertyEngagementCounts`.
  */
 export const PROPERTY_WITH_RELATIONS = {
+  takeover: { include: { additionalPayments: { orderBy: { order: 'asc' } } } },
   images: { orderBy: { order: 'asc' } },
   keywords: { select: { keyword: true }, orderBy: { keyword: 'asc' } },
   // Closest first within each category; the app groups them by category.
@@ -49,6 +50,7 @@ export const PROPERTY_WITH_RELATIONS = {
  * visitor, so it can be cached.
  */
 export const MAP_SELECT = {
+  takeover: { include: { additionalPayments: { orderBy: { order: 'asc' } } } },
   id: true,
   title: true,
   description: true,

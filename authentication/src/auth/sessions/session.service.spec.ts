@@ -82,8 +82,39 @@ describe('SessionService', () => {
       const result = await service.refresh(REFRESH_TOKEN, CLIENT);
 
       expect(refreshTokens.revokeIfActive).toHaveBeenCalledWith('t1');
-      expect(issuer.issue).toHaveBeenCalledWith('u1', 'agent', CLIENT, used);
+      expect(issuer.issue).toHaveBeenCalledWith(
+        'u1',
+        'agent',
+        CLIENT,
+        used,
+        false,
+      );
       expect(result).toEqual({ accessToken: 'new-a', refreshToken: 'new-r' });
+    });
+
+    it('refuses password-only admin refresh and preserves email proof on verified refresh', async () => {
+      const used = storedToken({ token_hash: hashRefreshToken(REFRESH_TOKEN) });
+      refreshTokens.findById.mockResolvedValue(used);
+      refreshTokens.revokeIfActive.mockResolvedValue(true);
+      users.findById.mockResolvedValue({ id: 'u1', role: 'admin' });
+      issuer.issue.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+      await expect(service.refresh(REFRESH_TOKEN, CLIENT)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(issuer.issue).not.toHaveBeenCalled();
+      jwt.verifyRefreshToken.mockReturnValue({
+        sub: 'u1',
+        jti: 't1',
+        adminMfa: true,
+      });
+      await service.refresh(REFRESH_TOKEN, CLIENT);
+      expect(issuer.issue).toHaveBeenCalledWith(
+        'u1',
+        'admin',
+        CLIENT,
+        used,
+        true,
+      );
     });
 
     it('accepts a token stored with the current hash, and refuses another one', async () => {

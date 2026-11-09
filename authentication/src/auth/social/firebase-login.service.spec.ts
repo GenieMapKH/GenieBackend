@@ -86,6 +86,16 @@ describe('FirebaseLoginService', () => {
     expect(tokens).toEqual({ accessToken: 'a', refreshToken: 'r' });
   });
 
+  it('requires the admin password and does not modify its credentials through Google', async () => {
+    firebase.verifyIdToken.mockResolvedValue(googleToken);
+    users.findByFirebaseUid.mockResolvedValue({ ...linkedUser, role: 'admin' });
+    await expect(service.login('id-token', client)).rejects.toThrow(
+      'Sign in with your email and password',
+    );
+    expect(signIn.complete).not.toHaveBeenCalled();
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
   it('links a verified email to the existing account', async () => {
     firebase.verifyIdToken.mockResolvedValue(googleToken);
     users.findByFirebaseUid.mockResolvedValue(null);

@@ -1,4 +1,9 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AccountService } from '../account/account.service';
 import { EmailDeliveryService } from '../mail/email-delivery.service';
 import {
@@ -31,7 +36,16 @@ export class SignInService {
     private readonly notifications: NotificationClient,
   ) {}
 
-  async complete(user: UserRecord, client: ClientContext): Promise<TokenPair> {
+  async complete(
+    user: UserRecord,
+    client: ClientContext,
+    { adminEmailVerified = false }: { adminEmailVerified?: boolean } = {},
+  ): Promise<TokenPair> {
+    if (user.role === 'admin' && !adminEmailVerified) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
     await this.account.reactivate(user);
 
     const alreadySignedInElsewhere =
@@ -40,6 +54,8 @@ export class SignInService {
       user.id,
       user.role,
       client,
+      undefined,
+      adminEmailVerified,
     );
     if (alreadySignedInElsewhere) this.alertOwner(user, client, sessionId);
     return tokens;

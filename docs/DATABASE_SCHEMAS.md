@@ -86,7 +86,10 @@ postgresql://chat_service.<project ref>:<password>@aws-0-<region>.pooler.supabas
 ```
 
 Set that as the service's `DATABASE_URL` (Railway), or as `CHAT_DATABASE_URL` etc. in `.env`
-for docker compose. A service without its own login keeps working on the `postgres` URL.
+for docker compose. Compose requires all six dedicated service URLs and does not
+fall back to the administrator `DATABASE_URL`. Keep these URLs in the same
+environment as the rest of `.env`; do not copy production credentials into a
+local staging configuration.
 
 ## A new database
 

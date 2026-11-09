@@ -2,6 +2,7 @@ import { apiCachePolicy } from './api-cache-policy';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 import { createApiVersionMiddleware } from './api-versions';
+import { AdminAppLinksController } from './admin-app-links.controller';
 import { AppController } from './app.controller';
 import { AuthMiddleware } from './auth.middleware';
 import {
@@ -20,7 +21,7 @@ import {
 
 @Module({
   imports: [SentryErrorsModule],
-  controllers: [AppController],
+  controllers: [AppController, AdminAppLinksController],
   providers: [RedisConnection, RevokedSessions],
 })
 export class AppModule implements NestModule {

@@ -5,6 +5,7 @@ import { datesAnew } from '../published-at';
 import { PropertyQueryService } from './property-query.service';
 import { ListingChanges } from './listing-changes.service';
 import { CACHED_LISTING_SELECT } from './public-property-cache.service';
+import { assertTakeoverComplete } from '../takeover';
 
 /** How a payment ended, as far as the listing is concerned. */
 export type PublishOutcome = 'Active' | 'Draft';
@@ -34,6 +35,7 @@ export class PropertyPublicationService {
   ): Promise<{ previousStatus: string }> {
     const property = await this.query.findOwned(userId, propertyId);
     this.status.canPublish(property.status);
+    assertTakeoverComplete(property);
 
     const changed = await this.prisma.property.updateMany({
       where: { id: propertyId, userId, status: property.status },
@@ -83,6 +85,11 @@ export class PropertyPublicationService {
    * before keeps its first date.
    */
   private async goLive(propertyId: string) {
+    const property = await this.prisma.property.findUnique({
+      where: { id: propertyId },
+      include: { takeover: { include: { additionalPayments: true } } },
+    });
+    if (property?.status === 'Pending') assertTakeoverComplete(property);
     const dated = await this.prisma.property.updateMany({
       where: { id: propertyId, status: 'Pending', publishedAt: null },
       data: { status: 'Active', publishedAt: new Date() },

@@ -152,11 +152,16 @@ describe('what each push says', () => {
     expect(push.alert!.body.startsWith('ឧបករណ៍ថ្មីមួយ')).toBe(true);
   });
 
-  it('an incoming call is shown on every device, even with the app closed, and expires', () => {
+  it('wakes the Android call handler with data only; other devices receive an alert', () => {
     const android = incomingCallPush(call, device('android'));
     const ios = incomingCallPush(call, device('ios'));
 
-    expect(android.alert).toEqual(ios.alert);
+    expect(android.alert).toBeUndefined();
+    const message = toFirebaseMessage('android-token', android);
+    expect(message.notification).toBeUndefined();
+    expect(message.android!.notification).toBeUndefined();
+    expect(message.android!.priority).toBe('high');
+    expect(message.android!.ttl).toBe(RING_SECONDS * 1000);
     expect(android.tag).toBe('call:c1');
     expect(android.channel).toBe('calls');
     expect(android.data).toMatchObject({
@@ -181,10 +186,8 @@ describe('what each push says', () => {
     expect(answered.alert).toBeUndefined();
 
     const missed = callEndedPush({ ...call, missed: true }, device('android'))!;
-    expect(missed.alert).toEqual({
-      title: 'Missed call',
-      body: 'Alice called you',
-    });
+    // Ending must also reach the handler immediately, to silence the ringtone.
+    expect(missed.alert).toBeUndefined();
     expect(missed.channel).toBe('missed_calls');
     expect(missed.tag).toBe('call:c1');
     expect(missed.urgent).toBe(true);

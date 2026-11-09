@@ -3,6 +3,7 @@ import { HealthController, PrismaModule, RedisModule } from '@tilomnov/shared';
 import { BlocksModule } from './blocks/blocks.module';
 import { FollowsModule } from './follows/follows.module';
 import { ReportsModule } from './reports/reports.module';
+import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 import { UsersModule } from './users/users.module';
 import { SentryErrorsModule } from '@tilomnov/shared/sentry';
 
@@ -19,6 +20,7 @@ import { SentryErrorsModule } from '@tilomnov/shared/sentry';
     FollowsModule,
     BlocksModule,
     ReportsModule,
+    AdminDashboardModule,
   ],
   controllers: [HealthController],
 })

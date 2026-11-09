@@ -55,6 +55,10 @@ export class FirebaseLoginService {
     if (!user) user = await this.linkExistingAccount(profile);
     if (!user) user = await this.createAccount(profile);
 
+    if (user.role === 'admin') {
+      throw new UnauthorizedException('Sign in with your email and password');
+    }
+
     user = await this.syncProfile(user, profile);
     return this.signIn.complete(user, client);
   }
@@ -98,6 +102,9 @@ export class FirebaseLoginService {
       existing = await this.users.findByEmail(profile.email);
     }
     if (!existing) return null;
+    if (existing.role === 'admin') {
+      throw new UnauthorizedException('Sign in with your email and password');
+    }
 
     const patch = {
       firebase_uid: profile.uid,

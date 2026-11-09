@@ -84,6 +84,7 @@ describe('AuthController attempt limits', () => {
       limits,
       new LoginThrottle(limits, knownDevices as never),
       {} as never,
+      {} as never,
     );
   };
 

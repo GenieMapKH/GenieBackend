@@ -1,5 +1,12 @@
 # Account verification and backend hardening
 
+Update 2026-11-09: signup SMS verification is temporarily optional because of
+delivery failures (see [device findings](FIREBASE_SMS_DIAGNOSIS_2026-11-08.md)).
+Registration without `phoneToken` saves `phone_verified: false`. A supplied token
+is still verified and must match the phone number. Optional email verification
+and recovery restrictions remain enforced. This supersedes the mandatory signup
+SMS requirements described below.
+
 ## Deploy
 
 Apply outstanding schema migrations through `39_verified_recovery` before

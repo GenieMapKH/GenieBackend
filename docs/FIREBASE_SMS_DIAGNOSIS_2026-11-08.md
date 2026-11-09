@@ -1,5 +1,14 @@
 # Android SMS verification: device findings
 
+Update 2026-11-09: signup no longer requests or requires SMS verification while
+delivery is unreliable. New registrations without SMS proof store the phone as
+unverified; phone validation and optional email ownership checks remain enforced.
+Deploy the authentication change before shipping the updated app. Older clients
+may still submit a valid SMS proof. The existing Firebase verification code is
+retained for later reintroduction. Phone-only accounts created without proof
+cannot use phone password recovery until they verify a recovery contact while
+signed in. This change does not resolve the delivery issue described below.
+
 Tested on the connected Android 17 phone on 2026-11-08, using the rebuilt,
 release-signed staging app (`com.sparkbytekh.tilomnov.staging`). The existing
 production app and its data were preserved. No passwords were changed.

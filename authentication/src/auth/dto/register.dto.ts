@@ -74,9 +74,11 @@ export class RegisterDto {
   @MaxBytes(BCRYPT_MAX_PASSWORD_BYTES)
   password!: string;
 
+  @ApiPropertyOptional({ description: 'Firebase SMS proof, when available.' })
+  @IsOptional()
   @IsString()
   @MaxLength(10000)
-  phoneToken!: string;
+  phoneToken?: string;
 
   @IsOptional()
   @IsString()

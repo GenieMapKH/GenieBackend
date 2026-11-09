@@ -14,6 +14,7 @@ describe('CredentialsAuthService', () => {
     findByPhone: jest.fn(),
   };
   const signIn = { complete: jest.fn() };
+  const adminLogin = { start: jest.fn() };
   const emails = { requireProof: jest.fn() };
   const phones = { verify: jest.fn() };
   const client = {
@@ -31,10 +32,41 @@ describe('CredentialsAuthService', () => {
       signIn as never,
       emails as never,
       phones as never,
+      adminLogin as never,
     );
   });
 
   describe('register', () => {
+    it('registers without SMS and leaves the phone unverified', async () => {
+      await service.register({
+        phone: '+85512345678',
+        password: 'password123',
+      });
+
+      expect(phones.verify).not.toHaveBeenCalled();
+      expect(users.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phone: '+85512345678',
+          phone_verified: false,
+          email_verified: false,
+        }),
+      );
+    });
+
+    it('still requires proof for an optional email without SMS', async () => {
+      emails.requireProof.mockImplementationOnce(() => {
+        throw new BadRequestException();
+      });
+      await expect(
+        service.register({
+          phone: '+85512345678',
+          email: 'victim@example.test',
+          password: 'password123',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(users.create).not.toHaveBeenCalled();
+    });
+
     it('cannot create an account with an unproven email or a mismatched SMS proof', async () => {
       emails.requireProof.mockImplementationOnce(() => {
         throw new BadRequestException();
@@ -77,6 +109,7 @@ describe('CredentialsAuthService', () => {
       );
       // Unlike an account made by Google sign-in, this one has a password to prove itself with.
       expect(saved.has_password).toBe(true);
+      expect(saved.phone_verified).toBe(true);
     });
 
     it('refuses an email that an existing account already uses, in any letter case', async () => {
@@ -137,6 +170,35 @@ describe('CredentialsAuthService', () => {
 
   describe('login', () => {
     const passwordHash = bcrypt.hashSync('correct-password', 4);
+
+    it('requires an email link after the admin password, and never starts a session', async () => {
+      const admin = {
+        id: 'admin-1',
+        role: 'admin',
+        email_verified: true,
+        password_hash: passwordHash,
+      };
+      users.findByEmail.mockResolvedValue(admin);
+      adminLogin.start.mockResolvedValue({ status: 'admin_email_required' });
+      await expect(
+        service.login(
+          { email: 'owner@example.com', password: 'correct-password' },
+          client,
+        ),
+      ).resolves.toEqual({
+        status: 'admin_email_required',
+      });
+      expect(adminLogin.start).toHaveBeenCalledWith(admin);
+      expect(signIn.complete).not.toHaveBeenCalled();
+      await expect(
+        service.login(
+          { email: 'owner@example.com', password: 'wrong-password' },
+          client,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(adminLogin.start).toHaveBeenCalledTimes(1);
+      expect(signIn.complete).not.toHaveBeenCalled();
+    });
 
     it('signs the user in for the right password', async () => {
       const user = { id: 'u1', role: 'user', password_hash: passwordHash };
