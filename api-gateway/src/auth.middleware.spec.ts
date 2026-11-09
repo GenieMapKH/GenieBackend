@@ -61,6 +61,32 @@ describe('AuthMiddleware', () => {
     expect(req.headers['x-user-id']).toBe('user-1');
   });
 
+  it('overwrites a client-supplied admin role with the verified token role', async () => {
+    const { req } = await run({
+      authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'user' })}`,
+      'x-user-role': 'admin',
+    });
+    expect(req.headers['x-user-role']).toBe('user');
+  });
+
+  it('rejects password-only admin tokens and overwrites a forged email claim', async () => {
+    await expect(
+      run({
+        authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'admin' })}`,
+        'x-admin-mfa': 'true',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    const { req } = await run({
+      authorization: `Bearer ${sign()}`,
+      'x-admin-mfa': 'true',
+    });
+    expect(req.headers['x-admin-mfa']).toBe('false');
+    const verified = await run({
+      authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'admin', adminMfa: true })}`,
+    });
+    expect(verified.req.headers['x-admin-mfa']).toBe('true');
+  });
+
   it('accepts the scheme in any letter case', async () => {
     const { req, next } = await run({ authorization: `bearer ${sign()}` });
 

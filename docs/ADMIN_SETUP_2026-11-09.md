@@ -1,5 +1,7 @@
 # Production admin setup — 9 November 2026
 
+> Historical initial setup. The current implementation uses the normal login form followed by a required email link; see [current admin login](ADMIN_DASHBOARD.md). Deployment records below describe the original implementation.
+
 Configured the requested existing account with the supplied password stored only as a bcrypt hash, `has_password = true`, and `role = 'admin'`. Preserved the account's profile, Google identity, email verification, and content. Revoked its one existing refresh token; older ordinary access tokens cannot acquire admin permissions because the Gateway and admin guard require the signed email-verification claim.
 
 Saved `ADMIN_LOGIN_EMAIL` and `ADMIN_APP_LINK_URL` in Infisical `prod` `/authentication`; confirmed Railway received them. Saved User's `PAYMENT_SERVICE_URL` in `/user`. The existing Brevo sender is verified and active.

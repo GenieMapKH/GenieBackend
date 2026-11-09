@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { RejectNullBytesPipe } from '@tilomnov/shared';
 import request from 'supertest';
 import { AuthAttemptLimits } from './attempt-limiter';
+import { AdminLoginService } from './admin-login.service';
 import { AuthController } from './auth.controller';
 import { CredentialsAuthService } from './credentials/credentials-auth.service';
 import { PasswordResetService } from './password-reset/password-reset.service';
@@ -39,6 +40,7 @@ describe('sign-up and sign-in input (HTTP)', () => {
         { provide: CredentialsAuthService, useValue: credentials },
         { provide: FirebaseLoginService, useValue: {} },
         { provide: SessionService, useValue: {} },
+        { provide: AdminLoginService, useValue: { complete: jest.fn() } },
         { provide: PasswordResetService, useValue: {} },
         { provide: PhonePasswordResetService, useValue: phoneReset },
         AuthAttemptLimits,
@@ -67,6 +69,17 @@ describe('sign-up and sign-in input (HTTP)', () => {
     request(app.getHttpServer()).post('/auth/register').send(body);
   const login = (body: object) =>
     request(app.getHttpServer()).post('/auth/login').send(body);
+
+  it('rejects malformed admin email tokens before exchange', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/admin-login/complete')
+      .send({ token: 'invalid' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/auth/admin-login/complete')
+      .send({})
+      .expect(400);
+  });
 
   it('registers with a phone only, normalized, and drops unknown fields', async () => {
     await register({

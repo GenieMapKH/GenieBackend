@@ -1,7 +1,16 @@
-import { Controller, Get, UseGuards, VERSION_NEUTRAL } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PrismaService, serviceCallGuard } from '@tilomnov/shared';
 import { PaymentProvider } from './payment-provider.interface';
+import { AdminPaymentRecordsService } from './admin-payment-records.service';
 
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
@@ -10,7 +19,17 @@ export class InternalAdminDashboardController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly provider: PaymentProvider,
+    private readonly records: AdminPaymentRecordsService,
   ) {}
+
+  @Get('records')
+  list(
+    @Query('section') section: string,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    @Query('tier') tier?: string,
+  ) {
+    return this.records.list(section, offset, tier);
+  }
 
   @Get()
   async overview() {

@@ -92,29 +92,21 @@ describe('SessionService', () => {
       expect(result).toEqual({ accessToken: 'new-a', refreshToken: 'new-r' });
     });
 
-    it('prevents a pre-promotion refresh token from becoming an admin session', async () => {
-      refreshTokens.findById.mockResolvedValue(
-        storedToken({ token_hash: hashRefreshToken(REFRESH_TOKEN) }),
-      );
-      refreshTokens.revokeIfActive.mockResolvedValue(true);
-      users.findById.mockResolvedValue({ id: 'u1', role: 'admin' });
-      await expect(service.refresh(REFRESH_TOKEN, CLIENT)).rejects.toThrow(
-        'Administrator email verification required',
-      );
-      expect(issuer.issue).not.toHaveBeenCalled();
-    });
-
-    it('preserves email verification when an admin refreshes', async () => {
+    it('refuses password-only admin refresh and preserves email proof on verified refresh', async () => {
       const used = storedToken({ token_hash: hashRefreshToken(REFRESH_TOKEN) });
       refreshTokens.findById.mockResolvedValue(used);
       refreshTokens.revokeIfActive.mockResolvedValue(true);
       users.findById.mockResolvedValue({ id: 'u1', role: 'admin' });
+      issuer.issue.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
+      await expect(service.refresh(REFRESH_TOKEN, CLIENT)).rejects.toThrow(
+        UnauthorizedException,
+      );
+      expect(issuer.issue).not.toHaveBeenCalled();
       jwt.verifyRefreshToken.mockReturnValue({
         sub: 'u1',
         jti: 't1',
         adminMfa: true,
       });
-      issuer.issue.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
       await service.refresh(REFRESH_TOKEN, CLIENT);
       expect(issuer.issue).toHaveBeenCalledWith(
         'u1',

@@ -59,7 +59,7 @@ describe('SignInService', () => {
     );
   });
 
-  it('requires the email challenge for an admin session', async () => {
+  it('requires email proof to start an admin session', async () => {
     await expect(
       service.complete({ ...user, role: 'admin' } as never, CLIENT),
     ).rejects.toThrow(UnauthorizedException);

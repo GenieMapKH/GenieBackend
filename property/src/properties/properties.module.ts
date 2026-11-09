@@ -37,6 +37,7 @@ import { PropertyPhotoStorage } from './storage/property-photo-storage';
 import { PublishingAllowanceService } from './services/publishing-allowance.service';
 import { ExpiredPublishingService } from './services/expired-publishing.service';
 import { InternalAdminDashboardController } from './internal/internal-admin-dashboard.controller';
+import { AdminListingRecordsService } from './services/admin-listing-records.service';
 
 @Module({
   imports: [SupabaseModule],
@@ -49,6 +50,7 @@ import { InternalAdminDashboardController } from './internal/internal-admin-dash
     InternalAdminDashboardController,
   ],
   providers: [
+    AdminListingRecordsService,
     ExpiredPublishingService,
     PublishingAllowanceService,
     PropertyStatusService,

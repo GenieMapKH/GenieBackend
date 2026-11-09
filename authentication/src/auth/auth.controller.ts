@@ -8,12 +8,9 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AuthAttemptLimits } from './attempt-limiter';
 import { AdminLoginService } from './admin-login.service';
-import {
-  AdminLoginCompleteDto,
-  AdminLoginStartDto,
-} from './dto/admin-login.dto';
+import { AdminLoginCompleteDto } from './dto/admin-login.dto';
+import { AuthAttemptLimits } from './attempt-limiter';
 import { CredentialsAuthService } from './credentials/credentials-auth.service';
 import { FirebaseLoginDto } from './dto/firebase-login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -55,26 +52,8 @@ export class AuthController {
     @Inject(LoginThrottle) private readonly loginThrottle: LoginThrottle,
     @Inject(PhonePasswordResetService)
     private readonly phonePasswordReset: PhonePasswordResetService,
-    @Inject(AdminLoginService) private readonly adminLogin: AdminLoginService,
+    private readonly adminLogin: AdminLoginService,
   ) {}
-
-  @Post('admin/login/start')
-  @HttpCode(HttpStatus.OK)
-  startAdminLogin(
-    @Body() dto: AdminLoginStartDto,
-    @Client() client: ClientContext,
-  ) {
-    return this.adminLogin.start(dto.email, dto.password, client);
-  }
-
-  @Post('admin/login/complete')
-  @HttpCode(HttpStatus.OK)
-  completeAdminLogin(
-    @Body() dto: AdminLoginCompleteDto,
-    @Client() client: ClientContext,
-  ) {
-    return this.adminLogin.complete(dto.token, client);
-  }
 
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -106,7 +85,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in with credentials (email/phone + password)' })
   @ApiResponse({
     status: 200,
-    description: 'Successfully logged in, returns tokens',
+    description:
+      'Returns tokens for users; admins receive status admin_email_required without session tokens',
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({
@@ -127,6 +107,18 @@ export class AuthController {
       },
       () => this.credentials.login(dto, client),
     );
+  }
+
+  @Post('admin-login/complete')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Exchange a single-use admin email link for session tokens',
+  })
+  completeAdminLogin(
+    @Body() dto: AdminLoginCompleteDto,
+    @Client() client: ClientContext,
+  ) {
+    return this.adminLogin.complete(dto.token, client);
   }
 
   @Post('firebase-login')

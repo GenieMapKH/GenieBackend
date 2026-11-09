@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { AdminLoginService, AdminLoginPending } from '../admin-login.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
 import { BCRYPT_ROUNDS, DEFAULT_USER_ROLE } from '../auth.constants';
@@ -24,6 +25,7 @@ export class CredentialsAuthService {
     @Inject(SignInService) private readonly signIn: SignInService,
     private readonly emails: EmailVerificationService,
     private readonly phones: PhoneProofService,
+    private readonly adminLogin: AdminLoginService,
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
@@ -60,7 +62,10 @@ export class CredentialsAuthService {
     });
   }
 
-  async login(dto: LoginDto, client: ClientContext): Promise<TokenPair> {
+  async login(
+    dto: LoginDto,
+    client: ClientContext,
+  ): Promise<TokenPair | AdminLoginPending> {
     const user = await this.findByIdentifier(dto);
 
     // Same error for "unknown user" and "wrong password" so accounts can't be probed.
@@ -70,9 +75,7 @@ export class CredentialsAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Administrators must prove possession of their email through AdminLoginService.
-    if (user.role === 'admin')
-      throw new UnauthorizedException('Invalid credentials');
+    if (user.role === 'admin') return this.adminLogin.start(user);
 
     return this.signIn.complete(user, client);
   }

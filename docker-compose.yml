@@ -33,6 +33,7 @@ x-service: &service
     CHAT_SERVICE_URL: http://chat:4004
     PAYMENT_SERVICE_URL: http://payment:4005
     NOTIFICATION_SERVICE_URL: http://notification:4006
+    GATEWAY_SERVICE_URL: http://api-gateway:4000
 
 services:
   redis:

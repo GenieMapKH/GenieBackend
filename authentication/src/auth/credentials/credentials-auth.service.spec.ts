@@ -14,6 +14,7 @@ describe('CredentialsAuthService', () => {
     findByPhone: jest.fn(),
   };
   const signIn = { complete: jest.fn() };
+  const adminLogin = { start: jest.fn() };
   const emails = { requireProof: jest.fn() };
   const phones = { verify: jest.fn() };
   const client = {
@@ -31,6 +32,7 @@ describe('CredentialsAuthService', () => {
       signIn as never,
       emails as never,
       phones as never,
+      adminLogin as never,
     );
   });
 
@@ -168,6 +170,35 @@ describe('CredentialsAuthService', () => {
 
   describe('login', () => {
     const passwordHash = bcrypt.hashSync('correct-password', 4);
+
+    it('requires an email link after the admin password, and never starts a session', async () => {
+      const admin = {
+        id: 'admin-1',
+        role: 'admin',
+        email_verified: true,
+        password_hash: passwordHash,
+      };
+      users.findByEmail.mockResolvedValue(admin);
+      adminLogin.start.mockResolvedValue({ status: 'admin_email_required' });
+      await expect(
+        service.login(
+          { email: 'owner@example.com', password: 'correct-password' },
+          client,
+        ),
+      ).resolves.toEqual({
+        status: 'admin_email_required',
+      });
+      expect(adminLogin.start).toHaveBeenCalledWith(admin);
+      expect(signIn.complete).not.toHaveBeenCalled();
+      await expect(
+        service.login(
+          { email: 'owner@example.com', password: 'wrong-password' },
+          client,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(adminLogin.start).toHaveBeenCalledTimes(1);
+      expect(signIn.complete).not.toHaveBeenCalled();
+    });
 
     it('signs the user in for the right password', async () => {
       const user = { id: 'u1', role: 'user', password_hash: passwordHash };

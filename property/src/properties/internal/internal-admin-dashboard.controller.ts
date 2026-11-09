@@ -1,12 +1,32 @@
-import { Controller, Get, UseGuards, VERSION_NEUTRAL } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PrismaService, serviceCallGuard } from '@tilomnov/shared';
+import { AdminListingRecordsService } from '../services/admin-listing-records.service';
 
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
 @Controller({ path: 'internal/admin/dashboard', version: VERSION_NEUTRAL })
 export class InternalAdminDashboardController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly records: AdminListingRecordsService,
+  ) {}
+
+  @Get('records')
+  list(
+    @Query('section') section: string,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+  ) {
+    return this.records.list(section, offset);
+  }
 
   @Get()
   async overview() {

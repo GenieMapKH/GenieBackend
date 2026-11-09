@@ -45,17 +45,18 @@ export class AdminDashboardService {
     };
   }
 
-  private async internalGet<T>(
+  async internalGet<T>(
     service: 'property' | 'payment',
     env: string,
     port: number,
+    path = '',
   ): Promise<T> {
     const base = (process.env[env] || `http://localhost:${port}`).replace(
       /\/$/,
       '',
     );
     try {
-      const response = await fetch(`${base}/internal/admin/dashboard`, {
+      const response = await fetch(`${base}/internal/admin/dashboard${path}`, {
         headers: { authorization: `Bearer ${signServiceToken('user')}` },
         signal: AbortSignal.timeout(5000),
       });

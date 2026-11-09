@@ -39,6 +39,11 @@ export class AuthMiddleware implements NestMiddleware {
     }
 
     const { userId, sessionId, role, adminMfa } = await this.verify(token);
+    if (role === 'admin' && !adminMfa) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
     if (sessionId && (await this.revokedSessions.has(sessionId))) {
       throw new UnauthorizedException('This device was signed out');
     }

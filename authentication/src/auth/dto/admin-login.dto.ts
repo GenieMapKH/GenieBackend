@@ -1,19 +1,7 @@
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
-
-export class AdminLoginStartDto {
-  @IsEmail()
-  @MaxLength(254)
-  email!: string;
-
-  @IsString()
-  @MinLength(1)
-  @MaxLength(200)
-  password!: string;
-}
+import { IsString, Matches } from 'class-validator';
 
 export class AdminLoginCompleteDto {
   @IsString()
-  @MinLength(32)
-  @MaxLength(128)
+  @Matches(/^[A-Za-z0-9_-]{43}$/)
   token!: string;
 }

@@ -1,22 +1,23 @@
-# Admin sign-in and dashboard
+﻿# Admin dashboard
 
-Admin sign-in uses the existing Authentication service and the existing Flutter app. It requires the configured account password followed by a single-use email link. The email token expires after ten minutes; Redis stores its hash, and only the app's POST exchanges it for a session.
+The owner enters credentials on the normal login screen (`POST /v1/auth/login`). The backend verifies the password and sends a sign-in link to the verified admin email. It returns `{"status":"admin_email_required"}` without access or refresh tokens. Flutter shows a waiting screen instructing the owner to open Gmail and tap **Open Tilomnov**.
 
-Production Authentication settings:
+The HTTPS link opens `/admin-login?token=...` in the installed app. The app exchanges the token through `POST /v1/auth/admin-login/complete` and only then saves the session and opens `/home`, including the Admin tab. No separate admin credential form is needed. Links expire after 10 minutes and are consumed atomically once. Changing the password/email, demoting or deactivating the account invalidates outstanding links. Email requests are limited to one per minute per admin account, in addition to normal password-attempt protection. Redis or mail failures never grant a session.
 
-```text
-ADMIN_LOGIN_EMAIL=<the designated account email>
-ADMIN_APP_LINK_URL=https://tilomnovgateway.sparkbytekh.com/admin-login
-```
+Admin APIs require the signed `adminMfa: true` claim, the signed admin role, and a currently active admin account. Refresh preserves the email proof and rejects older password-only admin refresh tokens. The Gateway rejects password-only admin access tokens; the updated app discards those sessions and requires a fresh login. Public registration cannot grant admin access, and Google sign-in cannot bypass the admin password/email flow.
 
-The designated existing account must have `role = 'admin'` and a bcrypt password hash with `has_password = true`. Account setup revokes previous sessions. Passwords belong in the account's hash, never in configuration or source. Password and Google login cannot issue admin sessions. Access and refresh tokens carry the email-verification claim; role promotion does not upgrade an older ordinary session.
+Android uses verified HTTPS App Links on `tilomnovgateway.sparkbytekh.com/admin-login`, with association metadata served by the Gateway. Gmail tracking may first open a browser; that page offers an **Open Tilomnov on Android** button without consuming the token. The production APK signing certificate must match the association file. iOS associated domains are included, but Gateway needs `APPLE_TEAM_ID` and a correctly signed iPhone build before Universal Links work. Existing email delivery provider settings are reused; no new password or admin-email environment setting is needed.
 
-The Gateway serves Android verification metadata at `/.well-known/assetlinks.json`, matching the signed production APK. The `/admin-login` landing route does not consume the token and provides an Android app-opening button if the mail client opens a browser first. Both it and authentication responses use `Cache-Control: no-store`.
+Deploy Authentication and Gateway together with shared admin-guard changes in services that use it, then install the updated app. Older app builds cannot complete this login contract. Verify a real Gmail-to-app round trip on a phone after deployment. Local automated checks do not establish live email delivery or OS link association.
 
-The iPhone entitlement is prepared in `ios/Runner/Runner.entitlements`. When the Apple signing team exists, set `APPLE_TEAM_ID` on Gateway to its ten-character Team ID and build/sign the iPhone app with that team. Until then the Apple association endpoint deliberately publishes no app IDs.
+GET /v1/admin/dashboard assembles account/report counts and signed internal requests to Property and Payment. User needs PROPERTY_SERVICE_URL, PAYMENT_SERVICE_URL, and the same INTERNAL_SERVICE_SECRET as those services.
 
-## Dashboard API
+The overview reports enabled regular-user accounts, account growth, active/all listings, listing leads, open reports, active subscriptions by tier, pending payments, and successful payment volume over the last seven days. Mock-payment volume is labeled as simulated. Account enablement is not daily active usage; this endpoint does not measure crashes, retention, or API latency.
 
-`GET /v1/admin/dashboard` requires a verified admin access token and a live admin role. User assembles its own account/report counts and signed internal requests to Property and Payment. User needs `PROPERTY_SERVICE_URL`, `PAYMENT_SERVICE_URL`, and the same `INTERNAL_SERVICE_SECRET` as those services.
+Every metric opens a scrollable detail list through `GET /v1/admin/dashboard/records?section=...&offset=0`. Sections are `active-users`, `all-users`, `new-users`, `active-listings`, `all-listings`, `new-listings`, `reports`, `leads`, `subscriptions`, `successful-payments`, and `pending-payments`. Pages contain at most 50 items and a nullable `nextOffset`. Subscriptions also accept `tier=silver|gold|diamond`. New-account, new-listing, lead and successful-payment lists use the same rolling seven-day filters as the overview; reports show the open queue. Lists can shift when records change; pull to refresh to reload from the start.
 
-The overview reports enabled regular-user accounts, account growth, active/all listings, listing leads, open reports, active subscriptions by tier, pending payments, and successful payment volume over the last seven days. The app identifies mock-payment volume as simulated. Account enablement is not a measure of daily active usage; crash, retention, and latency measurements are not collected by this endpoint.
+The account service enriches listing/payment pages with account information in one bounded lookup. Only explicitly selected profile/contact fields are returned. Password hashes, provider secrets, session tokens, chat keys and backups are excluded. Listing/payment tables remain in their owning services, reached through signed `/internal/admin/dashboard/records` requests.
+
+`GET /v1/admin/dashboard/health` checks the gateway, authentication, users, listings, chat, payments and notification `/health` endpoints in parallel, each with a three-second timeout. It returns each service's `up`, `down` or `not_configured` state, response time, available HTTP status and `checkedAt`. These are HTTP process checks; they do not assert database, Redis or external provider readiness. One failed service does not remove the other results, and Flutter loads this panel independently of dashboard metrics.
+
+On the user service, set `GATEWAY_SERVICE_URL`, `AUTH_SERVICE_URL`, `PROPERTY_SERVICE_URL`, `CHAT_SERVICE_URL`, `PAYMENT_SERVICE_URL` and `NOTIFICATION_SERVICE_URL` to internal base URLs. `USER_SERVICE_URL` is optional: its probe otherwise uses its own listening port on localhost. Missing remote URLs in production display as not configured; development uses the standard localhost ports. Docker Compose supplies all seven addresses. Deploy the user, property and payment service changes together with the Flutter update; no migration is needed.

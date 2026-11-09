@@ -56,7 +56,7 @@ export class FirebaseLoginService {
     if (!user) user = await this.createAccount(profile);
 
     if (user.role === 'admin') {
-      throw new UnauthorizedException('Use administrator sign-in');
+      throw new UnauthorizedException('Sign in with your email and password');
     }
 
     user = await this.syncProfile(user, profile);
@@ -103,7 +103,7 @@ export class FirebaseLoginService {
     }
     if (!existing) return null;
     if (existing.role === 'admin') {
-      throw new UnauthorizedException('Use administrator sign-in');
+      throw new UnauthorizedException('Sign in with your email and password');
     }
 
     const patch = {
