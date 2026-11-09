@@ -37,6 +37,12 @@ The property-photo report groups, admin property editor/moderation and app-wide 
 
 The Flutter admin workspace has six tabs: Explore, Services, Account, Activity,
 Financial, and Profile. Feed is available only in the normal user workspace.
+Explore uses the same map, search, filters, nearby listings, carousel, and listing
+detail sheets as the normal workspace. Admin detail sheets add protected edit,
+remove-post, and owner moderation actions. Switching admin tabs keeps the map
+alive. Completed moderation refreshes map and nearby results and clears the
+selected listing card.
+
 Services shows each configured backend probe as a responsive status card; Account
 keeps the account metrics and existing account detail/moderation lists; Activity
 keeps listing, lead, report, and advertising actions; Financial keeps income,
