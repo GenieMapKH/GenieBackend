@@ -116,7 +116,7 @@ Per service (everything else comes from the shared list):
 | `user` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_SERVICE_URL`, `CHAT_SERVICE_URL`; for the admin service status panel also set `GATEWAY_SERVICE_URL` and `NOTIFICATION_SERVICE_URL` to their private base URLs (`USER_SERVICE_URL` is optional for probing the user service itself) |
 | `property` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `GOOGLE_PLACES_API_KEY`, `GOOGLE_PLACES_REGION_CODES`, `USER_SERVICE_URL` (the feed asks it who a user follows), `NOTIFICATION_SERVICE_URL` (saved-search and follower pushes) |
 | `chat` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `SUPABASE_*`, `AUTH_SERVICE_URL`, `REDIS_URL`, `INTERNAL_SERVICE_SECRET`, `CHAT_MESSAGE_SECRET` (32+ characters; preserve and back up), `NOTIFICATION_SERVICE_URL`, `USER_SERVICE_URL` (asks it whether two people blocked each other; without it blocks are not enforced on messages and calls) |
-| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
+| `payment` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `INTERNAL_SERVICE_SECRET`, `PROPERTY_SERVICE_URL`, `NOTIFICATION_SERVICE_URL` (expiry reminders), `PAYMENT_WEBHOOK_SECRET` (no Redis, no Supabase) |
 | `notification` | `DATABASE_URL`, `DATABASE_POOL_MAX=2`, `AUTH_SERVICE_URL`, `REDIS_URL` (to hear sign-outs), `INTERNAL_SERVICE_SECRET`, `FIREBASE_SERVICE_ACCOUNT_JSON` (the same as `authentication`; without it nothing is pushed) |
 
 Rules that matter:

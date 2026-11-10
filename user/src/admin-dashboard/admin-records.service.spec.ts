@@ -102,6 +102,29 @@ describe('admin detail lists', () => {
     });
   });
 
+  it('keeps financial records visible after the account is erased', async () => {
+    dashboard.internalGet.mockResolvedValue({
+      items: [
+        { userId: null, id: 'tx-deleted', amount: '8.90' },
+        { userId: 'u1', id: 'tx-live' },
+      ],
+      nextOffset: null,
+    });
+    prisma.user.findMany.mockResolvedValue([{ id: 'u1' }]);
+    const page = await service.list({
+      section: 'successful-payments',
+      offset: 0,
+    });
+    expect(page.items[0]).toMatchObject({
+      id: 'tx-deleted',
+      amount: '8.90',
+      account: null,
+    });
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({
+      id: { in: ['u1'] },
+    });
+  });
+
   it.each([
     { section: 'successful-payments', purpose: 'unknown' },
     { section: 'all-users', q: 'x'.repeat(101) },

@@ -31,6 +31,7 @@ import { PropertyImageService } from './services/property-image.service';
 import { PropertyInsightsService } from './services/property-insights.service';
 import { PropertyLifecycleService } from './services/property-lifecycle.service';
 import { PropertyQueryService } from './services/property-query.service';
+import { PublishingAllowanceService } from './services/publishing-allowance.service';
 
 /** Authenticated property endpoints (the gateway has already verified the JWT). */
 @ApiTags('properties')
@@ -45,6 +46,7 @@ export class PropertiesController {
     private readonly favorites: FavoriteListingsService,
     private readonly owned: OwnerListingsService,
     private readonly insights: PropertyInsightsService,
+    private readonly allowance: PublishingAllowanceService,
   ) {}
 
   @Post()
@@ -101,6 +103,12 @@ export class PropertiesController {
   @Get('my/favorites/ids')
   getFavoriteIds(@CurrentUserId() userId: string) {
     return this.favorites.ids(userId);
+  }
+
+  /** Plan usage excludes listings paid for separately. */
+  @Get('my/publishing-usage')
+  publishingUsage(@CurrentUserId() userId: string) {
+    return this.allowance.usage(userId);
   }
 
   @Get(':id')

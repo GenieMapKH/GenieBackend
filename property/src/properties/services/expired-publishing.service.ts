@@ -78,6 +78,7 @@ export class ExpiredPublishingService implements OnModuleInit, OnModuleDestroy {
           listingLimit: number;
           expiresAt: string | null;
           protectedPropertyIds: string[];
+          expiredPropertyIds: string[];
         }>('GET', `/internal/subscriptions/${userId}/publishing`, {
           timeoutMs: 8000,
         });
@@ -88,6 +89,10 @@ export class ExpiredPublishingService implements OnModuleInit, OnModuleDestroy {
             !Number.isFinite(Date.parse(entitlement.expiresAt))) ||
           !Array.isArray(entitlement.protectedPropertyIds) ||
           !entitlement.protectedPropertyIds.every(
+            (id) => typeof id === 'string' && isUUID(id),
+          ) ||
+          !Array.isArray(entitlement.expiredPropertyIds) ||
+          !entitlement.expiredPropertyIds.every(
             (id) => typeof id === 'string' && isUUID(id),
           )
         )
@@ -103,12 +108,19 @@ export class ExpiredPublishingService implements OnModuleInit, OnModuleDestroy {
           orderBy: [{ publishedAt: 'asc' }, { id: 'asc' }],
         });
         const paid = new Set(entitlement.protectedPropertyIds);
-        const paidCount = listings.filter((listing) =>
-          paid.has(listing.id),
-        ).length;
-        const excess = listings
-          .filter((listing) => !paid.has(listing.id))
-          .slice(Math.max(0, limit - paidCount));
+        const expiredPaid = new Set(entitlement.expiredPropertyIds);
+        const candidates = listings.filter((listing) => !paid.has(listing.id));
+        const freePlan =
+          entitlement.expiresAt === null ||
+          Date.parse(entitlement.expiresAt) <= Date.now();
+        const excess = freePlan
+          ? [
+              ...candidates.filter((listing) => expiredPaid.has(listing.id)),
+              ...candidates
+                .filter((listing) => !expiredPaid.has(listing.id))
+                .slice(limit),
+            ]
+          : candidates.slice(limit);
         if (excess.length)
           await tx.property.updateMany({
             where: {
@@ -116,7 +128,7 @@ export class ExpiredPublishingService implements OnModuleInit, OnModuleDestroy {
               status: 'Active',
               id: { in: excess.map((listing) => listing.id) },
             },
-            data: { status: 'Expired' },
+            data: { status: 'Draft' },
           });
         return excess;
       },

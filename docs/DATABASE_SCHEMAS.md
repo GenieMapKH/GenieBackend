@@ -55,8 +55,11 @@ tables. `--prod` reads only that file's `DATABASE_URL`; a missing file or URL
 stops the command without falling back to staging or shell credentials.
 Multiple migration names still run in the order supplied, in one transaction.
 
-Deleting an account deletes its rows in every schema through the foreign keys
-(`ON DELETE CASCADE`); that runs as the table owner, so no extra grants are needed.
+Deleting an account deletes its personal/content rows through foreign keys
+(`ON DELETE CASCADE`). Migration `44_preserve_financial_history` retains payment
+transactions and clears their user/property links (`ON DELETE SET NULL`), so
+account or property deletion cannot reduce recorded income. These actions run
+as the table owner, so no extra grants are needed.
 
 ### The cross-schema reads (what to replace before splitting databases)
 

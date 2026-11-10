@@ -28,6 +28,7 @@ describe('payment API trust boundaries', () => {
     purchase: jest.fn(),
     quote: jest.fn(),
     current: jest.fn(),
+    expired: jest.fn(),
     cancel: jest.fn(),
     allowance: jest.fn(),
     publishingEntitlements: jest.fn(),
@@ -169,6 +170,18 @@ describe('payment API trust boundaries', () => {
     expect(subscriptions.allowance).toHaveBeenCalledWith(alice);
   });
 
+  it('keeps the expired-subscription popup tied to the authenticated user', async () => {
+    subscriptions.expired.mockResolvedValue({ tier: 'gold' });
+    await request(app.getHttpServer())
+      .get('/v1/payments/subscriptions/expired')
+      .expect(401);
+    await request(app.getHttpServer())
+      .get('/v1/payments/subscriptions/expired')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200, { subscription: { tier: 'gold' } });
+    expect(subscriptions.expired).toHaveBeenCalledWith(alice);
+  });
+
   it('protects paid-listing entitlements with the property service guard', async () => {
     const path = `/internal/subscriptions/${alice}/publishing`;
     for (const bearer of [undefined, token, signServiceToken('chat')]) {
@@ -180,6 +193,7 @@ describe('payment API trust boundaries', () => {
       listingLimit: 1,
       expiresAt: null,
       protectedPropertyIds: [],
+      expiredPropertyIds: [],
     });
     await request(app.getHttpServer())
       .get(path)

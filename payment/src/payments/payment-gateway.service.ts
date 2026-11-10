@@ -72,6 +72,24 @@ export class PaymentGatewayService {
         if (current.status !== PaymentStatus.Pending) return current;
         const paid = verified.state === 'PAID';
         const paidAt = paid ? new Date() : null;
+        if (
+          !current.userId ||
+          (current.purpose === 'LISTING_PUBLISH' && !current.propertyId)
+        ) {
+          if (paid)
+            this.logger.error(
+              `Refund required for deleted payment target ${current.id}`,
+            );
+          return tx.paymentTransaction.update({
+            where: { id: current.id },
+            data: {
+              status: paid
+                ? PaymentStatus.RefundRequired
+                : PaymentStatus.Failed,
+              paidAt,
+            },
+          });
+        }
         if (current.purpose === 'SUBSCRIPTION' && paidAt) {
           if (!current.subscriptionTier || !current.subscriptionPeriodEnd)
             throw new BadRequestException(
@@ -102,6 +120,7 @@ export class PaymentGatewayService {
             transactionId: current.id,
             cancelAtPeriodEnd: isUpgrade ? active.cancelAtPeriodEnd : false,
             cancelledAt: isUpgrade ? active.cancelledAt : null,
+            expiryReminderSentAt: null,
           };
           await tx.subscription.upsert({
             where: { userId: current.userId },
@@ -132,6 +151,7 @@ export class PaymentGatewayService {
               item: 'listing_publish',
               amount: Number(current.amount),
               periodStart: paidAt.toISOString(),
+              periodEnd: monthAfter(paidAt).toISOString(),
             };
         } else if (current.purpose !== 'SUBSCRIPTION') {
           throw new BadRequestException('Unknown payment purpose');
@@ -141,6 +161,10 @@ export class PaymentGatewayService {
           data: {
             status: paid ? PaymentStatus.Success : PaymentStatus.Failed,
             paidAt,
+            ...(paidAt &&
+              current.purpose === 'LISTING_PUBLISH' && {
+                listingPeriodEnd: monthAfter(paidAt),
+              }),
           },
         });
       },

@@ -90,8 +90,8 @@ export class AccountService {
   }
 
   /**
-   * Removes the account and every trace of it: uploaded files, listings,
-   * chats, sessions, reset codes and its Google sign-in record. Cannot be undone.
+   * Removes personal data: uploaded files, listings, chats, sessions, reset
+   * codes and its Google sign-in record. Anonymized financial records remain.
    */
   async delete(caller: SessionCaller, proof: IdentityProof): Promise<void> {
     await this.devices.require(caller);
@@ -135,7 +135,7 @@ export class AccountService {
     await this.sessions.endAllSessions(user.id);
     if (user.firebase_uid) await this.firebase.deleteUser(user.firebase_uid);
     if (user.email) await this.otps.deleteAllFor(user.email);
-    // The database deletes everything that hangs off the row with it.
+    // The database erases account content and unlinks retained financial records.
     await this.users.delete(user.id);
     await this.content.visibilityChanged(user.id);
   }

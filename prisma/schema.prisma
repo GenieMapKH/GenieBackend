@@ -398,13 +398,15 @@ model PropertyContact {
 
 model PaymentTransaction {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String   @map("user_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
   propertyId String?  @map("property_id") @db.Uuid
   purpose    String   @default("LISTING_PUBLISH")
   subscriptionTier String? @map("subscription_tier")
   requestId  String?  @map("request_id") @db.Uuid
   currency   String   @default("USD")
   paidAt     DateTime? @map("paid_at") @db.Timestamptz(6)
+  listingPeriodEnd DateTime? @map("listing_period_end") @db.Timestamptz(6)
+  expiryReminderSentAt DateTime? @map("expiry_reminder_sent_at") @db.Timestamptz(6)
   paymentMethod String? @map("payment_method")
   subscriptionPeriodStart DateTime? @map("subscription_period_start") @db.Timestamptz(6)
   subscriptionPeriodEnd DateTime? @map("subscription_period_end") @db.Timestamptz(6)
@@ -414,13 +416,14 @@ model PaymentTransaction {
   status     String   @default("Pending")
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
-  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   subscription Subscription?
 
   @@index([userId])
   @@index([propertyId])
   @@unique([userId, requestId])
+  @@index([listingPeriodEnd], map: "payment_listing_expiry_reminder_idx", where: raw("(status = 'Success'::text AND expiry_reminder_sent_at IS NULL)"))
   @@map("payment_transactions")
   @@schema("payment")
 }
@@ -433,9 +436,12 @@ model Subscription {
   currentPeriodEnd DateTime @map("current_period_end") @db.Timestamptz(6)
   cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")
   cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  expiryReminderSentAt DateTime? @map("expiry_reminder_sent_at") @db.Timestamptz(6)
   transactionId String @unique @map("transaction_id") @db.Uuid
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   transaction PaymentTransaction @relation(fields: [transactionId], references: [id])
+
+  @@index([currentPeriodEnd], map: "subscription_expiry_reminder_idx", where: raw("(expiry_reminder_sent_at IS NULL)"))
 
   @@map("subscriptions")
   @@schema("payment")

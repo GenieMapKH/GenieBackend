@@ -21,6 +21,8 @@ import {
 } from '../listings/listing-update.push';
 import { savedSearchMatchPush } from '../listings/saved-search-match.push';
 import { SignInAlertNotifier } from '../security/sign-in-alert-notifier';
+import { ExpiryReminderNotifier } from '../billing/expiry-reminder-notifier';
+import { ExpiryReminderDto } from './dto/expiry-reminder.dto';
 import {
   CallEndedEventDto,
   CallEventDto,
@@ -46,7 +48,15 @@ export class InternalNotificationsController {
     private readonly signIns: SignInAlertNotifier,
     private readonly calls: CallNotifier,
     private readonly listingAlerts: ListingAlertNotifier,
+    private readonly expiryReminders: ExpiryReminderNotifier,
   ) {}
+
+  @UseGuards(serviceCallGuard('payment'))
+  @Post('publishing-expiry')
+  @HttpCode(HttpStatus.OK)
+  publishingExpiry(@Body() event: ExpiryReminderDto): Promise<DeliveryReport> {
+    return this.expiryReminders.notify(event);
+  }
 
   @UseGuards(serviceCallGuard('chat'))
   @Post('chat-message')

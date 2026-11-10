@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { toPage } from '../dto/page.query';
+import { MAP_SELECT } from '../property-includes';
 
 @Injectable()
 export class AdminListingRecordsService {
@@ -69,24 +70,10 @@ export class AdminListingRecordsService {
         ...(section === 'new-listings' && { createdAt: { gte: since } }),
       },
       select: {
-        id: true,
+        ...MAP_SELECT,
         userId: true,
         images: { orderBy: { order: 'asc' }, take: 1 },
-        title: true,
-        description: true,
-        price: true,
-        propertyType: true,
-        listingType: true,
-        status: true,
         contactPhone: true,
-        bedrooms: true,
-        bathrooms: true,
-        landSize: true,
-        buildingSize: true,
-        unitSize: true,
-        lat: true,
-        lng: true,
-        createdAt: true,
         publishedAt: true,
         updatedAt: true,
       },

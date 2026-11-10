@@ -5,6 +5,7 @@ import { PropertiesController } from './properties.controller';
 describe('list endpoints', () => {
   const favorites = { all: jest.fn(), page: jest.fn(), ids: jest.fn() };
   const owned = { all: jest.fn(), page: jest.fn(), inArea: jest.fn() };
+  const allowance = { usage: jest.fn() };
   const controller = new PropertiesController(
     {} as never,
     {} as never,
@@ -13,9 +14,16 @@ describe('list endpoints', () => {
     favorites as never,
     owned as never,
     {} as never,
+    allowance as never,
   );
 
   beforeEach(() => jest.clearAllMocks());
+
+  it('reads publishing usage only for the authenticated owner', async () => {
+    allowance.usage.mockResolvedValue({ used: 1 });
+    await expect(controller.publishingUsage('u')).resolves.toEqual({ used: 1 });
+    expect(allowance.usage).toHaveBeenCalledWith('u');
+  });
 
   it('answer the whole list as before when no page is asked for, so older apps keep working', async () => {
     await controller.getFavorites('u', {});

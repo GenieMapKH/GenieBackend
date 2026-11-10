@@ -32,10 +32,18 @@ been removed from checkout and confirmation emails.
 
 Expiry enforcement also runs in the property service at startup and between
 scans with a 30-second delay. It keeps the oldest Active listings within the
-account's current allowance and changes the excess to Expired, retaining their
-data. Successful one-time listing purchases remain protected. Pending one-time
-payments also protect an already Active listing: verified remote publication
-can precede the payment transaction's final commit. A pending listing remains
+account's current allowance and changes the excess to Draft, retaining their
+data. Migration `45_monthly_listing_access` gives each successful one-time
+purchase one calendar month of access from confirmation (UTC, clamped at month
+end). Its `listingPeriodEnd` is stored with the payment; old successful
+payments are backfilled using their paid date, or their last recorded timestamp.
+Those listings do not consume plan slots during their paid month. After expiry,
+they can use an active subscription's capacity; otherwise they become Draft and
+require another payment, even if the free slot is empty. The oldest ordinary
+free listing remains available. Pending one-time
+payments also protect an already Active listing for up to a month from checkout:
+verified remote publication can precede the payment transaction's final commit.
+A pending listing remains
 hidden and cannot be activated by this cleanup. The worker invalidates public
 caches and search through ListingChanges. It locks payment changes before
 publishing changes so renewal, upgrade and expiry cannot apply conflicting
@@ -43,6 +51,26 @@ snapshots. Deploy payment before property, because cleanup uses the new
 property-service-only `/internal/subscriptions/:userId/publishing` endpoint.
 Cleanup is asynchronous: scan time and outages can delay expiry; failures are
 logged and retried without hiding listings based on an unknown plan.
+
+Payment's reminder worker checks every minute for subscription and individual
+periods ending within three days. It records delivery per period, serializes
+against purchases, and retries failed delivery. Renewed or subscription-covered
+individual periods are skipped. The notification service sends localized
+English/Khmer pushes through the existing listing-alert channel; opening them
+leads to My Properties or subscription plans. Delivery requires registered push
+devices and configured Firebase. The app opens the shared renewal checkout when
+an owner tries to activate a property requiring payment, or when it sees an
+expired subscription at sign-in/resume/foreground expiry. Dismissing checkout
+does not activate a listing; only provider-verified settlement grants access.
+`GET /v1/payments/subscriptions/expired` returns the authenticated account's last
+expired subscription, or null while it has an active period. The renewal sheet
+can also open subscription plans to cover an individual post within the plan's
+capacity.
+
+Rollout: apply migrations 44 (financial retention) and 45 first, deploy
+Notification, Payment, Property, then Flutter. Set `NOTIFICATION_SERVICE_URL`
+on Payment. Existing expired one-time posts can move to Draft as soon as the
+updated Property worker starts; their financial records are preserved.
 
 A verified upgrade payment confirmed at or after its original period end is
 saved as RefundRequired with paidAt, without granting access or sending a
