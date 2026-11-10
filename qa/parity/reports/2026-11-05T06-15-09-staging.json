@@ -1,0 +1,2047 @@
+{
+  "runs": [
+    {
+      "env": "staging",
+      "baseUrl": "https://gateway-staging-c9ff.up.railway.app",
+      "startedAt": "2026-11-05T06:14:47.433Z",
+      "durationMs": 22445,
+      "retries": [],
+      "results": [
+        {
+          "id": "ENV-01",
+          "area": "Setup",
+          "title": "Gateway answers its health check",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /health",
+              "as": "guest",
+              "status": 200,
+              "ms": 483,
+              "shape": {
+                "object": {
+                  "status": "string"
+                }
+              }
+            }
+          ],
+          "ms": 484
+        },
+        {
+          "id": "ENV-02",
+          "area": "Setup",
+          "title": "Unknown API version is refused, unversioned paths still served (old app builds)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /v99/public/properties/closest",
+              "as": "guest",
+              "status": 404,
+              "ms": 446,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "GET /public/properties/closest",
+              "as": "guest",
+              "status": 200,
+              "ms": 266,
+              "shape": {
+                "object": {
+                  "items": {
+                    "array": {
+                      "object": {
+                        "_count": {
+                          "object": {
+                            "contacts": "number",
+                            "favorites": "number",
+                            "views": "number"
+                          }
+                        },
+                        "bathrooms": "number",
+                        "bedrooms": "number",
+                        "boundaryPoints": {
+                          "array": {
+                            "object": {
+                              "lat": "number",
+                              "lng": "number"
+                            }
+                          }
+                        },
+                        "buildingSize": "string",
+                        "createdAt": "string",
+                        "description": "string",
+                        "discountType": "string",
+                        "discountValue": "string",
+                        "distanceMeters": "number",
+                        "id": "string",
+                        "images": {
+                          "array": {
+                            "object": {
+                              "createdAt": "string",
+                              "id": "string",
+                              "order": "number",
+                              "propertyId": "string",
+                              "thumbnailUrl": "string",
+                              "url": "string"
+                            }
+                          }
+                        },
+                        "keywords": {
+                          "array": {
+                            "object": {
+                              "keyword": "string"
+                            }
+                          }
+                        },
+                        "landSize": "string",
+                        "lat": "number",
+                        "listingType": "string",
+                        "lng": "number",
+                        "price": "string",
+                        "propertyType": "string",
+                        "status": "string",
+                        "title": "string",
+                        "totalProjectArea": "null",
+                        "unitSize": "null",
+                        "user": {
+                          "object": {
+                            "avatarUrl": "string",
+                            "id": "string",
+                            "name": "string",
+                            "username": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "nextOffset": "number"
+                }
+              }
+            }
+          ],
+          "ms": 715
+        },
+        {
+          "id": "AUTH-01",
+          "area": "Sign-in",
+          "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+          "status": "pass",
+          "failures": [],
+          "notes": [
+            "seller: registered +12025550171 (first run on this environment)",
+            "buyer: registered +12025550172 (first run on this environment)",
+            "outsider: registered +12025550173 (first run on this environment)"
+          ],
+          "steps": [
+            {
+              "label": "POST /auth/login (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 988,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 205,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (outsider)",
+              "as": "guest",
+              "status": 200,
+              "ms": 241,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            }
+          ],
+          "ms": 4931
+        },
+        {
+          "id": "SETUP-01",
+          "area": "Setup",
+          "title": "Leftovers of earlier runs are removed (QA accounts only)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 174,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 144,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 117,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 408,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 94,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 227,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 425,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 102,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 90,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 461,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 460,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 97,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 118,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 147,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 423,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 512,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 121,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 106,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 755,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 434,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 213,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 240,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            }
+          ],
+          "ms": 8167
+        },
+        {
+          "id": "AUTH-02",
+          "area": "Sign-in",
+          "title": "Registration refuses bad input and an existing phone",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "register: bad phone",
+              "as": "guest",
+              "status": 400,
+              "ms": 152,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: short password",
+              "as": "guest",
+              "status": 400,
+              "ms": 429,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: no phone",
+              "as": "guest",
+              "status": 400,
+              "ms": 103,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: bad email",
+              "as": "guest",
+              "status": 400,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: phone already used",
+              "as": "guest",
+              "status": 409,
+              "ms": 156,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1430
+        },
+        {
+          "id": "AUTH-03",
+          "area": "Sign-in",
+          "title": "Login refuses a wrong password, an unknown phone and missing fields",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "login: wrong password",
+              "as": "guest",
+              "status": 401,
+              "ms": 477,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: unknown phone",
+              "as": "guest",
+              "status": 401,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: no password",
+              "as": "guest",
+              "status": 400,
+              "ms": 95,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: no phone or email",
+              "as": "guest",
+              "status": 400,
+              "ms": 99,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: phone with spaces",
+              "as": "guest",
+              "status": 200,
+              "ms": 648,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "logout the extra session",
+              "as": "guest",
+              "status": 200,
+              "ms": 162,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            }
+          ],
+          "ms": 2060
+        },
+        {
+          "id": "AUTH-04",
+          "area": "Sign-in",
+          "title": "Protected routes refuse no token, a forged token, and accept \"bearer\" in any case",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "no token",
+              "as": "guest",
+              "status": 401,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "forged token",
+              "as": "guest",
+              "status": 401,
+              "ms": 94,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "lower-case bearer",
+              "as": "guest",
+              "status": 200,
+              "ms": 170,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "guest GET /properties",
+              "as": "guest",
+              "status": 401,
+              "ms": 121,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /chat/conversations",
+              "as": "guest",
+              "status": 401,
+              "ms": 64,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /notifications/preferences",
+              "as": "guest",
+              "status": 401,
+              "ms": 96,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /search/saved",
+              "as": "guest",
+              "status": 401,
+              "ms": 410,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /feed",
+              "as": "guest",
+              "status": 401,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1932
+        },
+        {
+          "id": "AUTH-05",
+          "area": "Sign-in",
+          "title": "Password reset: email OTP and SMS paths refuse bad codes without revealing accounts",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "forgot-password: unknown email",
+              "as": "guest",
+              "status": 200,
+              "ms": 250,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "forgot-password: bad email",
+              "as": "guest",
+              "status": 400,
+              "ms": 92,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "verify-otp: wrong code",
+              "as": "guest",
+              "status": 400,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "reset-password: wrong code",
+              "as": "guest",
+              "status": 400,
+              "ms": 142,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "reset-password/phone: forged SMS proof",
+              "as": "guest",
+              "status": 400,
+              "ms": 109,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1228
+        },
+        {
+          "id": "AUTH-06",
+          "area": "Sign-in",
+          "title": "Google (Firebase) sign-in refuses a forged token",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/firebase-login",
+              "as": "guest",
+              "status": 401,
+              "ms": 83,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "firebase-login: no token",
+              "as": "guest",
+              "status": 400,
+              "ms": 108,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 457
+        },
+        {
+          "id": "AUTH-07",
+          "area": "Sign-in",
+          "title": "Refresh and logout refuse forged refresh tokens",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/refresh",
+              "as": "guest",
+              "status": 401,
+              "ms": 450,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "refresh: no token",
+              "as": "guest",
+              "status": 400,
+              "ms": 406,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/logout",
+              "as": "guest",
+              "status": 401,
+              "ms": 50,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1035
+        }
+      ]
+    }
+  ],
+  "comparison": [
+    {
+      "id": "ENV-01",
+      "area": "Setup",
+      "title": "Gateway answers its health check",
+      "known": null,
+      "results": [
+        {
+          "id": "ENV-01",
+          "area": "Setup",
+          "title": "Gateway answers its health check",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /health",
+              "as": "guest",
+              "status": 200,
+              "ms": 483,
+              "shape": {
+                "object": {
+                  "status": "string"
+                }
+              }
+            }
+          ],
+          "ms": 484
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "ENV-02",
+      "area": "Setup",
+      "title": "Unknown API version is refused, unversioned paths still served (old app builds)",
+      "known": null,
+      "results": [
+        {
+          "id": "ENV-02",
+          "area": "Setup",
+          "title": "Unknown API version is refused, unversioned paths still served (old app builds)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /v99/public/properties/closest",
+              "as": "guest",
+              "status": 404,
+              "ms": 446,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "GET /public/properties/closest",
+              "as": "guest",
+              "status": 200,
+              "ms": 266,
+              "shape": {
+                "object": {
+                  "items": {
+                    "array": {
+                      "object": {
+                        "_count": {
+                          "object": {
+                            "contacts": "number",
+                            "favorites": "number",
+                            "views": "number"
+                          }
+                        },
+                        "bathrooms": "number",
+                        "bedrooms": "number",
+                        "boundaryPoints": {
+                          "array": {
+                            "object": {
+                              "lat": "number",
+                              "lng": "number"
+                            }
+                          }
+                        },
+                        "buildingSize": "string",
+                        "createdAt": "string",
+                        "description": "string",
+                        "discountType": "string",
+                        "discountValue": "string",
+                        "distanceMeters": "number",
+                        "id": "string",
+                        "images": {
+                          "array": {
+                            "object": {
+                              "createdAt": "string",
+                              "id": "string",
+                              "order": "number",
+                              "propertyId": "string",
+                              "thumbnailUrl": "string",
+                              "url": "string"
+                            }
+                          }
+                        },
+                        "keywords": {
+                          "array": {
+                            "object": {
+                              "keyword": "string"
+                            }
+                          }
+                        },
+                        "landSize": "string",
+                        "lat": "number",
+                        "listingType": "string",
+                        "lng": "number",
+                        "price": "string",
+                        "propertyType": "string",
+                        "status": "string",
+                        "title": "string",
+                        "totalProjectArea": "null",
+                        "unitSize": "null",
+                        "user": {
+                          "object": {
+                            "avatarUrl": "string",
+                            "id": "string",
+                            "name": "string",
+                            "username": "string"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "nextOffset": "number"
+                }
+              }
+            }
+          ],
+          "ms": 715
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-01",
+      "area": "Sign-in",
+      "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-01",
+          "area": "Sign-in",
+          "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+          "status": "pass",
+          "failures": [],
+          "notes": [
+            "seller: registered +12025550171 (first run on this environment)",
+            "buyer: registered +12025550172 (first run on this environment)",
+            "outsider: registered +12025550173 (first run on this environment)"
+          ],
+          "steps": [
+            {
+              "label": "POST /auth/login (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 988,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 205,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (outsider)",
+              "as": "guest",
+              "status": 200,
+              "ms": 241,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            }
+          ],
+          "ms": 4931
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "SETUP-01",
+      "area": "Setup",
+      "title": "Leftovers of earlier runs are removed (QA accounts only)",
+      "known": null,
+      "results": [
+        {
+          "id": "SETUP-01",
+          "area": "Setup",
+          "title": "Leftovers of earlier runs are removed (QA accounts only)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 174,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 144,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 117,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 408,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 94,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 227,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 425,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 102,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 90,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 461,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 460,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 97,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 118,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 147,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 423,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 512,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 121,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 106,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 755,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 434,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 213,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 240,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            }
+          ],
+          "ms": 8167
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-02",
+      "area": "Sign-in",
+      "title": "Registration refuses bad input and an existing phone",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-02",
+          "area": "Sign-in",
+          "title": "Registration refuses bad input and an existing phone",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "register: bad phone",
+              "as": "guest",
+              "status": 400,
+              "ms": 152,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: short password",
+              "as": "guest",
+              "status": 400,
+              "ms": 429,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: no phone",
+              "as": "guest",
+              "status": 400,
+              "ms": 103,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: bad email",
+              "as": "guest",
+              "status": 400,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "register: phone already used",
+              "as": "guest",
+              "status": 409,
+              "ms": 156,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1430
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-03",
+      "area": "Sign-in",
+      "title": "Login refuses a wrong password, an unknown phone and missing fields",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-03",
+          "area": "Sign-in",
+          "title": "Login refuses a wrong password, an unknown phone and missing fields",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "login: wrong password",
+              "as": "guest",
+              "status": 401,
+              "ms": 477,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: unknown phone",
+              "as": "guest",
+              "status": 401,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: no password",
+              "as": "guest",
+              "status": 400,
+              "ms": 95,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: no phone or email",
+              "as": "guest",
+              "status": 400,
+              "ms": 99,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "login: phone with spaces",
+              "as": "guest",
+              "status": 200,
+              "ms": 648,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "logout the extra session",
+              "as": "guest",
+              "status": 200,
+              "ms": 162,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            }
+          ],
+          "ms": 2060
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-04",
+      "area": "Sign-in",
+      "title": "Protected routes refuse no token, a forged token, and accept \"bearer\" in any case",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-04",
+          "area": "Sign-in",
+          "title": "Protected routes refuse no token, a forged token, and accept \"bearer\" in any case",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "no token",
+              "as": "guest",
+              "status": 401,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "forged token",
+              "as": "guest",
+              "status": 401,
+              "ms": 94,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "lower-case bearer",
+              "as": "guest",
+              "status": 200,
+              "ms": 170,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "guest GET /properties",
+              "as": "guest",
+              "status": 401,
+              "ms": 121,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /chat/conversations",
+              "as": "guest",
+              "status": 401,
+              "ms": 64,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /notifications/preferences",
+              "as": "guest",
+              "status": 401,
+              "ms": 96,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /search/saved",
+              "as": "guest",
+              "status": 401,
+              "ms": 410,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "guest GET /feed",
+              "as": "guest",
+              "status": 401,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1932
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-05",
+      "area": "Sign-in",
+      "title": "Password reset: email OTP and SMS paths refuse bad codes without revealing accounts",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-05",
+          "area": "Sign-in",
+          "title": "Password reset: email OTP and SMS paths refuse bad codes without revealing accounts",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "forgot-password: unknown email",
+              "as": "guest",
+              "status": 200,
+              "ms": 250,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "forgot-password: bad email",
+              "as": "guest",
+              "status": 400,
+              "ms": 92,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "verify-otp: wrong code",
+              "as": "guest",
+              "status": 400,
+              "ms": 159,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "reset-password: wrong code",
+              "as": "guest",
+              "status": 400,
+              "ms": 142,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "reset-password/phone: forged SMS proof",
+              "as": "guest",
+              "status": 400,
+              "ms": 109,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1228
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-06",
+      "area": "Sign-in",
+      "title": "Google (Firebase) sign-in refuses a forged token",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-06",
+          "area": "Sign-in",
+          "title": "Google (Firebase) sign-in refuses a forged token",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/firebase-login",
+              "as": "guest",
+              "status": 401,
+              "ms": 83,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "firebase-login: no token",
+              "as": "guest",
+              "status": 400,
+              "ms": 108,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 457
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "AUTH-07",
+      "area": "Sign-in",
+      "title": "Refresh and logout refuse forged refresh tokens",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-07",
+          "area": "Sign-in",
+          "title": "Refresh and logout refuse forged refresh tokens",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/refresh",
+              "as": "guest",
+              "status": 401,
+              "ms": 450,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "refresh: no token",
+              "as": "guest",
+              "status": 400,
+              "ms": 406,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/logout",
+              "as": "guest",
+              "status": 401,
+              "ms": 50,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 1035
+        }
+      ],
+      "differences": []
+    }
+  ]
+}
