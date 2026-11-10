@@ -1,0 +1,162 @@
+{
+  "checkedAt": "2026-11-06T05:58:04.578Z",
+  "schemaColumnCounts": {
+    "Staging": 249,
+    "production": 249
+  },
+  "diff": {
+    "stagingOnly": [],
+    "productionOnly": []
+  },
+  "roles": {
+    "Staging": [
+      {
+        "rolname": "authentication_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "authentication_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "authentication_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service_2",
+        "rolcanlogin": true
+      }
+    ],
+    "production": [
+      {
+        "rolname": "authentication_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "authentication_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "authentication_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "chat_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "notification_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "payment_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "property_service_2",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service_1",
+        "rolcanlogin": true
+      },
+      {
+        "rolname": "user_service_2",
+        "rolcanlogin": true
+      }
+    ]
+  },
+  "errors": {}
+}

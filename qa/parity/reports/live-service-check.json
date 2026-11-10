@@ -1,0 +1,211 @@
+{
+  "checkedAt": "2026-11-06T13:44:56.952Z",
+  "environments": [
+    {
+      "environment": "staging",
+      "gateway": "https://gateway-staging-c9ff.up.railway.app",
+      "checks": [
+        {
+          "method": "POST",
+          "route": "/auth/login",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/users/me",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/auth/sessions",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/properties?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/properties/my/favorites?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/conversations?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/notifications/preferences",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/public/properties/closest?lat=11.55&lng=104.92&limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/calls/ice-servers",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/backup",
+          "status": 404,
+          "expected": 404,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "POST",
+          "route": "/payments/checkout",
+          "status": 404,
+          "expected": 404,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "production:/users/me",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "method": "POST",
+          "route": "/auth/logout",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/users/me",
+          "status": 401,
+          "expected": 401,
+          "cacheControl": "no-store"
+        }
+      ]
+    },
+    {
+      "environment": "production",
+      "gateway": "https://tilomnovgateway.sparkbytekh.com",
+      "checks": [
+        {
+          "method": "POST",
+          "route": "/auth/login",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/users/me",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/auth/sessions",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/properties?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/properties/my/favorites?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/conversations?limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/notifications/preferences",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/public/properties/closest?lat=11.55&lng=104.92&limit=1",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/calls/ice-servers",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/chat/backup",
+          "status": 404,
+          "expected": 404,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "POST",
+          "route": "/payments/checkout",
+          "status": 404,
+          "expected": 404,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "staging:/users/me",
+          "status": 401,
+          "expected": 401
+        },
+        {
+          "method": "POST",
+          "route": "/auth/logout",
+          "status": 200,
+          "expected": 200,
+          "cacheControl": "no-store"
+        },
+        {
+          "method": "GET",
+          "route": "/users/me",
+          "status": 401,
+          "expected": 401,
+          "cacheControl": "no-store"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1997 @@
+{
+  "runs": [
+    {
+      "env": "production",
+      "baseUrl": "https://tilomnovgateway.sparkbytekh.com",
+      "startedAt": "2026-11-06T05:30:52.012Z",
+      "durationMs": 18114,
+      "retries": [],
+      "results": [
+        {
+          "id": "AUTH-01",
+          "area": "Sign-in",
+          "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/login (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 532,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 164,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (outsider)",
+              "as": "guest",
+              "status": 200,
+              "ms": 156,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            }
+          ],
+          "ms": 1573
+        },
+        {
+          "id": "SETUP-01",
+          "area": "Setup",
+          "title": "Leftovers of earlier runs are removed (QA accounts only)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 152,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 113,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 125,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 103,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 122,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 123,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 96,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 108,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 89,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 128,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 104,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 78,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 105,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 77,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 98,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 665,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 161,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 207,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 71,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 254,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 59,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            }
+          ],
+          "ms": 6619
+        },
+        {
+          "id": "NTF-01",
+          "area": "Notifications",
+          "title": "Push device is registered and removed (as on sign-in / sign-out)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /notifications/devices",
+              "as": "outsider",
+              "status": 204,
+              "ms": 148,
+              "shape": "null"
+            },
+            {
+              "label": "register again (locale change)",
+              "as": "outsider",
+              "status": 204,
+              "ms": 81,
+              "shape": "null"
+            },
+            {
+              "label": "unknown platform",
+              "as": "outsider",
+              "status": 400,
+              "ms": 91,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "no token",
+              "as": "outsider",
+              "status": 400,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "POST /notifications/devices/remove",
+              "as": "outsider",
+              "status": 204,
+              "ms": 78,
+              "shape": "null"
+            }
+          ],
+          "ms": 1180
+        },
+        {
+          "id": "NTF-02",
+          "area": "Notifications",
+          "title": "Notification settings: read, switch one off, switch it back",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /notifications/preferences",
+              "as": "buyer",
+              "status": 200,
+              "ms": 105,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "PATCH /notifications/preferences",
+              "as": "buyer",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "restore",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "not a boolean",
+              "as": "buyer",
+              "status": 400,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 908
+        },
+        {
+          "id": "NTF-03",
+          "area": "Notifications",
+          "title": "Sending a promotion is admin-only",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /notifications/promotions",
+              "as": "buyer",
+              "status": 403,
+              "ms": 84,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "GET /notifications/promotions/:id",
+              "as": "buyer",
+              "status": 403,
+              "ms": 82,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 469
+        },
+        {
+          "id": "END-01",
+          "area": "Listings",
+          "title": "Seller removes the photo, then deletes the listing; it is gone everywhere",
+          "status": "skip",
+          "failures": [
+            "Needs listingId from an earlier case that failed"
+          ],
+          "notes": [],
+          "steps": [],
+          "ms": 0
+        },
+        {
+          "id": "END-02",
+          "area": "Clean-up & sign-out",
+          "title": "All QA test data is removed (conversations, follows, favourites, saved searches...)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 66,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 79,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 69,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 83,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 101,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 75,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 75,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 89,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 81,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 83,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 90,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 98,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 234,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 155,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 182,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 198,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "chat history after clean-up",
+              "as": "seller",
+              "status": 200,
+              "ms": 125,
+              "shape": {
+                "array": "unknown"
+              }
+            }
+          ],
+          "ms": 6504
+        },
+        {
+          "id": "END-99",
+          "area": "Clean-up & sign-out",
+          "title": "Seller and buyer sign out; their tokens stop working",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "logout (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 118,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "old token after logout (seller)",
+              "as": "guest",
+              "status": 401,
+              "ms": 66,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "logout (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 94,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "old token after logout (buyer)",
+              "as": "guest",
+              "status": 401,
+              "ms": 70,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 859
+        }
+      ]
+    }
+  ],
+  "comparison": [
+    {
+      "id": "AUTH-01",
+      "area": "Sign-in",
+      "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+      "known": null,
+      "results": [
+        {
+          "id": "AUTH-01",
+          "area": "Sign-in",
+          "title": "The 3 QA accounts sign in by phone + password (registered on the first run)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /auth/login (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 532,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 164,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            },
+            {
+              "label": "POST /auth/login (outsider)",
+              "as": "guest",
+              "status": 200,
+              "ms": 156,
+              "shape": {
+                "object": {
+                  "accessToken": "string",
+                  "refreshToken": "string"
+                }
+              }
+            }
+          ],
+          "ms": 1573
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "SETUP-01",
+      "area": "Setup",
+      "title": "Leftovers of earlier runs are removed (QA accounts only)",
+      "known": null,
+      "results": [
+        {
+          "id": "SETUP-01",
+          "area": "Setup",
+          "title": "Leftovers of earlier runs are removed (QA accounts only)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 152,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 113,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 125,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 103,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 122,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 123,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 96,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 108,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 89,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 128,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 104,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 78,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 105,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 110,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 77,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 98,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 665,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 161,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 207,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 71,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 254,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 59,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            }
+          ],
+          "ms": 6619
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "NTF-01",
+      "area": "Notifications",
+      "title": "Push device is registered and removed (as on sign-in / sign-out)",
+      "known": null,
+      "results": [
+        {
+          "id": "NTF-01",
+          "area": "Notifications",
+          "title": "Push device is registered and removed (as on sign-in / sign-out)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /notifications/devices",
+              "as": "outsider",
+              "status": 204,
+              "ms": 148,
+              "shape": "null"
+            },
+            {
+              "label": "register again (locale change)",
+              "as": "outsider",
+              "status": 204,
+              "ms": 81,
+              "shape": "null"
+            },
+            {
+              "label": "unknown platform",
+              "as": "outsider",
+              "status": 400,
+              "ms": 91,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "no token",
+              "as": "outsider",
+              "status": 400,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "POST /notifications/devices/remove",
+              "as": "outsider",
+              "status": 204,
+              "ms": 78,
+              "shape": "null"
+            }
+          ],
+          "ms": 1180
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "NTF-02",
+      "area": "Notifications",
+      "title": "Notification settings: read, switch one off, switch it back",
+      "known": null,
+      "results": [
+        {
+          "id": "NTF-02",
+          "area": "Notifications",
+          "title": "Notification settings: read, switch one off, switch it back",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /notifications/preferences",
+              "as": "buyer",
+              "status": 200,
+              "ms": 105,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "PATCH /notifications/preferences",
+              "as": "buyer",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "restore",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "chatMessages": "boolean",
+                  "followedListings": "boolean",
+                  "promotions": "boolean",
+                  "savedListingUpdates": "boolean",
+                  "savedSearchAlerts": "boolean"
+                }
+              }
+            },
+            {
+              "label": "not a boolean",
+              "as": "buyer",
+              "status": 400,
+              "ms": 67,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": {
+                    "array": "string"
+                  },
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 908
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "NTF-03",
+      "area": "Notifications",
+      "title": "Sending a promotion is admin-only",
+      "known": null,
+      "results": [
+        {
+          "id": "NTF-03",
+          "area": "Notifications",
+          "title": "Sending a promotion is admin-only",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "POST /notifications/promotions",
+              "as": "buyer",
+              "status": 403,
+              "ms": 84,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "GET /notifications/promotions/:id",
+              "as": "buyer",
+              "status": 403,
+              "ms": 82,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 469
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "END-01",
+      "area": "Listings",
+      "title": "Seller removes the photo, then deletes the listing; it is gone everywhere",
+      "known": null,
+      "results": [
+        {
+          "id": "END-01",
+          "area": "Listings",
+          "title": "Seller removes the photo, then deletes the listing; it is gone everywhere",
+          "status": "skip",
+          "failures": [
+            "Needs listingId from an earlier case that failed"
+          ],
+          "notes": [],
+          "steps": [],
+          "ms": 0
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "END-02",
+      "area": "Clean-up & sign-out",
+      "title": "All QA test data is removed (conversations, follows, favourites, saved searches...)",
+      "known": null,
+      "results": [
+        {
+          "id": "END-02",
+          "area": "Clean-up & sign-out",
+          "title": "All QA test data is removed (conversations, follows, favourites, saved searches...)",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "GET /properties",
+              "as": "seller",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "seller",
+              "status": 200,
+              "ms": 66,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "seller",
+              "status": 200,
+              "ms": 79,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "seller",
+              "status": 200,
+              "ms": 69,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "seller",
+              "status": 200,
+              "ms": 83,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "seller",
+              "status": 200,
+              "ms": 101,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "buyer",
+              "status": 200,
+              "ms": 75,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "buyer",
+              "status": 200,
+              "ms": 75,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "buyer",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "buyer",
+              "status": 200,
+              "ms": 89,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "string",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "string",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "string",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "GET /properties",
+              "as": "outsider",
+              "status": 200,
+              "ms": 88,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/saved",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /search/history",
+              "as": "outsider",
+              "status": 200,
+              "ms": 81,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /properties/my/favorites/ids",
+              "as": "outsider",
+              "status": 200,
+              "ms": 83,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "GET /users/me/blocks",
+              "as": "outsider",
+              "status": 200,
+              "ms": 84,
+              "shape": {
+                "array": "unknown"
+              }
+            },
+            {
+              "label": "DELETE /users/me/avatar",
+              "as": "outsider",
+              "status": 200,
+              "ms": 90,
+              "shape": {
+                "object": {
+                  "avatarFromGoogle": "boolean",
+                  "avatarUrl": "null",
+                  "createdAt": "string",
+                  "email": "null",
+                  "firebaseUid": "null",
+                  "firstName": "null",
+                  "hasPassword": "boolean",
+                  "id": "string",
+                  "lastName": "null",
+                  "name": "string",
+                  "phone": "string",
+                  "role": "string",
+                  "sex": "null",
+                  "username": "string"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "seller",
+              "status": 200,
+              "ms": 98,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 86,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 234,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "buyer",
+              "status": 200,
+              "ms": 155,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "buyer",
+              "status": 200,
+              "ms": 182,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 85,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "POST /chat/conversations/:id/delete",
+              "as": "outsider",
+              "status": 200,
+              "ms": 198,
+              "shape": {
+                "object": {
+                  "success": "boolean"
+                }
+              }
+            },
+            {
+              "label": "DELETE /users/:id/follow",
+              "as": "outsider",
+              "status": 200,
+              "ms": 82,
+              "shape": {
+                "object": {
+                  "followerCount": "number",
+                  "followingCount": "number",
+                  "isFollowing": "boolean"
+                }
+              }
+            },
+            {
+              "label": "chat history after clean-up",
+              "as": "seller",
+              "status": 200,
+              "ms": 125,
+              "shape": {
+                "array": "unknown"
+              }
+            }
+          ],
+          "ms": 6504
+        }
+      ],
+      "differences": []
+    },
+    {
+      "id": "END-99",
+      "area": "Clean-up & sign-out",
+      "title": "Seller and buyer sign out; their tokens stop working",
+      "known": null,
+      "results": [
+        {
+          "id": "END-99",
+          "area": "Clean-up & sign-out",
+          "title": "Seller and buyer sign out; their tokens stop working",
+          "status": "pass",
+          "failures": [],
+          "notes": [],
+          "steps": [
+            {
+              "label": "logout (seller)",
+              "as": "guest",
+              "status": 200,
+              "ms": 118,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "old token after logout (seller)",
+              "as": "guest",
+              "status": 401,
+              "ms": 66,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            },
+            {
+              "label": "logout (buyer)",
+              "as": "guest",
+              "status": 200,
+              "ms": 94,
+              "shape": {
+                "object": {
+                  "message": "string"
+                }
+              }
+            },
+            {
+              "label": "old token after logout (buyer)",
+              "as": "guest",
+              "status": 401,
+              "ms": 70,
+              "shape": {
+                "object": {
+                  "error": "string",
+                  "message": "string",
+                  "statusCode": "number"
+                }
+              }
+            }
+          ],
+          "ms": 859
+        }
+      ],
+      "differences": []
+    }
+  ]
+}

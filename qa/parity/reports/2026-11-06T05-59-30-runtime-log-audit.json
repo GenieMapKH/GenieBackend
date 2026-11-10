@@ -1,0 +1,128 @@
+[
+  {
+    "environment": "Staging",
+    "service": "Authentication",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:54:38.867025020Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "Users",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:55:03.819661342Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "property",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:52:25.826086227Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      },
+      {
+        "timestamp": "2026-11-06T05:54:47.525537235Z",
+        "message": "(node:1) DeprecationWarning: Calling client.query() when the client is already executing a query is deprecated and will be removed in pg@9.0. Use async/await or an external async flow control mechanism instead."
+      },
+      {
+        "timestamp": "2026-11-06T05:54:47.525541205Z",
+        "message": "(Use `node --trace-deprecation ...` to show where the warning was created)"
+      },
+      {
+        "timestamp": "2026-11-06T05:55:07.487215492Z",
+        "message": "\u001b[31m[Nest] 1  - \u001b[39m11/06/2026, 5:55:00 AM \u001b[31m  ERROR\u001b[39m \u001b[38;5;3m[ListingChanges] \u001b[39m\u001b[31mA listener missed listing c3bf71c5-5b87-4159-be26-f269ba4d5e76 going live: the user service is unreachable: fetch failed\u001b[39m"
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "Chat",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:53:31.650129526Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "Notification",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:51:15.300817609Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "payment",
+    "logs": [
+      {
+        "timestamp": "2026-11-06T05:52:33.894298802Z",
+        "message": "[Sentry] `beforeSendTransaction` and `ignoreTransactions` are ignored with `traceLifecycle: 'stream'` (enabled by default). Use `beforeSendSpan` and `ignoreSpans` instead, or set `traceLifecycle: 'static'`."
+      }
+    ],
+    "error": null
+  },
+  {
+    "environment": "Staging",
+    "service": "Gateway",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "Authentication",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "Users",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "property",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "Chat",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "Notification",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "payment",
+    "logs": [],
+    "error": null
+  },
+  {
+    "environment": "production",
+    "service": "Gateway",
+    "logs": [],
+    "error": null
+  }
+]

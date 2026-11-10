@@ -1,0 +1,235 @@
+[
+  {
+    "environment": "Staging",
+    "migrations": [
+      {
+        "migration_name": "0_init",
+        "finished": true,
+        "rolled_back": false
+      }
+    ],
+    "tables": [
+      {
+        "schemaname": "account",
+        "tablename": "follows"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "jwt_signing_keys"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "password_reset_otps"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "refresh_tokens"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "reports"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "user_blocks"
+      },
+      {
+        "schemaname": "account",
+        "tablename": "users"
+      },
+      {
+        "schemaname": "chat",
+        "tablename": "call_logs"
+      },
+      {
+        "schemaname": "chat",
+        "tablename": "chat_conversation_states"
+      },
+      {
+        "schemaname": "chat",
+        "tablename": "chat_hidden_messages"
+      },
+      {
+        "schemaname": "chat",
+        "tablename": "chat_key_backups"
+      },
+      {
+        "schemaname": "chat",
+        "tablename": "messages"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "guest_sessions"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "keywords"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "properties"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_contacts"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_favorites"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_images"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_keywords"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_leads"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_likes"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_nearby_places"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "property_views"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "saved_search_matches"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "saved_searches"
+      },
+      {
+        "schemaname": "listing",
+        "tablename": "search_history"
+      },
+      {
+        "schemaname": "notification",
+        "tablename": "notification_preferences"
+      },
+      {
+        "schemaname": "notification",
+        "tablename": "promotions"
+      },
+      {
+        "schemaname": "notification",
+        "tablename": "push_devices"
+      },
+      {
+        "schemaname": "payment",
+        "tablename": "payment_transactions"
+      },
+      {
+        "schemaname": "public",
+        "tablename": "_prisma_migrations"
+      }
+    ],
+    "roles": [
+      {
+        "rolname": "authentication_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "authentication_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "authentication_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "chat_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "chat_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "chat_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "notification_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "notification_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "notification_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "payment_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "payment_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "payment_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "property_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "property_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "property_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "user_service",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "user_service_1",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      },
+      {
+        "rolname": "user_service_2",
+        "rolcanlogin": true,
+        "rolbypassrls": true
+      }
+    ]
+  },
+  {
+    "environment": "production",
+    "errorCode": "42501",
+    "message": "permission denied for table _prisma_migrations"
+  }
+]

@@ -1,0 +1,703 @@
+{
+  "checkedAtUtc": "2026-11-06T05:56:23.374064+00:00",
+  "environments": {
+    "Staging": {
+      "Authentication": {
+        "config": {
+          "SERVICE": "authentication",
+          "PORT": "4001 ",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "authentication.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": true,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "9019710c-8995-4231-a672-add9b9cd44c3",
+          "status": "DEPLOYING",
+          "createdAt": "2026-11-06T05:48:52.834Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Notification": {
+        "config": {
+          "SERVICE": "notification",
+          "PORT": "4006",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "RAILWAY_PRIVATE_DOMAIN": "geniebackend-1e79da11.railway.internal",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "8e05690c-0a11-4e69-8532-d7c077fd3074",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-06T05:48:52.882Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Gateway": {
+        "config": {
+          "SERVICE": "api-gateway",
+          "PORT": "4000",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+          "PAYMENT_SERVICE_URL": "http://payment.railway.internal:4005",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "gateway.railway.internal",
+          "SENTRY_ENVIRONMENT": "staging",
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": false,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": false,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "6852773c-5d95-4978-a094-d30a62270f22",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T08:34:32.245Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Chat": {
+        "config": {
+          "SERVICE": "chat",
+          "PORT": "4004",
+          "AUTH_SERVICE_URL": "\nhttp://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "chat.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "DIRECT_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": true,
+            "CLOUDFLARE_TURN_API_TOKEN": true,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "a0d211bd-7610-4376-ad77-f1decc71858f",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-06T05:48:52.784Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "property": {
+        "config": {
+          "SERVICE": "property",
+          "PORT": "4003",
+          "AUTH_SERVICE_URL": "\nhttp://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "geniebackend.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": true,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "34238e50-4f36-42ed-bdd9-705368d4be70",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-06T05:48:52.798Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Users": {
+        "config": {
+          "SERVICE": "user",
+          "PORT": "4002",
+          "AUTH_SERVICE_URL": "\nhttp://authentication.railway.internal:8080",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "CHAT_SERVICE_URL": "\thttp://chat.railway.internal:4004",
+          "RAILWAY_PRIVATE_DOMAIN": "users.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "7259958d-94d7-4b7c-abf8-a720a0316b7a",
+          "status": "BUILDING",
+          "createdAt": "2026-11-06T05:48:52.826Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "payment": {
+        "config": {
+          "SERVICE": "payment",
+          "PORT": "4005",
+          "AUTH_SERVICE_URL": "\nhttp://authentication.railway.internal:8080",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "RAILWAY_PRIVATE_DOMAIN": "payment.railway.internal",
+          "SENTRY_ENVIRONMENT": "staging",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "DIRECT_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "38bfcd51-2163-4582-81fa-db7da1409e48",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-06T05:48:52.799Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Redis": {
+        "config": {
+          "RAILWAY_PRIVATE_DOMAIN": "redis.railway.internal",
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": false,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": false,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": false
+        },
+        "deployment": {
+          "id": "f469f829-a595-4317-b5a0-3da1abf05511",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T04:18:35.346Z",
+          "commit": null,
+          "branch": null,
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      }
+    },
+    "production": {
+      "Authentication": {
+        "config": {
+          "SERVICE": "authentication",
+          "PORT": "8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "authentication.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "authentication_service.ovrwutngmsompqpchlgt"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": true,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "4dcba6ed-f173-468a-a847-21f86f086fdb",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T09:22:53.901Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Notification": {
+        "config": {
+          "SERVICE": "notification",
+          "PORT": "4006",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "RAILWAY_PRIVATE_DOMAIN": "geniebackend-1e79da11.railway.internal",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "notification_service.ovrwutngmsompqpchlgt"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "6cc6131c-cd72-4cf8-9b1a-7108ab308f2a",
+          "status": "BUILDING",
+          "createdAt": "2026-11-06T05:53:05.218Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Gateway": {
+        "config": {
+          "SERVICE": "api-gateway",
+          "PORT": "4000",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "CHAT_SERVICE_URL": "http://chat.railway.internal:4004",
+          "PAYMENT_SERVICE_URL": "http://payment.railway.internal:4005",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "gateway.railway.internal",
+          "SENTRY_ENVIRONMENT": "production",
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": false,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": true,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": false,
+          "firebaseProject": "genie-a0c66"
+        },
+        "deployment": {
+          "id": "3f1d57c9-455f-41ee-b79f-894969b0c681",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T08:34:31.798Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      },
+      "Chat": {
+        "config": {
+          "SERVICE": "chat",
+          "PORT": "4004",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "chat.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "chat_service.ovrwutngmsompqpchlgt"
+          },
+          "DIRECT_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": true,
+            "CLOUDFLARE_TURN_API_TOKEN": true,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "34057087-6ab6-498e-892d-3b19c344fa98",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T09:02:18.392Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "redeploy",
+          "healthcheckPath": null
+        }
+      },
+      "property": {
+        "config": {
+          "SERVICE": "property",
+          "PORT": "4003",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "USER_SERVICE_URL": "http://users.railway.internal:4002",
+          "NOTIFICATION_SERVICE_URL": "http://geniebackend-1e79da11.railway.internal:4006",
+          "RAILWAY_PRIVATE_DOMAIN": "geniebackend.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "property_service.ovrwutngmsompqpchlgt"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": true,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "612f6bf9-19a4-4162-b5d8-7644773b4e03",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T09:03:28.647Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "redeploy",
+          "healthcheckPath": null
+        }
+      },
+      "Users": {
+        "config": {
+          "SERVICE": "user",
+          "PORT": "4002",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "CHAT_SERVICE_URL": "\thttp://chat.railway.internal:4004",
+          "RAILWAY_PRIVATE_DOMAIN": "users.railway.internal",
+          "SUPABASE_URL": "https://nzurymawikvamjjfbdmz.supabase.co",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "user_service.ovrwutngmsompqpchlgt"
+          },
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "38364725-3ad4-498c-8fb2-61f9b58ca47b",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T09:03:08.363Z",
+          "commit": "fec8eb3a1fb1e56f8ebc77e0629d05eacc9bb340",
+          "branch": "main",
+          "reason": "redeploy",
+          "healthcheckPath": null
+        }
+      },
+      "payment": {
+        "config": {
+          "SERVICE": "payment",
+          "PORT": "4005",
+          "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080",
+          "PROPERTY_SERVICE_URL": "http://geniebackend.railway.internal:4003",
+          "RAILWAY_PRIVATE_DOMAIN": "payment.railway.internal",
+          "SENTRY_ENVIRONMENT": "production",
+          "DATABASE_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "payment_service.ovrwutngmsompqpchlgt"
+          },
+          "DIRECT_URL": {
+            "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+            "port": 5432,
+            "username": "postgres.nzurymawikvamjjfbdmz"
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": true,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": true,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": true
+        },
+        "deployment": {
+          "id": "5ed7a54a-8030-41f9-a51d-ea6f9b610b1a",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-05T09:03:41.130Z",
+          "commit": "dec5c99ba17c4d04139a8e0f50687e571acd6820",
+          "branch": "main",
+          "reason": "redeploy",
+          "healthcheckPath": null
+        }
+      },
+      "Redis": {
+        "config": {
+          "RAILWAY_PRIVATE_DOMAIN": "redis.railway.internal",
+          "REDIS_URL": {
+            "host": "redis.railway.internal",
+            "port": 6379,
+            "username": "default",
+            "passwordMatchesEnvironmentRedis": true
+          },
+          "secretsConfigured": {
+            "INTERNAL_SERVICE_SECRET": false,
+            "INTERNAL_SERVICE_SECRET_PREVIOUS": false,
+            "JWT_KEY_ENCRYPTION_KEY": false,
+            "FIREBASE_SERVICE_ACCOUNT_JSON": false,
+            "GOOGLE_PLACES_API_KEY": false,
+            "CLOUDFLARE_TURN_KEY_ID": false,
+            "CLOUDFLARE_TURN_API_TOKEN": false,
+            "SENTRY_DSN": false,
+            "PAYMENT_WEBHOOK_SECRET": false
+          },
+          "internalSecretMatchesNotification": false
+        },
+        "deployment": {
+          "id": "26c7834c-439b-4d50-8211-79dac3578ea9",
+          "status": "SUCCESS",
+          "createdAt": "2026-10-17T06:47:39.313Z",
+          "commit": null,
+          "branch": null,
+          "reason": "deploy",
+          "healthcheckPath": null
+        }
+      }
+    }
+  },
+  "crossEnvironmentSecrets": {
+    "INTERNAL_SERVICE_SECRET": {
+      "bothConfigured": true,
+      "sameAcrossEnvironments": false
+    },
+    "JWT_KEY_ENCRYPTION_KEY": {
+      "bothConfigured": true,
+      "sameAcrossEnvironments": true
+    },
+    "CHAT_BACKUP_SECRET": {
+      "bothConfigured": true,
+      "sameAcrossEnvironments": true
+    },
+    "REDISPASSWORD": {
+      "bothConfigured": true,
+      "sameAcrossEnvironments": false
+    }
+  }
+}
