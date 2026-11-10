@@ -39,7 +39,7 @@ describe('admin force rotation', () => {
         );
         expect(JSON.parse(options!.body as string)).toEqual({
           ref: 'production',
-          inputs: { force: true, dry_run: false, only: '' },
+          inputs: { force: true, dry_run: false, only: '', bootstrap: true },
         });
         return Response.json({ workflow_run_id: 42 });
       });

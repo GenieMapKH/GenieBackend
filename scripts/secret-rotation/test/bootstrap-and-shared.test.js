@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { bootstrapService } = require('../bootstrap');
+const { bootstrapService, bootstrapIfNeeded } = require('../bootstrap');
 const { urlFor } = require('../database-login');
 const { rotateSharedSecrets } = require('../rotate-shared');
 const { FakeDatabase, FakeSecrets, noWait } = require('./fakes');
@@ -63,6 +63,50 @@ test('bootstrap asks for migration 36 when the logins do not exist', async () =>
   const { db, run } = setUp();
   db.verifiers.clear();
   await assert.rejects(run(), /migration 36/);
+});
+
+test('dashboard bootstrap initializes a legacy login and waits for deployment before rotation', async () => {
+  const { db, secrets } = setUp();
+  secrets.ensureFolder = async () => {};
+  const admin = db.clientFor('postgres', { admin: true });
+  let closed = false;
+  admin.end = async () => { closed = true; };
+  const handovers = [];
+  await bootstrapIfNeeded({
+    service: 'payment', secrets, adminUrl: 'admin-url', wait: noWait, now: new Date(),
+    connect: (url) => url === 'admin-url' ? Promise.resolve(admin) : db.connect(url),
+    handover: { waitFor: async (services, expected) => {
+      assert.ok(closed);
+      assert.ok(db.logsIn(expected.DATABASE_URL));
+      handovers.push(services);
+    } },
+  });
+  assert.deepStrictEqual(handovers, [['payment']]);
+  assert.match(new URL(secrets.value('/payment', 'DATABASE_URL')).username, /^payment_service_1\./);
+});
+
+test('dashboard bootstrap skips initialized logins without an admin credential or any writes', async () => {
+  const { secrets, run } = setUp();
+  await run();
+  secrets.writes.length = 0;
+  await bootstrapIfNeeded({ service: 'payment', secrets });
+  assert.deepStrictEqual(secrets.writes, []);
+});
+
+test('dashboard bootstrap fails before writes when the admin credential is missing', async () => {
+  const { secrets } = setUp();
+  await assert.rejects(bootstrapIfNeeded({ service: 'payment', secrets }), /ROTATION_ADMIN_DATABASE_URL/);
+  assert.deepStrictEqual(secrets.writes, []);
+});
+
+test('dashboard bootstrap propagates failed deployment handover', async () => {
+  const { db, secrets } = setUp();
+  secrets.ensureFolder = async () => {};
+  await assert.rejects(bootstrapIfNeeded({
+    service: 'payment', secrets, adminUrl: 'admin-url', wait: noWait, now: new Date(),
+    connect: (url) => url === 'admin-url' ? Promise.resolve(db.clientFor('postgres', { admin: true })) : db.connect(url),
+    handover: { waitFor: async () => { throw new Error('deployment stalled'); } },
+  }), /deployment stalled/);
 });
 
 test('shared rotation keeps the old internal secret as _PREVIOUS and replaces the encryption key', async () => {

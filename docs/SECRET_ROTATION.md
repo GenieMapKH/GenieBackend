@@ -151,7 +151,11 @@ stored private keys, so it creates a new signing key (section 1). Nobody is sign
 
 - **"runs as postgres, not one of its rotating logins"**: the service's Infisical
   `DATABASE_URL` has not been bootstrapped (or was overwritten by an import).
-  Repeating the nightly job or using *force* cannot initialize it. After migration 36
+  Repeating the nightly job or using *force* alone cannot initialize it. Dashboard force
+  requests also enable *bootstrap* in the normal workflow: with migration 36 applied and
+  GitHub secret `ROTATION_ADMIN_DATABASE_URL` configured, they initialize legacy URLs,
+  wait for Railway deployment, then rotate in the same tracked run. Already initialized
+  services skip bootstrap; the scheduled job never receives the admin URL. After migration 36
   and the Infisical syncs are in place, either run step 5 above locally, or:
   1. Add the temporary GitHub Actions secret `ROTATION_ADMIN_DATABASE_URL`: the
      `postgres` **session pooler** connection URL, with its project suffix and password.

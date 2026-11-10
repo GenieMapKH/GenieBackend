@@ -12,6 +12,7 @@ const { ROTATION_PATH, SERVICES, rotatedAtKey } = require('./layout');
 const { rotateDatabaseLogin } = require('./rotate-database');
 const { rotateSharedSecrets } = require('./rotate-shared');
 const { railwayHandoverFromEnv } = require('./railway-handover');
+const { bootstrapIfNeeded } = require('./bootstrap');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -43,6 +44,10 @@ async function main() {
     ...SERVICES.map((service) => ({
       name: service,
       run: async () => {
+        if (process.argv.includes('--bootstrap')) {
+          await bootstrapIfNeeded({ service, secrets, connect: connectTo, wait, handover,
+            adminUrl: process.env.ADMIN_DATABASE_URL, now });
+        }
         const login = await rotateDatabaseLogin({ service, secrets, connect: connectTo, wait, now });
         await handover.waitFor([service], { DATABASE_URL: await secrets.get(`/${service}`, 'DATABASE_URL') });
         return `now on ${login}`;
