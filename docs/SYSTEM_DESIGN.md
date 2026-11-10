@@ -609,7 +609,7 @@ These come from reading the code, not from load testing.
 
 - Anyone signed in can see anyone's online status and public profile.
 - A user with neither name nor username is shown to chat partners by email or phone.
-- Deleting an account deletes everything: its files in storage, its payment records, and its messages in other people's conversations with it.
+- Deleting an account removes personal data, uploaded files and messages in other people's conversations. Payment transactions remain without user/property links (migration 44), preserving recorded income.
 - The one-day rule covers everything that takes the account away from its other devices: signing them out, changing the password, deactivating and deleting. A legitimate owner on a brand-new device therefore waits a day for those too, or uses an older device, or resets the password by email.
 - Only one contact path to an owner (chat vs contact form): decide which is the product's main one.
 

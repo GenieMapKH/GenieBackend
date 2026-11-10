@@ -61,7 +61,7 @@ export class OrderEmailController {
       silver: 'Silver subscription',
       gold: 'Gold subscription',
       diamond: 'Diamond subscription',
-      listing_publish: 'One-time listing publication',
+      listing_publish: 'One-time listing publication (one month)',
     }[dto.item];
     const sent = await this.delivery.deliver({
       to: user.email,

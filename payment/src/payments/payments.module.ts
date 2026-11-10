@@ -16,6 +16,7 @@ import {
 import { InternalAdminDashboardController } from './internal-admin-dashboard.controller';
 import { AdminPaymentRecordsService } from './admin-payment-records.service';
 import { AdminIncomeService } from './admin-income.service';
+import { ExpiryRemindersService } from './expiry-reminders.service';
 
 @Module({
   controllers: [
@@ -26,6 +27,7 @@ import { AdminIncomeService } from './admin-income.service';
   ],
   providers: [
     AdminIncomeService,
+    ExpiryRemindersService,
     AdminPaymentRecordsService,
     AbaPaywayProvider,
     MockPaymentProvider,

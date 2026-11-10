@@ -42,13 +42,40 @@ export class SubscriptionService {
         status: { in: ['Success', 'Pending'] },
         propertyId: { not: null },
       },
-      select: { propertyId: true },
-      distinct: ['propertyId'],
+      select: {
+        propertyId: true,
+        status: true,
+        listingPeriodEnd: true,
+        createdAt: true,
+      },
     });
+    const now = new Date();
+    const protectedIds = new Set(
+      paid
+        .filter((row) =>
+          row.status === 'Pending'
+            ? monthAfter(row.createdAt) > now
+            : row.listingPeriodEnd && row.listingPeriodEnd > now,
+        )
+        .map((row) => row.propertyId),
+    );
     return {
       ...allowance,
-      protectedPropertyIds: paid.map((row) => row.propertyId),
+      protectedPropertyIds: [...protectedIds],
+      expiredPropertyIds: [
+        ...new Set(
+          paid
+            .filter((row) => !protectedIds.has(row.propertyId))
+            .map((row) => row.propertyId),
+        ),
+      ],
     };
+  }
+
+  async expired(userId: string) {
+    return this.prisma.subscription.findFirst({
+      where: { userId, currentPeriodEnd: { lte: new Date() } },
+    });
   }
 
   async quote(userId: string, tier: PaidTier) {

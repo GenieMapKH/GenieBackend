@@ -1,9 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
-import {
-  OWNER_CARD_SELECT,
-  PROPERTY_WITH_RELATIONS,
-} from '../property-includes';
+import { MAP_SELECT, PROPERTY_WITH_RELATIONS } from '../property-includes';
 import { PropertyLifecycleService } from './property-lifecycle.service';
 import { ListingChanges } from './listing-changes.service';
 import { UpdatePropertyDto } from '../dto/update-property.dto';
@@ -44,15 +41,9 @@ export class AdminPropertiesService {
     return this.prisma.property.findMany({
       where: { id: { in: ids } },
       select: {
-        id: true,
+        ...MAP_SELECT,
         userId: true,
-        title: true,
-        price: true,
-        status: true,
-        propertyType: true,
-        createdAt: true,
         images: { orderBy: { order: 'asc' }, take: 1 },
-        user: { select: OWNER_CARD_SELECT },
       },
     });
   }

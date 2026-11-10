@@ -32,7 +32,11 @@ describe('SubscriptionService', () => {
       findMany: jest.fn(),
       create: jest.fn(),
     },
-    subscription: { findUnique: jest.fn(), updateMany: jest.fn() },
+    subscription: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      updateMany: jest.fn(),
+    },
   };
   const prisma = { ...tx, $transaction: jest.fn((run) => run(tx)) };
   const gateway = {
@@ -63,12 +67,23 @@ describe('SubscriptionService', () => {
 
   it('protects paid listings and in-flight remote fulfillment, without protecting failed payments', async () => {
     tx.paymentTransaction.findMany.mockResolvedValue([
-      { propertyId: 'paid-listing' },
+      {
+        propertyId: 'paid-listing',
+        status: 'Success',
+        listingPeriodEnd: new Date(now.getTime() + 1000),
+      },
+      {
+        propertyId: 'pending-listing',
+        status: 'Pending',
+        listingPeriodEnd: null,
+        createdAt: now,
+      },
     ]);
     expect(await service.publishingEntitlements('alice')).toEqual({
       listingLimit: 1,
       expiresAt: null,
-      protectedPropertyIds: ['paid-listing'],
+      protectedPropertyIds: ['paid-listing', 'pending-listing'],
+      expiredPropertyIds: [],
     });
     expect(tx.paymentTransaction.findMany).toHaveBeenCalledWith({
       where: {
@@ -77,8 +92,42 @@ describe('SubscriptionService', () => {
         status: { in: ['Success', 'Pending'] },
         propertyId: { not: null },
       },
-      select: { propertyId: true },
-      distinct: ['propertyId'],
+      select: {
+        propertyId: true,
+        status: true,
+        listingPeriodEnd: true,
+        createdAt: true,
+      },
+    });
+  });
+
+  it('expires one-time access at the exact boundary and ignores older expired purchases after renewal', async () => {
+    tx.paymentTransaction.findMany.mockResolvedValue([
+      { propertyId: 'expired', status: 'Success', listingPeriodEnd: now },
+      {
+        propertyId: 'stale-pending',
+        status: 'Pending',
+        listingPeriodEnd: null,
+        createdAt: new Date('2026-10-16T00:00:00Z'),
+      },
+      { propertyId: 'renewed', status: 'Success', listingPeriodEnd: now },
+      {
+        propertyId: 'renewed',
+        status: 'Success',
+        listingPeriodEnd: new Date(now.getTime() + 1000),
+      },
+    ]);
+    expect(await service.publishingEntitlements('alice')).toMatchObject({
+      protectedPropertyIds: ['renewed'],
+      expiredPropertyIds: ['expired', 'stale-pending'],
+    });
+  });
+
+  it('only reads the signed-in account for the expired subscription popup', async () => {
+    tx.subscription.findFirst.mockResolvedValue(null);
+    expect(await service.expired('alice')).toBeNull();
+    expect(tx.subscription.findFirst).toHaveBeenCalledWith({
+      where: { userId: 'alice', currentPeriodEnd: { lte: now } },
     });
   });
 

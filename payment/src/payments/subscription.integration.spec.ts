@@ -10,8 +10,11 @@ import { PublishingAllowanceService } from '../../../property/src/properties/ser
 import { PropertyLifecycleService } from '../../../property/src/properties/services/property-lifecycle.service';
 import { PropertyStatusService } from '../../../property/src/properties/property-status.service';
 import { ExpiredPublishingService } from '../../../property/src/properties/services/expired-publishing.service';
+import { PropertyPublicationService } from '../../../property/src/properties/services/property-publication.service';
+import { PaymentCheckoutService } from './payment-checkout.service';
+import { AdminIncomeService } from './admin-income.service';
 
-// Opt in only against a disposable local DB with baseline + migrations 35–37.
+// Opt in only against a disposable local DB with baseline + all later migrations.
 const databaseTests = process.env.TEST_DATABASE_URL ? describe : describe.skip;
 databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   const alice = randomUUID();
@@ -24,6 +27,8 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   const provider = new MockPaymentProvider();
   const email = { send: jest.fn().mockResolvedValue(undefined) };
   let lifecycle: PropertyLifecycleService;
+  let allowance: PublishingAllowanceService;
+  let checkout: PaymentCheckoutService;
   let call: jest.SpyInstance;
   const input = {
     title: 'Integration test',
@@ -62,14 +67,39 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     process.env.APP_ENV = 'test';
     process.env.INTERNAL_SERVICE_SECRET =
       'integration-test-payment-secret-32-characters';
+    const query = {
+      findOwned: (userId: string, id: string) =>
+        property.property.findFirstOrThrow({ where: { id, userId } }),
+    };
+    const changes = { changed: async () => {}, wentLive: async () => {} };
+    const publication = new PropertyPublicationService(
+      property as never,
+      query as never,
+      new PropertyStatusService(),
+      changes as never,
+    );
+    const publishing = {
+      begin: (userId: string, id: string) =>
+        publication.beginPublish(userId, id),
+      settle: (id: string, outcome: 'Active' | 'Draft') =>
+        publication.settlePublish(id, outcome),
+      revert: (id: string, status: string) =>
+        publication.revertPublish(id, status),
+    };
     gateway = new PaymentGatewayService(
       payment as never,
       provider,
-      {} as never,
+      publishing as never,
       email as never,
     );
     subscriptions = new SubscriptionService(
       payment as never,
+      gateway,
+      provider,
+    );
+    checkout = new PaymentCheckoutService(
+      payment as never,
+      publishing as never,
       gateway,
       provider,
     );
@@ -81,15 +111,12 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
           ? subscriptions.publishingEntitlements(userId)
           : subscriptions.allowance(userId);
       });
-    const allowance = new PublishingAllowanceService(property as never);
+    allowance = new PublishingAllowanceService(property as never);
     lifecycle = new PropertyLifecycleService(
       property as never,
-      {
-        findOwned: (userId: string, id: string) =>
-          property.property.findFirstOrThrow({ where: { id, userId } }),
-      } as never,
+      query as never,
       new PropertyStatusService(),
-      { changed: async () => {}, wentLive: async () => {} } as never,
+      changes as never,
       {} as never,
       {} as never,
       allowance,
@@ -98,6 +125,14 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
 
   afterAll(async () => {
     call?.mockRestore();
+    await owner?.query(
+      'DELETE FROM payment.subscriptions WHERE user_id IN ($1, $2)',
+      [alice, bob],
+    );
+    await owner?.query(
+      'DELETE FROM payment.payment_transactions WHERE user_id IN ($1, $2)',
+      [alice, bob],
+    );
     await owner?.query('DELETE FROM account.users WHERE id IN ($1, $2)', [
       alice,
       bob,
@@ -206,7 +241,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     ).toBe(1);
     expect(
       await property.property.count({
-        where: { userId: alice, status: 'Expired' },
+        where: { userId: alice, status: 'Draft' },
       }),
     ).toBe(1);
     expect(changes.changed).toHaveBeenCalledTimes(1);
@@ -232,5 +267,136 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
         'DROP TRIGGER reject_test_subscription ON payment.subscriptions; DROP FUNCTION payment.reject_test_subscription()',
       );
     }
+  });
+
+  it('keeps the free listing alongside paid posts and allows both to be reactivated', async () => {
+    const free = await lifecycle.create(bob, input);
+    const paid = await lifecycle.create(bob, { ...input, status: 'Draft' });
+    await expect(
+      checkout.initiate(bob, paid.id, randomUUID()),
+    ).resolves.toMatchObject({ status: 'Success' });
+    const expiry = new ExpiredPublishingService(
+      property as never,
+      { changed: async () => {} } as never,
+    );
+    await expiry.reconcile(bob);
+    expect(
+      await property.property.count({
+        where: { userId: bob, status: 'Active' },
+      }),
+    ).toBe(2);
+    expect(await allowance.usage(bob)).toEqual({ used: 1 });
+    await lifecycle.unpublish(bob, paid.id);
+    await expect(lifecycle.publish(bob, paid.id)).resolves.toMatchObject({
+      status: 'Active',
+    });
+    await lifecycle.unpublish(bob, free.id);
+    await expect(lifecycle.publish(bob, free.id)).resolves.toMatchObject({
+      status: 'Active',
+    });
+    await expect(lifecycle.create(bob, input)).rejects.toMatchObject({
+      status: 402,
+    });
+  });
+
+  it('requires payment after individual expiry, allows subscription coverage, and renews the individual month', async () => {
+    const paid = await payment.paymentTransaction.findFirstOrThrow({
+      where: { userId: bob, purpose: 'LISTING_PUBLISH', status: 'Success' },
+    });
+    const free = await property.property.findFirstOrThrow({
+      where: { userId: bob, status: 'Active', id: { not: paid.propertyId! } },
+    });
+    const expiry = new ExpiredPublishingService(
+      property as never,
+      { changed: async () => {} } as never,
+    );
+    await payment.paymentTransaction.update({
+      where: { id: paid.id },
+      data: { listingPeriodEnd: new Date(Date.now() - 1000) },
+    });
+    await expiry.reconcile(bob);
+    expect(
+      await property.property.findUnique({ where: { id: paid.propertyId! } }),
+    ).toMatchObject({ status: 'Draft' });
+    await lifecycle.unpublish(bob, free.id);
+    await expect(
+      lifecycle.publish(bob, paid.propertyId!),
+    ).rejects.toMatchObject({ status: 402 });
+    await lifecycle.publish(bob, free.id);
+    const pending = await payment.paymentTransaction.findFirstOrThrow({
+      where: { userId: bob, purpose: 'SUBSCRIPTION', status: 'Pending' },
+    });
+    await gateway.reconcile(pending.id);
+    await expect(
+      lifecycle.publish(bob, paid.propertyId!),
+    ).resolves.toMatchObject({ status: 'Active' });
+    const end = new Date(Date.now() - 1000);
+    await payment.subscription.update({
+      where: { userId: bob },
+      data: {
+        currentPeriodStart: new Date(end.getTime() - 86400000),
+        currentPeriodEnd: end,
+      },
+    });
+    await expiry.reconcile(bob);
+    expect(
+      await property.property.findUnique({ where: { id: paid.propertyId! } }),
+    ).toMatchObject({ status: 'Draft' });
+    const renewed = await checkout.initiate(
+      bob,
+      paid.propertyId!,
+      randomUUID(),
+    );
+    expect(renewed.status).toBe('Success');
+    expect(
+      (
+        await payment.paymentTransaction.findUniqueOrThrow({
+          where: { id: renewed.transactionId },
+        })
+      ).listingPeriodEnd!.getTime(),
+    ).toBeGreaterThan(Date.now());
+    expect(await allowance.usage(bob)).toEqual({ used: 1 });
+  });
+
+  it('retains income from tiers and one-time payments after banning and erasing an account', async () => {
+    // Alice has a tier payment; add a settled listing payment to check both foreign keys.
+    const listing = await lifecycle.create(alice, {
+      ...input,
+      status: 'Draft',
+    });
+    const paid = await checkout.initiate(alice, listing.id, randomUUID());
+    const before = await payment.paymentTransaction.findMany({
+      where: { userId: alice, status: 'Success' },
+      orderBy: { id: 'asc' },
+    });
+    const income = new AdminIncomeService(payment as never);
+    const now = new Date();
+    const summary = await income.summary(now);
+    await owner.query(
+      'UPDATE account.users SET banned_at = now(), deactivated_at = now() WHERE id = $1',
+      [alice],
+    );
+    expect(await income.summary(now)).toEqual(summary);
+    await property.property.delete({ where: { id: listing.id } });
+    expect(
+      await payment.paymentTransaction.findUnique({
+        where: { id: paid.transactionId },
+      }),
+    ).toMatchObject({ userId: alice, propertyId: null, status: 'Success' });
+    await owner.query('DELETE FROM account.users WHERE id = $1', [alice]);
+    expect(await income.summary(now)).toEqual(summary);
+    const ids = before.map((row) => row.id);
+    const after = await payment.paymentTransaction.findMany({
+      where: { id: { in: ids } },
+      orderBy: { id: 'asc' },
+    });
+    expect(after).toEqual(
+      before.map((row) => ({ ...row, userId: null, propertyId: null })),
+    );
+    expect(await property.property.count({ where: { userId: alice } })).toBe(0);
+    expect(
+      await payment.subscription.findUnique({ where: { userId: alice } }),
+    ).toBeNull();
+    await payment.paymentTransaction.deleteMany({ where: { id: { in: ids } } });
   });
 });

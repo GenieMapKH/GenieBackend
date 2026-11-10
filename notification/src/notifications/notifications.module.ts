@@ -17,6 +17,7 @@ import { PromotionSender } from './promotions/promotion-sender';
 import { PromotionsController } from './promotions/promotions.controller';
 import { PromotionsService } from './promotions/promotions.service';
 import { SignInAlertNotifier } from './security/sign-in-alert-notifier';
+import { ExpiryReminderNotifier } from './billing/expiry-reminder-notifier';
 
 /** Firebase when its service account is configured; otherwise nothing is sent (a local run). */
 function pushSenderFromEnv(): PushSender {
@@ -46,6 +47,7 @@ function pushSenderFromEnv(): PushSender {
     NotificationPreferencesService,
     ChatMessageNotifier,
     SignInAlertNotifier,
+    ExpiryReminderNotifier,
     CallNotifier,
     ListingAlertNotifier,
     AdminGuard,

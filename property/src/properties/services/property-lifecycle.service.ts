@@ -221,7 +221,7 @@ export class PropertyLifecycleService {
       });
     const property =
       to === PUBLIC_STATUS
-        ? await this.allowance.publish(before.userId, update)
+        ? await this.allowance.publish(before.userId, update, before.id)
         : await update(this.prisma);
     await this.refreshPublicView(property, [before.status, to]);
     this.announceIfNowOnMap(before, property);

@@ -82,6 +82,37 @@ describe('provider-independent payment settlement', () => {
     expect(email.send).not.toHaveBeenCalled();
   });
 
+  it.each([{ userId: null }, { purpose: 'LISTING_PUBLISH', propertyId: null }])(
+    'retains a late verified payment for a deleted target: %j',
+    async (target) => {
+      table.findUniqueOrThrow.mockResolvedValueOnce({ ...row, ...target });
+      await expect(gateway.reconcile('tx-1')).resolves.toMatchObject({
+        status: 'RefundRequired',
+        paidAt: now,
+        amount: 8.9,
+      });
+      expect(subscription.upsert).not.toHaveBeenCalled();
+      expect(property.settle).not.toHaveBeenCalled();
+      expect(email.send).not.toHaveBeenCalled();
+    },
+  );
+
+  it('records a failed payment for an erased account without granting benefits', async () => {
+    table.findUniqueOrThrow.mockResolvedValueOnce({ ...row, userId: null });
+    provider.checkTransaction.mockResolvedValue({
+      state: 'FAILED',
+      transactionId: 'tx-1',
+      amount: 8.9,
+      currency: 'USD',
+    });
+    await expect(gateway.reconcile('tx-1')).resolves.toMatchObject({
+      status: 'Failed',
+      paidAt: null,
+    });
+    expect(subscription.upsert).not.toHaveBeenCalled();
+    expect(property.settle).not.toHaveBeenCalled();
+  });
+
   it.each([
     { amount: 1 },
     { currency: 'KHR' },
@@ -241,6 +272,12 @@ describe('provider-independent payment settlement', () => {
     };
     await gateway.reconcile('tx-1');
     expect(property.settle).toHaveBeenCalledWith('property-1', 'Active');
+    expect(table.update).toHaveBeenCalledWith({
+      where: { id: 'tx-1' },
+      data: expect.objectContaining({
+        listingPeriodEnd: new Date('2026-12-16T00:00:00Z'),
+      }),
+    });
     expect(email.send).toHaveBeenCalledWith(
       expect.objectContaining({ item: 'listing_publish', amount: 8.9 }),
     );

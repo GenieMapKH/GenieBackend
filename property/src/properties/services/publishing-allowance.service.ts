@@ -6,6 +6,14 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@tilomnov/prisma-client';
 import { PrismaService, ServiceClient } from '@tilomnov/shared';
+import { isUUID } from 'class-validator';
+
+type PublishingEntitlements = {
+  listingLimit: number;
+  expiresAt: string | null;
+  protectedPropertyIds: string[];
+  expiredPropertyIds: string[];
+};
 
 /** Checks payment-owned entitlements and reserves a place in the same DB transaction as publishing. */
 @Injectable()
@@ -18,42 +26,33 @@ export class PublishingAllowanceService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  async usage(userId: string) {
+    const allowance = await this.entitlements(userId);
+    return {
+      used: await this.countUsed(this.prisma, userId, allowance),
+    };
+  }
+
   async publish<T>(
     userId: string,
     write: (tx: Prisma.TransactionClient) => Promise<T>,
+    propertyId?: string,
   ): Promise<T> {
-    let allowance: { listingLimit: number; expiresAt: string | null };
-    try {
-      allowance = await this.payment.call(
-        'GET',
-        `/internal/subscriptions/${userId}/allowance`,
-        { timeoutMs: 8000 },
-      );
-      if (
-        !Number.isInteger(allowance.listingLimit) ||
-        allowance.listingLimit < 1 ||
-        (allowance.expiresAt !== null &&
-          !Number.isFinite(Date.parse(allowance.expiresAt)))
-      ) {
-        throw new Error('Invalid publishing allowance');
-      }
-    } catch {
-      throw new ServiceUnavailableException(
-        'We could not check your publishing plan. Please try again.',
-      );
-    }
+    const allowance = await this.entitlements(userId);
     return this.prisma.$transaction(async (tx) => {
       // Two concurrent publishes must not both take the account's last free place.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 2))`;
-      const limit =
-        allowance.expiresAt !== null &&
-        Date.parse(allowance.expiresAt) <= Date.now()
-          ? 1
-          : allowance.listingLimit;
-      const used = await tx.property.count({
-        where: { userId, status: { in: ['Active', 'Pending'] } },
-      });
-      if (used >= limit) {
+      if (propertyId && allowance.protectedPropertyIds.includes(propertyId))
+        return write(tx);
+      const paidPlan = this.hasPaidPlan(allowance);
+      const limit = paidPlan ? allowance.listingLimit : 1;
+      const used = await this.countUsed(tx, userId, allowance);
+      if (
+        used >= limit ||
+        (propertyId &&
+          allowance.expiredPropertyIds.includes(propertyId) &&
+          !paidPlan)
+      ) {
         throw new HttpException(
           {
             code: 'PUBLISHING_PLAN_REQUIRED',
@@ -65,5 +64,64 @@ export class PublishingAllowanceService {
       }
       return write(tx);
     });
+  }
+
+  private countUsed(
+    db: Pick<PrismaService, 'property'>,
+    userId: string,
+    allowance: PublishingEntitlements,
+  ) {
+    return db.property.count({
+      where: {
+        userId,
+        status: { in: ['Active', 'Pending'] },
+        id: {
+          notIn: [
+            ...allowance.protectedPropertyIds,
+            ...(this.hasPaidPlan(allowance)
+              ? []
+              : allowance.expiredPropertyIds),
+          ],
+        },
+      },
+    });
+  }
+
+  private hasPaidPlan(allowance: PublishingEntitlements) {
+    return (
+      allowance.expiresAt !== null &&
+      Date.parse(allowance.expiresAt) > Date.now()
+    );
+  }
+
+  private async entitlements(userId: string): Promise<PublishingEntitlements> {
+    try {
+      const allowance = await this.payment.call<PublishingEntitlements>(
+        'GET',
+        `/internal/subscriptions/${userId}/publishing`,
+        { timeoutMs: 8000 },
+      );
+      if (
+        !Number.isInteger(allowance.listingLimit) ||
+        allowance.listingLimit < 1 ||
+        (allowance.expiresAt !== null &&
+          !Number.isFinite(Date.parse(allowance.expiresAt))) ||
+        !Array.isArray(allowance.protectedPropertyIds) ||
+        !allowance.protectedPropertyIds.every(
+          (id) => typeof id === 'string' && isUUID(id),
+        ) ||
+        !Array.isArray(allowance.expiredPropertyIds) ||
+        !allowance.expiredPropertyIds.every(
+          (id) => typeof id === 'string' && isUUID(id),
+        )
+      ) {
+        throw new Error('Invalid publishing allowance');
+      }
+      return allowance;
+    } catch {
+      throw new ServiceUnavailableException(
+        'We could not check your publishing plan. Please try again.',
+      );
+    }
   }
 }

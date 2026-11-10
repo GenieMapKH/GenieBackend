@@ -24,7 +24,7 @@ const ACCOUNT_INFO = {
 } as const;
 
 interface RemotePage {
-  items: { userId: string; [key: string]: unknown }[];
+  items: { userId: string | null; [key: string]: unknown }[];
   nextOffset: number | null;
 }
 
@@ -125,7 +125,15 @@ export class AdminRecordsService {
     // Account data stays in its owning service; enrich the bounded page in one query.
     const accounts = await this.prisma.user.findMany({
       where: {
-        id: { in: [...new Set(page.items.map((item) => item.userId))] },
+        id: {
+          in: [
+            ...new Set(
+              page.items
+                .map((item) => item.userId)
+                .filter((id): id is string => id !== null),
+            ),
+          ],
+        },
       },
       select: ACCOUNT_INFO,
     });
@@ -134,7 +142,7 @@ export class AdminRecordsService {
       ...page,
       items: page.items.map((item) => ({
         ...item,
-        account: byId.get(item.userId) ?? null,
+        account: item.userId ? (byId.get(item.userId) ?? null) : null,
       })),
     };
   }

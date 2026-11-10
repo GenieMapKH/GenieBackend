@@ -47,6 +47,13 @@ export class SubscriptionsController {
     );
   }
 
+  @Get('expired')
+  async expired(@Req() request: { user: AuthenticatedUser }) {
+    return {
+      subscription: await this.subscriptions.expired(request.user.userId),
+    };
+  }
+
   @Get('quote/:tier')
   quote(
     @Req() request: { user: AuthenticatedUser },

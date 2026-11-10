@@ -30,6 +30,7 @@ describe('expired publishing access', () => {
       listingLimit: 1,
       expiresAt: null,
       protectedPropertyIds: [],
+      expiredPropertyIds: [],
     });
     tx.property.findMany.mockResolvedValue(listings);
     tx.property.updateMany.mockResolvedValue({ count: 2 });
@@ -51,7 +52,7 @@ describe('expired publishing access', () => {
         status: 'Active',
         id: { in: listings.slice(1).map((l) => l.id) },
       },
-      data: { status: 'Expired' },
+      data: { status: 'Draft' },
     });
     expect(changes.changed.mock.calls).toEqual(
       listings.slice(1).map((listing) => [listing]),
@@ -63,13 +64,25 @@ describe('expired publishing access', () => {
       listingLimit: 1,
       expiresAt: null,
       protectedPropertyIds: [listings[1].id, listings[2].id],
+      expiredPropertyIds: [],
     });
     await service.reconcile(userId);
-    expect(tx.property.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { userId, status: 'Active', id: { in: [listings[0].id] } },
-      }),
-    );
+    expect(tx.property.updateMany).not.toHaveBeenCalled();
+    expect(changes.changed).not.toHaveBeenCalled();
+  });
+
+  it('expires only unpaid excess, preserving the free slot alongside paid listings', async () => {
+    call.mockResolvedValue({
+      listingLimit: 1,
+      expiresAt: null,
+      protectedPropertyIds: [listings[1].id],
+      expiredPropertyIds: [],
+    });
+    await service.reconcile(userId);
+    expect(tx.property.updateMany).toHaveBeenCalledWith({
+      where: { userId, status: 'Active', id: { in: [listings[2].id] } },
+      data: { status: 'Draft' },
+    });
   });
 
   it('keeps listings within a current paid allowance, including after cancellation', async () => {
@@ -77,6 +90,32 @@ describe('expired publishing access', () => {
       listingLimit: 20,
       expiresAt: new Date(Date.now() + 60000).toISOString(),
       protectedPropertyIds: [],
+      expiredPropertyIds: [],
+    });
+    await service.reconcile(userId);
+    expect(tx.property.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('moves an expired paid listing to Draft while preserving the original free listing', async () => {
+    call.mockResolvedValue({
+      listingLimit: 1,
+      expiresAt: null,
+      protectedPropertyIds: [listings[2].id],
+      expiredPropertyIds: [listings[1].id],
+    });
+    await service.reconcile(userId);
+    expect(tx.property.updateMany).toHaveBeenCalledWith({
+      where: { userId, status: 'Active', id: { in: [listings[1].id] } },
+      data: { status: 'Draft' },
+    });
+  });
+
+  it('keeps an expired individual post active when a paid subscription covers it', async () => {
+    call.mockResolvedValue({
+      listingLimit: 20,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      protectedPropertyIds: [],
+      expiredPropertyIds: listings.map((row) => row.id),
     });
     await service.reconcile(userId);
     expect(tx.property.updateMany).not.toHaveBeenCalled();
@@ -87,6 +126,7 @@ describe('expired publishing access', () => {
       listingLimit: 120,
       expiresAt: new Date(Date.now() - 1).toISOString(),
       protectedPropertyIds: [],
+      expiredPropertyIds: [],
     });
     await service.reconcile(userId);
     expect(changes.changed).toHaveBeenCalledTimes(2);

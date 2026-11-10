@@ -32,6 +32,35 @@ Deploy the shared-library guard changes with Users and the income aggregation wi
 
 The property-photo report groups, admin property editor/moderation and app-wide photo advertisements are documented in [Admin moderation and ads](ADMIN_MODERATION_AND_ADS.md).
 
+## Financial retention and publishing usage
+
+Apply `node scripts/apply-migrations.js 44_preserve_financial_history` to the
+intended database before deploying the updated Payment and Users services.
+The migration retains transactions when an account or property is deleted,
+clearing the deleted user/property references. Amounts, purposes, purchased
+tiers, provider references, statuses and payment dates remain. Account details
+on retained payment records are null; income still uses the same rolling
+seven-day window. Banning already retains these records. Deleted accounts'
+current subscription rows are removed, since they no longer grant access;
+their subscription purchases remain in the ledger. Previously deleted
+transactions require recovery from a backup.
+
+Separately paid listings no longer consume a plan slot. The Free plan keeps
+one listing alongside individual posts within their paid month. After the month,
+those posts require another payment or available active-subscription capacity;
+without coverage, they move to Draft. Deploy Property before updating Flutter:
+`GET /v1/properties/my/publishing-usage` returns `{ "used": 1 }` for the
+authenticated user's Active/Pending listings excluding separately paid posts.
+The subscription screen and add-property flow use this count. Owner listing
+tab counts continue to count every listing in each status.
+
+Migration `45_monthly_listing_access` adds monthly individual-post access and
+three-day expiry reminders for posts and subscriptions. Apply it before starting
+the updated Payment/Property services; see [publishing and renewal rules](PAYMENT_GATEWAY_HANDOFF.md).
+Admin property lists and report cards reuse the user app's Saved/Nearby card,
+responsive widths, and the same hero transition into property details. Drafts
+and removed listings remain openable for moderation.
+
 
 ## Admin workspace navigation
 
