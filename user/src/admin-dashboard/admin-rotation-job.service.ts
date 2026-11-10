@@ -104,7 +104,7 @@ export class AdminRotationJobService {
     );
     const body = await this.request('dispatches', {
       ref: config.ref,
-      inputs: { force: true, dry_run: false, only: '' },
+      inputs: { force: true, dry_run: false, only: '', bootstrap: true },
     });
     return { status: 'accepted', runId: body.workflow_run_id ?? null };
   }

@@ -31,7 +31,13 @@ environment, repository or service ID is accepted.
 ## Force rotate all
 
 The button dispatches `.github/workflows/secret-rotation.yml` with `force=true`,
-`dry_run=false`, `only=''`. The dashboard displays recent workflow status; use **Refresh
+`dry_run=false`, `only=''`, `bootstrap=true`. In the same workflow run, services still
+using legacy database URLs are bootstrapped without forcing a reset, then Railway must
+deploy the initialized login before that service rotates. Already initialized services
+skip bootstrap and do not need the admin URL. Add GitHub Actions secret
+`ROTATION_ADMIN_DATABASE_URL` (the postgres session-pooler URL) when initialization is
+needed, and apply migration 36 first. Remove this secret once initialization succeeds;
+scheduled jobs never receive it. The dashboard displays recent workflow status; use **Refresh
 workflow status** to follow the run. GitHub workflow concurrency serializes scheduled and
 manual jobs. Redis prevents duplicate clicks and overlapping dashboard operation requests.
 
@@ -69,7 +75,8 @@ not a transaction across all services. Check job status and service health befor
 
 Infisical must sync the root shared variables and the per-service folders to the correct
 Railway environment, with redeployment enabled. Literal service variables must not override
-shared-variable references. Bootstrap the alternating database logins first. Timestamp records
+shared-variable references. Dashboard force runs bootstrap legacy logins when needed;
+scheduled runs require the alternating logins to be initialized already. Timestamp records
 show when the job changed credentials, not an independent proof that containers received them.
 
 The handover preserves credential compatibility and user sessions. Real availability still

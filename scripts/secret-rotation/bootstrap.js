@@ -48,6 +48,22 @@ async function bootstrapService({ service, secrets, admin, connect, wait, force,
   return `switched to ${first}`;
 }
 
+// Dashboard runs initialize only legacy URLs; never reset a login already in use.
+async function bootstrapIfNeeded({ service, secrets, connect, wait, handover, adminUrl, now }) {
+  const base = await secrets.get(servicePath(service), 'DATABASE_URL');
+  if (!base) throw new Error(`${service}: DATABASE_URL missing`);
+  if (loginsOf(service).includes(roleInUrl(base))) return;
+  if (!adminUrl) throw new Error('Set GitHub Actions secret ROTATION_ADMIN_DATABASE_URL to bootstrap database logins');
+  await secrets.ensureFolder('/', 'rotation');
+  const admin = await connect(adminUrl);
+  try {
+    await bootstrapService({ service, secrets, admin, connect, wait, force: false, now });
+  } finally {
+    await admin.end();
+  }
+  await handover.waitFor([service], { DATABASE_URL: await secrets.get(servicePath(service), 'DATABASE_URL') });
+}
+
 async function main() {
   const argv = process.argv.slice(2);
   const only = argv.find((arg) => arg.startsWith('--only='));
@@ -81,4 +97,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { bootstrapService };
+module.exports = { bootstrapService, bootstrapIfNeeded };
