@@ -3,7 +3,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Error reporting starts before the rest is loaded, so it can wrap it.
-import { initSentry } from '@tilomnov/shared/sentry';
+import { initSentry, SentryLogger } from '@tilomnov/shared/sentry';
 initSentry('api-gateway');
 
 import { Logger } from '@nestjs/common';
@@ -20,6 +20,7 @@ async function bootstrap() {
   // bodyParser is off: request bodies are streamed straight to the services.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
+    logger: new SentryLogger(),
   });
 
   app.set('trust proxy', trustedProxies());

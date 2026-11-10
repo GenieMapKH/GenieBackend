@@ -55,17 +55,21 @@ test('bootstrap asks for migration 36 when the logins do not exist', async () =>
 
 test('shared rotation keeps the old internal secret as _PREVIOUS and replaces the encryption key', async () => {
   const secrets = new FakeSecrets({
-    '/:INTERNAL_SERVICE_SECRET': 'old-internal',
+    '/:INTERNAL_SERVICE_SECRET': 'old-internal'.repeat(4),
     '/authentication:JWT_KEY_ENCRYPTION_KEY': 'old-kek',
   });
 
-  await rotateSharedSecrets({ secrets });
+  const handovers = [];
+  await rotateSharedSecrets({ secrets, handover: { waitFor: async (services, expected) => handovers.push({ services, expected, writes: [...secrets.writes] }) } });
 
-  assert.strictEqual(secrets.value('/', 'INTERNAL_SERVICE_SECRET_PREVIOUS'), 'old-internal');
+  assert.strictEqual(secrets.value('/', 'INTERNAL_SERVICE_SECRET_PREVIOUS'), 'old-internal'.repeat(4));
   const current = secrets.value('/', 'INTERNAL_SERVICE_SECRET');
   assert.ok(current && current !== 'old-internal' && current.length >= 32);
   assert.strictEqual(Buffer.from(secrets.value('/authentication', 'JWT_KEY_ENCRYPTION_KEY'), 'base64').length, 32);
   assert.ok(secrets.value('/rotation', 'SHARED_ROTATED_AT'));
-  // _PREVIOUS is written before the new secret, so no service ever distrusts the old one.
+  assert.strictEqual(handovers[1].expected.INTERNAL_SERVICE_SECRET_PREVIOUS, current);
+  assert.ok(!handovers[1].writes.includes('/:INTERNAL_SERVICE_SECRET'));
+  assert.strictEqual(handovers[2].expected.INTERNAL_SERVICE_SECRET, current);
+  // Every service accepts the new key before any service signs with it.
   assert.ok(secrets.writes.indexOf('/:INTERNAL_SERVICE_SECRET_PREVIOUS') < secrets.writes.indexOf('/:INTERNAL_SERVICE_SECRET'));
 });

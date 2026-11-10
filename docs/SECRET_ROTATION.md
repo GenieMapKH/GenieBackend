@@ -1,5 +1,9 @@
 # Secret rotation
 
+Admin force rotation and the required Railway deployment handover are documented in
+[Admin Services](ADMIN_SERVICES.md). All non-dry rotation runs now require its
+`ROTATION_RAILWAY_*` settings and stop before writing when readiness cannot be proven.
+
 Which secrets rotate by themselves, and how to rotate the rest.
 
 | Secret | Rotation | Where it lives |
@@ -98,9 +102,10 @@ on one. The job:
 The login left behind keeps its password for 30 more days, so a slow redeploy breaks nothing. No
 credential the job holds can change another login's password, and the job has no admin login.
 
-**`INTERNAL_SERVICE_SECRET`.** The current value moves to `INTERNAL_SERVICE_SECRET_PREVIOUS`, which
-every service also accepts, then a new value is set. Services redeploying at different times keep
-trusting each other.
+**`INTERNAL_SERVICE_SECRET`.** The new value is first deployed as `INTERNAL_SERVICE_SECRET_PREVIOUS`
+to every active service container. Only after all containers accept it does the job switch the
+current value. Once all containers sign with the new value, the old value is retained as `_PREVIOUS`.
+The Railway deployment-snapshot handover checks are required; see [Admin Services](ADMIN_SERVICES.md).
 
 **`JWT_KEY_ENCRYPTION_KEY`.** Replaced. On its next start the authentication service cannot read the
 stored private keys, so it creates a new signing key (section 1). Nobody is signed out.

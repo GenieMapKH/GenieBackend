@@ -4,6 +4,7 @@ import { AdminDashboardService } from './admin-dashboard.service';
 import { AdminRecordsService } from './admin-records.service';
 import { AdminRecordsQuery } from './admin-records.query';
 import { AdminSystemHealthService } from './admin-system-health.service';
+import { AdminRotationService } from './admin-rotation.service';
 
 @UseGuards(AdminGuard)
 @Controller('admin/dashboard')
@@ -12,6 +13,7 @@ export class AdminDashboardController {
     private readonly dashboard: AdminDashboardService,
     private readonly records: AdminRecordsService,
     private readonly health: AdminSystemHealthService,
+    private readonly rotation: AdminRotationService,
   ) {}
 
   @Get()
@@ -27,5 +29,10 @@ export class AdminDashboardController {
   @Get('health')
   systemHealth() {
     return this.health.check();
+  }
+
+  @Get('rotations')
+  rotations() {
+    return this.rotation.status();
   }
 }

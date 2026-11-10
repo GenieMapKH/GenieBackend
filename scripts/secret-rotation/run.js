@@ -11,6 +11,7 @@ const { connectTo, infisicalFromEnv, wait } = require('./environment');
 const { ROTATION_PATH, SERVICES, rotatedAtKey } = require('./layout');
 const { rotateDatabaseLogin } = require('./rotate-database');
 const { rotateSharedSecrets } = require('./rotate-shared');
+const { railwayHandoverFromEnv } = require('./railway-handover');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -35,13 +36,19 @@ async function main() {
   const days = Number(process.env.SECRET_ROTATION_DAYS || 30);
   const now = new Date();
   const secrets = await infisicalFromEnv();
+  const handover = dryRun ? null : railwayHandoverFromEnv();
+  if (handover) await handover.preflight(secrets);
 
   const tasks = [
     ...SERVICES.map((service) => ({
       name: service,
-      run: () => rotateDatabaseLogin({ service, secrets, connect: connectTo, wait, now }).then((login) => `now on ${login}`),
+      run: async () => {
+        const login = await rotateDatabaseLogin({ service, secrets, connect: connectTo, wait, now });
+        await handover.waitFor([service], { DATABASE_URL: await secrets.get(`/${service}`, 'DATABASE_URL') });
+        return `now on ${login}`;
+      },
     })),
-    { name: 'shared', run: () => rotateSharedSecrets({ secrets, now }).then(() => 'rotated') },
+    { name: 'shared', run: () => rotateSharedSecrets({ secrets, handover, now }).then(() => 'rotated') },
   ].filter((task) => !only || only.includes(task.name));
 
   let failures = 0;
@@ -59,6 +66,7 @@ async function main() {
     } catch (error) {
       failures++;
       console.log(`::error::${task.name}: ${error.message}`);
+      break; // Keep later credentials unchanged when a handover did not finish.
     }
   }
   if (failures > 0) process.exit(1);
