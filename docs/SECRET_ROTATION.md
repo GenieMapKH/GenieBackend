@@ -1,5 +1,9 @@
 # Secret rotation
 
+Admin force rotation and the required Railway deployment handover are documented in
+[Admin Services](ADMIN_SERVICES.md). All non-dry rotation runs now require its
+`ROTATION_RAILWAY_*` settings and stop before writing when readiness cannot be proven.
+
 Which secrets rotate by themselves, and how to rotate the rest.
 
 | Secret | Rotation | Where it lives |
@@ -98,9 +102,10 @@ on one. The job:
 The login left behind keeps its password for 30 more days, so a slow redeploy breaks nothing. No
 credential the job holds can change another login's password, and the job has no admin login.
 
-**`INTERNAL_SERVICE_SECRET`.** The current value moves to `INTERNAL_SERVICE_SECRET_PREVIOUS`, which
-every service also accepts, then a new value is set. Services redeploying at different times keep
-trusting each other.
+**`INTERNAL_SERVICE_SECRET`.** The new value is first deployed as `INTERNAL_SERVICE_SECRET_PREVIOUS`
+to every active service container. Only after all containers accept it does the job switch the
+current value. Once all containers sign with the new value, the old value is retained as `_PREVIOUS`.
+The Railway deployment-snapshot handover checks are required; see [Admin Services](ADMIN_SERVICES.md).
 
 **`JWT_KEY_ENCRYPTION_KEY`.** Replaced. On its next start the authentication service cannot read the
 stored private keys, so it creates a new signing key (section 1). Nobody is signed out.
@@ -144,6 +149,22 @@ stored private keys, so it creates a new signing key (section 1). Nobody is sign
 
 ### When the job fails
 
+- **"runs as postgres, not one of its rotating logins"**: the service's Infisical
+  `DATABASE_URL` has not been bootstrapped (or was overwritten by an import).
+  Repeating the nightly job or using *force* cannot initialize it. After migration 36
+  and the Infisical syncs are in place, either run step 5 above locally, or:
+  1. Add the temporary GitHub Actions secret `ROTATION_ADMIN_DATABASE_URL`: the
+     `postgres` **session pooler** connection URL, with its project suffix and password.
+  2. Run **Actions > Secret rotation bootstrap > Run workflow**, service = `all`.
+     Already initialized services are left alone; this action never forces a password reset.
+  3. Verify all six services redeploy successfully and their Infisical URLs now use
+     `<service>_service_1.<project-ref>`. If they revert to `postgres`, fix the sync/import
+     that is overwriting Infisical before retrying.
+  4. Delete `ROTATION_ADMIN_DATABASE_URL` from GitHub, then run the normal rotation
+     with *dry run*. Bootstrap records today's date, so initialized services are not
+     due for another 30 days. Use the notification-only force check in step 7 to test rotation.
+  The bootstrap action shares the nightly job's concurrency lock. It does not apply
+  migrations or verify Railway deployments; complete those checks before forcing rotation.
 - **"still has N open connection(s)"**: a service never redeployed onto its current login. Redeploy it
   (or check that its Railway sync redeploys on change); the next nightly run rotates it.
 - **"the new password does not work yet"**: nothing switched; the next run retries.

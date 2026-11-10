@@ -3,7 +3,7 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Error reporting starts before the rest is loaded, so it can wrap it.
-import { initSentry } from '@tilomnov/shared/sentry';
+import { initSentry, SentryLogger } from '@tilomnov/shared/sentry';
 initSentry('payment');
 
 import { Logger, ValidationPipe } from '@nestjs/common';
@@ -13,7 +13,9 @@ import { warmUpAuthKeys } from '@tilomnov/shared';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new SentryLogger(),
+  });
 
   // Routes answer as /v1/...: see docs/API_VERSIONING.md.
   enableApiVersioning(app);
