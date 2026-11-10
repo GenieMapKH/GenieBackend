@@ -114,8 +114,8 @@ stored private keys, so it creates a new signing key (section 1). Nobody is sign
 
 | Folder | Synced to | Holds |
 |---|---|---|
-| `/` | Railway **shared variables** (sync with no service, subfolders **off**) | `INTERNAL_SERVICE_SECRET`, `INTERNAL_SERVICE_SECRET_PREVIOUS` |
-| `/authentication`, `/user`, `/property`, `/chat`, `/payment`, `/notification` | that Railway service | its `DATABASE_URL`, plus its own secrets (`JWT_KEY_ENCRYPTION_KEY` in `/authentication`) |
+| `/` | No direct sync required; canonical values used by the rotation job | `INTERNAL_SERVICE_SECRET`, `INTERNAL_SERVICE_SECRET_PREVIOUS` |
+| `/authentication`, `/user`, `/property`, `/chat`, `/payment`, `/notification` | that Railway service, redeploying after changes | its `DATABASE_URL`, shared-secret copies managed by the rotation job, plus its own secrets (`JWT_KEY_ENCRYPTION_KEY` in `/authentication`) |
 | `/rotation` | **nothing**: never sync it | each login's password, `*_ROTATED_AT` |
 
 ### Setting it up (once)
@@ -123,13 +123,17 @@ stored private keys, so it creates a new signing key (section 1). Nobody is sign
 1. **Database.** Apply the migrations with the `postgres` login:
    `node scripts/apply-migrations.js 35_jwt_signing_keys 36_rotating_service_logins`.
 2. **Infisical folders and syncs.** In the production environment create the folders above. Add one
-   Railway sync per service folder, and one for `/` with the service left empty. For the first sync
+   Railway sync per service folder. A root/shared-variable sync does not redeploy services and
+   cannot deliver the handover by itself. For the first sync
    choose **Import from Railway, prioritize Railway**. Never choose *Overwrite Railway*: it deletes
    `SERVICE`, `PORT`, `HOST` and reference variables. Each service's `DATABASE_URL` must be the
    **session pooler** URL (`aws-0-<region>.pooler.supabase.com:5432`): the direct `db.<ref>.supabase.co`
    host is IPv6-only and GitHub cannot reach it.
-3. **Railway.** In every service add the shared variables `INTERNAL_SERVICE_SECRET` and
-   `INTERNAL_SERVICE_SECRET_PREVIOUS` (`${{shared.NAME}}`), unless the service already has them.
+3. **Shared-secret baseline.** Verify the six active services use the same internal secret,
+   and their Infisical service-folder copies match. Initialize the root canonical
+   `INTERNAL_SERVICE_SECRET` to that verified value, preserving working credentials.
+   During rotation, the job delivers both shared-secret variables through each service folder.
+   See [Admin Services](ADMIN_SERVICES.md) for recovery of an existing mismatched baseline.
 4. **Machine identity.** In Infisical create one with Universal Auth and read/write access to the
    production environment only. In GitHub (Settings > Secrets and variables > Actions) add secrets
    `INFISICAL_CLIENT_ID`, `INFISICAL_CLIENT_SECRET` and variables `INFISICAL_PROJECT_ID`,

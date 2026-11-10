@@ -13,15 +13,20 @@ const secret = () => randomBytes(32).toString('base64');
  * keys keep verifying: nobody is signed out.
  */
 async function rotateSharedSecrets({ secrets, handover, now = new Date() }) {
+  // Service-folder syncs redeploy containers; a Railway shared-variable sync does not.
+  const deliver = async (name, value) => {
+    await secrets.set(SHARED_PATH, name, value);
+    for (const service of SERVICES) await secrets.set(servicePath(service), name, value);
+  };
   const current = await secrets.get(SHARED_PATH, 'INTERNAL_SERVICE_SECRET');
   if (!current || current.length < 32 || !handover) throw new Error('Shared rotation requires a valid current secret and verified Railway handover');
   await handover.waitFor(SERVICES, { INTERNAL_SERVICE_SECRET: current });
   const next = secret();
-  await secrets.set(SHARED_PATH, 'INTERNAL_SERVICE_SECRET_PREVIOUS', next);
+  await deliver('INTERNAL_SERVICE_SECRET_PREVIOUS', next);
   await handover.waitFor(SERVICES, { INTERNAL_SERVICE_SECRET: current, INTERNAL_SERVICE_SECRET_PREVIOUS: next });
-  await secrets.set(SHARED_PATH, 'INTERNAL_SERVICE_SECRET', next);
+  await deliver('INTERNAL_SERVICE_SECRET', next);
   await handover.waitFor(SERVICES, { INTERNAL_SERVICE_SECRET: next, INTERNAL_SERVICE_SECRET_PREVIOUS: next });
-  await secrets.set(SHARED_PATH, 'INTERNAL_SERVICE_SECRET_PREVIOUS', current);
+  await deliver('INTERNAL_SERVICE_SECRET_PREVIOUS', current);
 
   const encryptionKey = secret();
   await secrets.set(servicePath('authentication'), 'JWT_KEY_ENCRYPTION_KEY', encryptionKey);

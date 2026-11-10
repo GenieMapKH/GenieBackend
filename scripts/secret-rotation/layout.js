@@ -1,8 +1,8 @@
 // Where each secret lives in Infisical (docs/SECRET_ROTATION.md).
 //
-//   /<service>       synced to that Railway service: DATABASE_URL (rewritten here)
+//   /<service>       synced to that Railway service: DATABASE_URL and shared-secret copies
 //   /authentication  also JWT_KEY_ENCRYPTION_KEY
-//   /                synced to Railway's shared variables:
+//   /                canonical shared-secret values, delivered through service-folder syncs:
 //                    INTERNAL_SERVICE_SECRET and INTERNAL_SERVICE_SECRET_PREVIOUS
 //   /rotation        NOT synced: each login's password, and when things rotated
 

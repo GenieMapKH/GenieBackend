@@ -4,6 +4,7 @@ const { bootstrapService, bootstrapIfNeeded } = require('../bootstrap');
 const { urlFor } = require('../database-login');
 const { rotateSharedSecrets } = require('../rotate-shared');
 const { FakeDatabase, FakeSecrets, noWait } = require('./fakes');
+const { SERVICES } = require('../layout');
 
 const HOST = 'postgresql://x.abcref:x@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
 
@@ -111,12 +112,21 @@ test('dashboard bootstrap propagates failed deployment handover', async () => {
 
 test('shared rotation keeps the old internal secret as _PREVIOUS and replaces the encryption key', async () => {
   const secrets = new FakeSecrets({
+    ...Object.fromEntries(SERVICES.map((service) => [`/${service}:INTERNAL_SERVICE_SECRET`, 'old-internal'.repeat(4)])),
     '/:INTERNAL_SERVICE_SECRET': 'old-internal'.repeat(4),
     '/authentication:JWT_KEY_ENCRYPTION_KEY': 'old-kek',
   });
 
   const handovers = [];
-  await rotateSharedSecrets({ secrets, handover: { waitFor: async (services, expected) => handovers.push({ services, expected, writes: [...secrets.writes] }) } });
+  await rotateSharedSecrets({ secrets, handover: { waitFor: async (services, expected) => {
+    handovers.push({ services, expected, writes: [...secrets.writes] });
+    // Model the configured syncs: only writes to a service folder reach its deployment.
+    for (const service of services) {
+      for (const [name, value] of Object.entries(expected)) {
+        assert.strictEqual(secrets.value(`/${service}`, name), value);
+      }
+    }
+  } } });
 
   assert.strictEqual(secrets.value('/', 'INTERNAL_SERVICE_SECRET_PREVIOUS'), 'old-internal'.repeat(4));
   const current = secrets.value('/', 'INTERNAL_SERVICE_SECRET');
@@ -128,4 +138,18 @@ test('shared rotation keeps the old internal secret as _PREVIOUS and replaces th
   assert.strictEqual(handovers[2].expected.INTERNAL_SERVICE_SECRET, current);
   // Every service accepts the new key before any service signs with it.
   assert.ok(secrets.writes.indexOf('/:INTERNAL_SERVICE_SECRET_PREVIOUS') < secrets.writes.indexOf('/:INTERNAL_SERVICE_SECRET'));
+});
+
+test('a failed service-folder delivery stops before changing the signing secret', async () => {
+  const current = 'old-internal'.repeat(4);
+  const secrets = new FakeSecrets({ '/:INTERNAL_SERVICE_SECRET': current });
+  const set = secrets.set.bind(secrets);
+  secrets.set = async (path, name, value) => {
+    if (path === '/chat' && name === 'INTERNAL_SERVICE_SECRET_PREVIOUS') throw new Error('sync write failed');
+    await set(path, name, value);
+  };
+  await assert.rejects(rotateSharedSecrets({ secrets, handover: { waitFor: async () => {} } }), /sync write failed/);
+  assert.strictEqual(secrets.value('/', 'INTERNAL_SERVICE_SECRET'), current);
+  assert.strictEqual(secrets.value('/rotation', 'SHARED_ROTATED_AT'), null);
+  assert.ok(!secrets.writes.some((key) => key.endsWith(':INTERNAL_SERVICE_SECRET')));
 });

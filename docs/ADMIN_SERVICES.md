@@ -73,11 +73,21 @@ encryption key to reach Authentication before recording shared rotation success.
 handover it stops further tasks; already completed tasks remain completed. A rotation run is
 not a transaction across all services. Check job status and service health before retrying.
 
-Infisical must sync the root shared variables and the per-service folders to the correct
-Railway environment, with redeployment enabled. Literal service variables must not override
-shared-variable references. Dashboard force runs bootstrap legacy logins when needed;
+Infisical must sync each per-service folder to the correct Railway environment, with
+redeployment enabled. Shared rotation writes the root canonical values and the matching
+`INTERNAL_SERVICE_SECRET` / `_PREVIOUS` values into all six service folders at each handover
+stage. These service syncs deliver and redeploy the values; a root-to-Railway shared-variable
+sync alone does not redeploy containers. Dashboard force runs bootstrap legacy logins when needed;
 scheduled runs require the alternating logins to be initialized already. Timestamp records
 show when the job changed credentials, not an independent proof that containers received them.
+
+Before the first forced run, compare all six active deployment snapshots with Infisical.
+If the database URLs and JWT encryption key match but the root internal secret differs from
+the identical value already running in every service, preserve those working service values
+and initialize the root canonical `INTERNAL_SERVICE_SECRET` to that verified running value.
+Do not push the unrelated root value over live services or bypass preflight. Deploy the
+service-folder delivery workflow before reconciling the root, then verify preflight without
+performing rotation. Subsequent rotations stage `_PREVIOUS` in every service before switching.
 
 The handover preserves credential compatibility and user sessions. Real availability still
 depends on Railway health checks, deployment overlap and the app's reconnect behavior.
