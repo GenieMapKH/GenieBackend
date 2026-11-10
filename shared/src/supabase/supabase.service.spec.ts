@@ -62,12 +62,10 @@ describe('SupabaseService.ensureBucket', () => {
     process.env.SUPABASE_URL = 'http://localhost:54321';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-key';
     const storage = {
-      listBuckets: jest
-        .fn()
-        .mockResolvedValue({
-          data: existing.map((name) => ({ name })),
-          error: null,
-        }),
+      listBuckets: jest.fn().mockResolvedValue({
+        data: existing.map((name) => ({ name })),
+        error: null,
+      }),
       createBucket: jest.fn().mockResolvedValue({ error: null }),
       updateBucket: jest.fn().mockResolvedValue({ error: null }),
     };

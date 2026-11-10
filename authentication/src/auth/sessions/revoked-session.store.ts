@@ -26,16 +26,25 @@ const CHANNEL = 'sessions:revoked';
 export class RevokedSessionStore {
   private readonly logger = new Logger(RevokedSessionStore.name);
 
-  constructor(@Inject(RedisConnection) private readonly redis: RedisConnection) {}
+  constructor(
+    @Inject(RedisConnection) private readonly redis: RedisConnection,
+  ) {}
 
   /** Cuts these sessions off now, and tells the chat servers to drop their connections. */
   async add(sessionIds: string[]): Promise<void> {
     for (const sessionId of new Set(sessionIds)) {
       try {
-        await this.redis.client.set(KEY_PREFIX + sessionId, '1', 'EX', ACCESS_TOKEN_TTL_SECONDS);
+        await this.redis.client.set(
+          KEY_PREFIX + sessionId,
+          '1',
+          'EX',
+          ACCESS_TOKEN_TTL_SECONDS,
+        );
         await this.redis.client.publish(CHANNEL, sessionId);
       } catch (error) {
-        this.logger.error(`Session ${sessionId} could not be cut off at once: ${(error as Error).message}`);
+        this.logger.error(
+          `Session ${sessionId} could not be cut off at once: ${(error as Error).message}`,
+        );
       }
     }
   }

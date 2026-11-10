@@ -1,5 +1,15 @@
-import { Injectable, InternalServerErrorException, Logger, UnauthorizedException } from '@nestjs/common';
-import { initializeApp, cert, type App } from 'firebase-admin/app';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  initializeApp,
+  cert,
+  type App,
+  type ServiceAccount,
+} from 'firebase-admin/app';
 import { getAuth, type DecodedIdToken } from 'firebase-admin/auth';
 
 @Injectable()
@@ -11,17 +21,21 @@ export class FirebaseService {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
 
     if (!serviceAccount) {
-      new Logger(FirebaseService.name).warn('FIREBASE_SERVICE_ACCOUNT_JSON is not set in the environment.');
+      new Logger(FirebaseService.name).warn(
+        'FIREBASE_SERVICE_ACCOUNT_JSON is not set in the environment.',
+      );
       // Fallback for initializing without explicit credentials
       this.firebaseApp = initializeApp();
     } else {
       try {
-        const credentials = JSON.parse(serviceAccount);
+        const credentials = JSON.parse(serviceAccount) as ServiceAccount;
         this.firebaseApp = initializeApp({
           credential: cert(credentials),
         });
-      } catch (e) {
-        throw new InternalServerErrorException('Failed to parse Firebase credentials');
+      } catch {
+        throw new InternalServerErrorException(
+          'Failed to parse Firebase credentials',
+        );
       }
     }
   }
@@ -36,16 +50,17 @@ export class FirebaseService {
       await getAuth(this.firebaseApp).deleteUser(uid);
     } catch (error) {
       if ((error as { code?: string }).code === 'auth/user-not-found') return;
-      new Logger(FirebaseService.name).error(`Could not delete Firebase user ${uid}: ${(error as Error).message}`);
+      new Logger(FirebaseService.name).error(
+        `Could not delete Firebase user ${uid}: ${(error as Error).message}`,
+      );
     }
   }
 
   async verifyIdToken(idToken: string): Promise<DecodedIdToken> {
     try {
       return await getAuth(this.firebaseApp).verifyIdToken(idToken);
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Invalid Firebase token');
     }
   }
 }
-

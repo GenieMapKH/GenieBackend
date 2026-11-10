@@ -5,7 +5,11 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PrismaService, PUBLIC_IMAGE_TYPES, SupabaseService } from '@genie/shared';
+import {
+  PrismaService,
+  PUBLIC_IMAGE_TYPES,
+  SupabaseService,
+} from '@tilomnov/shared';
 import { isGooglePhotoUrl } from './avatar-url';
 import { UsersService } from './users.service';
 

@@ -1,28 +1,32 @@
 import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { randomBytes } from 'crypto';
 import { AccountController } from './account/account.controller';
 import { AuthController } from './auth.controller';
 import { AuthModule } from './auth.module';
 import { SessionsController } from './sessions/sessions.controller';
+import { JwksController } from './signing-keys/jwks.controller';
+import { PrismaService } from '@tilomnov/shared';
 import { FirebaseService } from '../firebase/firebase.service';
-import { SUPABASE_CLIENT } from '../supabase/supabase.module';
 
 // firebase-admin pulls in ESM-only packages Jest cannot load.
-jest.mock('../firebase/firebase.service', () => ({ FirebaseService: class {} }));
+jest.mock('../firebase/firebase.service', () => ({
+  FirebaseService: class {},
+}));
 
 @Global()
 @Module({
   providers: [
-    { provide: SUPABASE_CLIENT, useValue: {} },
+    { provide: PrismaService, useValue: {} },
     { provide: FirebaseService, useValue: {} },
   ],
-  exports: [SUPABASE_CLIENT, FirebaseService],
+  exports: [PrismaService, FirebaseService],
 })
 class FakeInfrastructureModule {}
 
 describe('AuthModule wiring', () => {
   beforeAll(() => {
-    process.env.JWT_PUBLIC_KEY = 'test-public-key';
+    process.env.JWT_KEY_ENCRYPTION_KEY = randomBytes(32).toString('base64');
   });
 
   it('resolves every dependency of the controllers', async () => {
@@ -33,5 +37,6 @@ describe('AuthModule wiring', () => {
     expect(moduleRef.get(AuthController)).toBeDefined();
     expect(moduleRef.get(SessionsController)).toBeDefined();
     expect(moduleRef.get(AccountController)).toBeDefined();
+    expect(moduleRef.get(JwksController)).toBeDefined();
   });
 });

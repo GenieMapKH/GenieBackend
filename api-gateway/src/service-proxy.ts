@@ -1,5 +1,6 @@
 import { fixRequestBody, createProxyMiddleware } from 'http-proxy-middleware';
 import type { IncomingMessage } from 'http';
+import { isWebSocketUpgrade, withVersion } from './api-versions';
 import { respondUnavailable } from './upstream-unavailable';
 
 /**
@@ -27,6 +28,9 @@ export type WebSocketProxy = ReturnType<typeof createProxyMiddleware>;
  * only ever see the gateway's own address, and need the real one to show
  * where a device signed in from.
  *
+ * The forwarded path is always versioned (`/properties` goes on as
+ * `/v1/properties`); a WebSocket handshake keeps socket.io's own path.
+ *
  * `websocket` is for the one service that holds WebSocket connections (chat):
  * every proxy with it set would take over upgrade requests, so it is explicit.
  */
@@ -40,6 +44,8 @@ export function createServiceProxy(
     changeOrigin: true,
     ws: options.websocket === true,
     proxyTimeout: SERVICE_TIMEOUT_MS,
+    pathRewrite: (path, req: IncomingMessage) =>
+      isWebSocketUpgrade(req) ? path : withVersion(path),
     on: {
       proxyReq: (proxyReq, req: IncomingMessage) => {
         if (!options.authenticated) {
@@ -54,7 +60,8 @@ export function createServiceProxy(
         // Re-send the already-parsed body, otherwise the upstream request hangs.
         fixRequestBody(proxyReq, req as never);
       },
-      error: (error, _req, res) => respondUnavailable(service, error as NodeJS.ErrnoException, res),
+      error: (error, _req, res) =>
+        respondUnavailable(service, error as NodeJS.ErrnoException, res),
     },
   });
 }

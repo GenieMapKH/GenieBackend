@@ -1,15 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@genie/shared';
+import { PrismaService } from '@tilomnov/shared';
 
 /** Remembers when each user was last connected to chat. */
 @Injectable()
 export class PresenceService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async isVisible(userId: string): Promise<boolean> {
+    return (
+      (await this.prisma.user.findFirst({
+        where: { id: userId, deactivatedAt: null },
+        select: { id: true },
+      })) !== null
+    );
+  }
+
   /** Records that the user just went offline and returns that moment. */
   async markLastSeen(userId: string): Promise<Date> {
     const lastSeenAt = new Date();
-    await this.prisma.user.update({ where: { id: userId }, data: { lastSeenAt } });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { lastSeenAt },
+    });
     return lastSeenAt;
   }
 

@@ -1,0 +1,191 @@
+{
+  "Staging": {
+    "services": {
+      "Gateway": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "property": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Chat": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Authentication": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Users": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "payment": {
+        "redisConfigured": false,
+        "matchesEnvironmentRedis": false,
+        "replicaConfigured": false,
+        "redisRequired": false
+      },
+      "Notification": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      }
+    },
+    "http": [
+      {
+        "path": "/health",
+        "status": 200,
+        "cacheControl": null,
+        "age": null,
+        "etagPresent": true
+      },
+      {
+        "path": "/v1/public/properties/closest?lat=11.55&lng=104.92&limit=2",
+        "status": 200,
+        "cacheControl": null,
+        "age": null,
+        "etagPresent": true
+      },
+      {
+        "path": "/v1/chat/conversations",
+        "status": 401,
+        "cacheControl": null,
+        "age": null
+      }
+    ],
+    "redisReadOnlyProbe": {
+      "reachable": "no-public-endpoint"
+    },
+    "configuredRedisClientsMatch": true,
+    "recentLogSample": {
+      "property": {
+        "read": true,
+        "sampledLines": 81,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      },
+      "Chat": {
+        "read": true,
+        "sampledLines": 73,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      },
+      "Gateway": {
+        "read": true,
+        "sampledLines": 11,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0,
+        "upstreamConnectionRefusals": 0,
+        "latestUpstreamRefusalAt": null
+      },
+      "Redis": {
+        "read": true,
+        "sampledLines": 200,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      }
+    }
+  },
+  "production": {
+    "services": {
+      "Gateway": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "property": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Chat": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Authentication": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "Users": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      },
+      "payment": {
+        "redisConfigured": false,
+        "matchesEnvironmentRedis": false,
+        "replicaConfigured": false,
+        "redisRequired": false
+      },
+      "Notification": {
+        "redisConfigured": true,
+        "matchesEnvironmentRedis": true,
+        "replicaConfigured": false
+      }
+    },
+    "http": [
+      {
+        "path": "/health",
+        "status": 200,
+        "cacheControl": null,
+        "age": null,
+        "etagPresent": true
+      },
+      {
+        "path": "/v1/public/properties/closest?lat=11.55&lng=104.92&limit=2",
+        "status": 200,
+        "cacheControl": null,
+        "age": null,
+        "etagPresent": true
+      },
+      {
+        "path": "/v1/chat/conversations",
+        "status": 401,
+        "cacheControl": null,
+        "age": null
+      }
+    ],
+    "redisReadOnlyProbe": {
+      "reachable": "no-public-endpoint"
+    },
+    "configuredRedisClientsMatch": true,
+    "recentLogSample": {
+      "property": {
+        "read": true,
+        "sampledLines": 78,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      },
+      "Chat": {
+        "read": true,
+        "sampledLines": 58,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      },
+      "Gateway": {
+        "read": true,
+        "sampledLines": 65,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0,
+        "upstreamConnectionRefusals": 35,
+        "latestUpstreamRefusalAt": "2026-11-06T10:39:43.105955372Z"
+      },
+      "Redis": {
+        "read": true,
+        "sampledLines": 200,
+        "cacheErrors": 0,
+        "redisUnavailableEvents": 0
+      }
+    }
+  },
+  "redisEnvironmentsSeparate": true
+}

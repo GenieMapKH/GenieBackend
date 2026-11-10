@@ -13,7 +13,13 @@ export const PROPERTY_TYPES = [
 ] as const;
 export type PropertyType = (typeof PROPERTY_TYPES)[number];
 
-export const LISTING_TYPES = ['Sale', 'Rent', 'To Let'] as const;
+export const TAKEOVER_LISTING_TYPE = 'Takeover Payments';
+export const LISTING_TYPES = [
+  'Sale',
+  'Rent',
+  'To Let',
+  TAKEOVER_LISTING_TYPE,
+] as const;
 
 /** A discount is a percentage of the price, or an amount (USD) off it. */
 export const DISCOUNT_TYPES = ['percent', 'amount'] as const;

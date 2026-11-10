@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { containsNullByte, RejectNullBytesPipe } from './reject-null-bytes.pipe';
+import {
+  containsNullByte,
+  RejectNullBytesPipe,
+} from './reject-null-bytes.pipe';
 
 describe('containsNullByte', () => {
   it('finds a NUL in nested text', () => {
@@ -7,7 +10,9 @@ describe('containsNullByte', () => {
   });
 
   it('accepts ordinary values', () => {
-    expect(containsNullByte({ a: ['x', 1, null, { b: true }], c: 'ok' })).toBe(false);
+    expect(containsNullByte({ a: ['x', 1, null, { b: true }], c: 'ok' })).toBe(
+      false,
+    );
   });
 });
 
@@ -15,7 +20,9 @@ describe('RejectNullBytesPipe', () => {
   const pipe = new RejectNullBytesPipe();
 
   it('refuses a body with a NUL character', () => {
-    expect(() => pipe.transform({ title: 'a\u0000' }, { type: 'body' })).toThrow(BadRequestException);
+    expect(() =>
+      pipe.transform({ title: 'a\u0000' }, { type: 'body' }),
+    ).toThrow(BadRequestException);
   });
 
   it('leaves route parameters to their own pipes', () => {

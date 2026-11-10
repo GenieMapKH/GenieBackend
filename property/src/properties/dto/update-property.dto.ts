@@ -1,5 +1,14 @@
 import { OmitType, PartialType } from '@nestjs/swagger';
-import { IsIn, IsNotEmpty, IsNumber, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  IsIn,
+  IsNotEmpty,
+  IsNumber,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { PROPERTY_TYPES } from '../property-options';
 import { CreatePropertyDto } from './create-property.dto';
 import { MAX_MONEY } from './numeric-limits';
@@ -13,7 +22,12 @@ const IfSent = () => ValidateIf((_, value) => value !== undefined);
  * listing must have. Status changes go through their own endpoints.
  */
 export class UpdatePropertyDto extends PartialType(
-  OmitType(CreatePropertyDto, ['status', 'title', 'price', 'propertyType'] as const),
+  OmitType(CreatePropertyDto, [
+    'status',
+    'title',
+    'price',
+    'propertyType',
+  ] as const),
 ) {
   @IfSent()
   @IsString()

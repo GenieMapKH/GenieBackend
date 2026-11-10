@@ -1,14 +1,28 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { FakeRedis, fakeCache } from '@genie/shared/testing';
+import { FakeRedis, fakeCache } from '@tilomnov/shared/testing';
+import { ListingChanges } from './listing-changes.service';
+import { PropertyEngagementCounts } from './property-engagement-counts.service';
 import { PropertyLifecycleService } from './property-lifecycle.service';
 import { MapBoundsQuery } from '../dto/map-bounds.query';
 import { MapSearchQuery } from '../dto/map-search.query';
-import { MAP_RESULT_LIMIT, PropertyQueryService } from './property-query.service';
-import { PublicPropertyCache, widenToGrid } from './public-property-cache.service';
+import {
+  MAP_RESULT_LIMIT,
+  PropertyQueryService,
+} from './property-query.service';
+import { PropertySearchService } from './property-search.service';
+import {
+  PublicPropertyCache,
+  widenToGrid,
+} from './public-property-cache.service';
 
-const VIEWPORT = { minLat: 11.5512, maxLat: 11.5688, minLng: 104.9101, maxLng: 104.9299 };
+const VIEWPORT = {
+  minLat: 11.5512,
+  maxLat: 11.5688,
+  minLng: 104.9101,
+  maxLng: 104.9299,
+};
 
 describe('widenToGrid', () => {
   it('never returns a smaller box than the viewport', () => {
@@ -18,14 +32,44 @@ describe('widenToGrid', () => {
     expect(box.maxLat).toBeGreaterThanOrEqual(VIEWPORT.maxLat);
     expect(box.minLng).toBeLessThanOrEqual(VIEWPORT.minLng);
     expect(box.maxLng).toBeGreaterThanOrEqual(VIEWPORT.maxLng);
-    expect(box).toEqual({ minLat: 11.55, maxLat: 11.57, minLng: 104.91, maxLng: 104.93 });
+    expect(box).toEqual({
+      minLat: 11.55,
+      maxLat: 11.57,
+      minLng: 104.91,
+      maxLng: 104.93,
+    });
+  });
+
+  it('leaves a box already on the grid as it is, so snapping in the app costs nothing', () => {
+    for (let step = -18000; step <= 18000; step++) {
+      const degrees = step / 100;
+      const box = {
+        minLat: degrees,
+        maxLat: degrees,
+        minLng: degrees,
+        maxLng: degrees,
+      };
+      expect(widenToGrid(box)).toEqual(box);
+    }
   });
 
   it('gives nearby viewports the same box, also south of the equator and west of Greenwich', () => {
-    const nudged = { minLat: 11.5519, maxLat: 11.5681, minLng: 104.9109, maxLng: 104.9291 };
+    const nudged = {
+      minLat: 11.5519,
+      maxLat: 11.5681,
+      minLng: 104.9109,
+      maxLng: 104.9291,
+    };
     expect(widenToGrid(nudged)).toEqual(widenToGrid(VIEWPORT));
 
-    expect(widenToGrid({ minLat: -33.8712, maxLat: -33.8605, minLng: -70.6549, maxLng: -70.6401 })).toEqual({
+    expect(
+      widenToGrid({
+        minLat: -33.8712,
+        maxLat: -33.8605,
+        minLng: -70.6549,
+        maxLng: -70.6401,
+      }),
+    ).toEqual({
       minLat: -33.88,
       maxLat: -33.86,
       minLng: -70.66,
@@ -35,10 +79,27 @@ describe('widenToGrid', () => {
 });
 
 describe('public property cache', () => {
-  const propertyTable = { findMany: jest.fn(), findFirst: jest.fn(), update: jest.fn(), create: jest.fn() };
+  const propertyTable = {
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    update: jest.fn(),
+    create: jest.fn(),
+  };
   const viewTable = { findMany: jest.fn() };
-  const prisma = { property: propertyTable, propertyView: viewTable };
-  const listing = { id: 'p-1', title: 'Villa', status: 'Active', createdAt: new Date('2026-01-01T00:00:00Z') };
+  const prisma = {
+    property: propertyTable,
+    propertyView: viewTable,
+    $queryRaw: jest.fn(),
+  };
+  const listing = {
+    id: 'p-1',
+    userId: 'owner',
+    title: 'Villa',
+    status: 'Active',
+    lat: 11.56,
+    lng: 104.92,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+  };
   let redis: FakeRedis;
   let publicCache: PublicPropertyCache;
   let query: PropertyQueryService;
@@ -48,18 +109,36 @@ describe('public property cache', () => {
     jest.resetAllMocks();
     redis = new FakeRedis();
     publicCache = new PublicPropertyCache(fakeCache(redis));
-    query = new PropertyQueryService(prisma as never, publicCache);
+    const counts = new PropertyEngagementCounts(prisma as never);
+    query = new PropertyQueryService(
+      prisma as never,
+      publicCache,
+      counts,
+      prisma as never,
+    );
     lifecycle = new PropertyLifecycleService(
       prisma as never,
       query,
-      { canPublish: () => true, canMarkSold: () => true, canRelist: () => true } as never,
-      publicCache,
+      {
+        canPublish: () => true,
+        canMarkSold: () => true,
+        canRelist: () => true,
+      },
+      new ListingChanges(publicCache),
       { locationChanged: jest.fn(), keywordsChanged: jest.fn() } as never,
+      counts,
+      {
+        publish: (_userId: string, write: (tx: unknown) => unknown) =>
+          write(prisma),
+      } as never,
     );
     propertyTable.findMany.mockResolvedValue([listing]);
     propertyTable.findFirst.mockResolvedValue(listing);
-    propertyTable.update.mockImplementation(({ data }) => Promise.resolve({ ...listing, ...data }));
+    propertyTable.update.mockImplementation(({ data }) =>
+      Promise.resolve({ ...listing, ...data }),
+    );
     viewTable.findMany.mockResolvedValue([]);
+    prisma.$queryRaw.mockResolvedValue([]);
   });
 
   describe('map search', () => {
@@ -84,7 +163,12 @@ describe('public property cache', () => {
     });
 
     it('returns at most the newest listings, however far the map is zoomed out', async () => {
-      await query.searchMap({ minLat: -60, maxLat: 70, minLng: -170, maxLng: 170 });
+      await query.searchMap({
+        minLat: -60,
+        maxLat: 70,
+        minLng: -170,
+        maxLng: 170,
+      });
 
       const args = propertyTable.findMany.mock.calls[0][0];
       expect(args.take).toBe(MAP_RESULT_LIMIT);
@@ -92,7 +176,9 @@ describe('public property cache', () => {
     });
 
     it('refuses bounds that are the wrong way round', async () => {
-      await expect(query.searchMap({ ...VIEWPORT, minLat: 12, maxLat: 11 })).rejects.toThrow(BadRequestException);
+      await expect(
+        query.searchMap({ ...VIEWPORT, minLat: 12, maxLat: 11 }),
+      ).rejects.toThrow(BadRequestException);
       expect(propertyTable.findMany).not.toHaveBeenCalled();
     });
 
@@ -106,12 +192,15 @@ describe('public property cache', () => {
     });
 
     it('narrows the search to the filter pills, keeping the box', async () => {
-      await query.searchMap(VIEWPORT, undefined, { propertyType: 'House', listingType: 'Rent' });
+      await query.searchMap(VIEWPORT, undefined, {
+        propertyType: 'House',
+        listingTypes: ['Rent'],
+      });
 
       expect(propertyTable.findMany.mock.calls[0][0].where).toMatchObject({
         status: 'Active',
         propertyType: 'House',
-        listingType: 'Rent',
+        listingType: { in: ['Rent'] },
         lat: { gte: 11.55, lte: 11.57 },
       });
     });
@@ -119,17 +208,55 @@ describe('public property cache', () => {
     it('keeps one shared answer per filter, so a filtered map never shows unfiltered results', async () => {
       await query.searchMap(VIEWPORT);
       await query.searchMap(VIEWPORT, undefined, { propertyType: 'Land' });
-      await query.searchMap(VIEWPORT, undefined, { listingType: 'Sale' });
+      await query.searchMap(VIEWPORT, undefined, { listingTypes: ['Sale'] });
       await query.searchMap(VIEWPORT, undefined, { propertyType: 'Land' });
 
       expect(propertyTable.findMany).toHaveBeenCalledTimes(3);
     });
 
+    it('counts the prices of the same search, ignoring its own price range', async () => {
+      propertyTable.findMany.mockResolvedValue([
+        { price: '1000' },
+        { price: '99000' },
+        { price: '250000' },
+      ]);
+
+      const { counts } = await query.priceHistogram(
+        VIEWPORT,
+        { listingTypes: ['Sale'], minPrice: 50_000, maxPrice: 60_000 },
+        100_000,
+      );
+
+      const { where } = propertyTable.findMany.mock.calls[0][0];
+      expect(where.price).toBeUndefined();
+      expect(where.listingType).toEqual({ in: ['Sale'] });
+      expect(counts[0]).toBe(1);
+      expect(counts[counts.length - 1]).toBe(2);
+    });
+
+    it('keeps the histogram apart from the listings in the cache', async () => {
+      await query.searchMap(VIEWPORT);
+      await query.priceHistogram(VIEWPORT, {}, 100_000);
+      await query.priceHistogram(VIEWPORT, {}, 100_000);
+
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(2);
+    });
+
     it.each([
       ['an unknown property type', { propertyType: 'Castle' }],
       ['an unknown listing type', { listingType: 'Auction' }],
+      [
+        'an unknown listing type among known ones',
+        { listingType: ['Rent', 'Auction'] },
+      ],
+      ['an unknown keyword', { keyword: 'pool' }],
+      ['a negative price', { minPrice: -1 }],
+      ['a size that is not a number', { maxSize: 'big' }],
     ])('rejects %s in the map filter', async (_case, change) => {
-      const search = plainToInstance(MapSearchQuery, { ...VIEWPORT, ...change });
+      const search = plainToInstance(MapSearchQuery, {
+        ...VIEWPORT,
+        ...change,
+      });
       expect(await validate(search)).not.toHaveLength(0);
     });
 
@@ -149,7 +276,10 @@ describe('public property cache', () => {
       propertyTable.findMany.mockResolvedValue([]);
       expect(await query.searchMap(VIEWPORT)).toEqual([]);
 
-      propertyTable.findFirst.mockResolvedValue({ ...listing, status: 'Draft' });
+      propertyTable.findFirst.mockResolvedValue({
+        ...listing,
+        status: 'Draft',
+      });
       await lifecycle.publish('owner', 'p-1');
       propertyTable.findMany.mockResolvedValue([listing]);
 
@@ -161,6 +291,92 @@ describe('public property cache', () => {
 
       expect(await query.searchMap(VIEWPORT)).toHaveLength(1);
       expect(await query.searchMap(VIEWPORT)).toHaveLength(1);
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('outdated by area', () => {
+    const siemReap = { ...listing, id: 'p-2', lat: 13.36, lng: 103.86 };
+    const publishInSiemReap = async (owner = 'owner') => {
+      propertyTable.findFirst.mockResolvedValue({
+        ...siemReap,
+        userId: owner,
+        status: 'Draft',
+      });
+      propertyTable.update.mockResolvedValue({
+        ...siemReap,
+        userId: owner,
+        status: 'Active',
+      });
+      await lifecycle.publish(owner, 'p-2');
+    };
+
+    it('keeps the map of one city cached when a listing elsewhere changes', async () => {
+      await query.searchMap(VIEWPORT);
+      await publishInSiemReap();
+      await query.searchMap(VIEWPORT);
+
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops showing a listing where it was, once it moved away', async () => {
+      expect(await query.searchMap(VIEWPORT)).toHaveLength(1);
+
+      propertyTable.update.mockResolvedValue({
+        ...listing,
+        lat: siemReap.lat,
+        lng: siemReap.lng,
+      });
+      await lifecycle.updatePin('owner', 'p-1', {
+        lat: siemReap.lat,
+        lng: siemReap.lng,
+      });
+      propertyTable.findMany.mockResolvedValue([]);
+
+      expect(await query.searchMap(VIEWPORT)).toEqual([]);
+    });
+
+    it('outdates a zoomed-out map with any change, wherever it is', async () => {
+      const wholeCountry = {
+        minLat: 10,
+        maxLat: 14.7,
+        minLng: 102.3,
+        maxLng: 107.7,
+      };
+      await query.searchMap(wholeCountry);
+      await publishInSiemReap();
+      await query.searchMap(wholeCountry);
+
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(2);
+    });
+
+    it("outdates an owner's list with their own changes only", async () => {
+      const search = new PropertySearchService(
+        prisma as never,
+        publicCache,
+        new PropertyEngagementCounts(prisma as never),
+      );
+      await search.byOwner('owner', 100);
+
+      await publishInSiemReap('someone-else');
+      await search.byOwner('owner', 100);
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(1);
+
+      await publishInSiemReap('owner');
+      await search.byOwner('owner', 100);
+      expect(propertyTable.findMany).toHaveBeenCalledTimes(2);
+    });
+
+    it('outdates text searches with any change', async () => {
+      const search = new PropertySearchService(
+        prisma as never,
+        publicCache,
+        new PropertyEngagementCounts(prisma as never),
+      );
+      await search.matching(['villa'], 8);
+      await publishInSiemReap('someone-else');
+      await search.matching(['villa'], 8);
+
       expect(propertyTable.findMany).toHaveBeenCalledTimes(2);
     });
   });
@@ -177,7 +393,10 @@ describe('public property cache', () => {
       await query.findPublic('p-1');
 
       await lifecycle.update('owner', 'p-1', { title: 'Villa with pool' });
-      propertyTable.findFirst.mockResolvedValue({ ...listing, title: 'Villa with pool' });
+      propertyTable.findFirst.mockResolvedValue({
+        ...listing,
+        title: 'Villa with pool',
+      });
       expect((await query.findPublic('p-1')).title).toBe('Villa with pool');
 
       await lifecycle.unpublish('owner', 'p-1');
@@ -195,11 +414,29 @@ describe('public property cache', () => {
   });
 
   it('checks an edited price against the discount already on the listing', async () => {
-    propertyTable.findFirst.mockResolvedValue({ ...listing, price: '100000', discountType: 'amount', discountValue: '20000' });
+    propertyTable.findFirst.mockResolvedValue({
+      ...listing,
+      price: '100000',
+      discountType: 'amount',
+      discountValue: '20000',
+    });
 
-    await expect(lifecycle.update('owner', 'p-1', { price: 15000 })).rejects.toThrow('smaller than the price');
-    await expect(lifecycle.update('owner', 'p-1', { price: 15000, discountType: null, discountValue: null })).resolves.toBeDefined();
-    await expect(lifecycle.update('owner', 'p-1', { discountType: 'percent', discountValue: 10 })).resolves.toBeDefined();
+    await expect(
+      lifecycle.update('owner', 'p-1', { price: 15000 }),
+    ).rejects.toThrow('smaller than the price');
+    await expect(
+      lifecycle.update('owner', 'p-1', {
+        price: 15000,
+        discountType: null,
+        discountValue: null,
+      }),
+    ).resolves.toBeDefined();
+    await expect(
+      lifecycle.update('owner', 'p-1', {
+        discountType: 'percent',
+        discountValue: 10,
+      }),
+    ).resolves.toBeDefined();
   });
 
   it('leaves the shared cache alone while a draft is being edited', async () => {
@@ -211,5 +448,26 @@ describe('public property cache', () => {
     await query.searchMap(VIEWPORT);
 
     expect(propertyTable.findMany).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('public detail invalidation during a read', () => {
+  it('cannot restore an obsolete listing after it is withdrawn', async () => {
+    const cache = new PublicPropertyCache(fakeCache());
+    let finish!: (value: string) => void;
+    const oldRead = cache.detail(
+      'p',
+      () =>
+        new Promise<string>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    await cache.changed({ id: 'p', userId: 'owner', lat: 11.55, lng: 104.92 });
+    finish('old active details');
+    await oldRead;
+    expect(await cache.detail('p', async () => 'unavailable')).toBe(
+      'unavailable',
+    );
   });
 });

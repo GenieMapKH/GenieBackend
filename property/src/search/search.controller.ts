@@ -9,14 +9,16 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { OptionalJwtAuthGuard, RateLimit, RateLimits } from '@genie/shared';
+import { OptionalJwtAuthGuard, RateLimit, RateLimits } from '@tilomnov/shared';
 import {
   PlaceIdParam,
   PlaceSessionQuery,
   SearchQuery,
 } from './dto/search.query';
+import { ContactDetailsInterceptor } from '../properties/contact-details';
 import { SearchService } from './search.service';
 
 type MaybeSignedIn = { user?: { userId: string } | null };
@@ -24,10 +26,12 @@ type MaybeSignedIn = { user?: { userId: string } | null };
 /**
  * The home screen's search. Public: guests browse the map too. A signed-in
  * caller is counted by account, a guest by address (written by the gateway).
+ * Guests see no phone or email, on listings or on a publisher's page.
  */
 @ApiTags('search')
 @Controller('public/search')
 @UseGuards(OptionalJwtAuthGuard)
+@UseInterceptors(ContactDetailsInterceptor)
 export class SearchController {
   /**
    * The app waits for a pause in typing before it asks, so a person rarely

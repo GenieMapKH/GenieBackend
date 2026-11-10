@@ -11,7 +11,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { CurrentUserId, RateLimit, RateLimits } from '@genie/shared';
+import { CurrentUserId, RateLimit, RateLimits } from '@tilomnov/shared';
 import { RecordSearchDto } from './record-search.dto';
 import { SearchHistoryService } from './search-history.service';
 

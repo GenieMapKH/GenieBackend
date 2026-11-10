@@ -7,6 +7,7 @@ import {
   ParseUUIDPipe,
   Post,
   UseGuards,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { InternalCallGuard } from './internal-call.guard';
@@ -18,7 +19,7 @@ import { AccountContentService } from './account-content.service';
  */
 @ApiExcludeController()
 @UseGuards(InternalCallGuard)
-@Controller('internal/accounts/:userId')
+@Controller({ path: 'internal/accounts/:userId', version: VERSION_NEUTRAL })
 export class InternalAccountsController {
   constructor(private readonly content: AccountContentService) {}
 

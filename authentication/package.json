@@ -4,19 +4,22 @@
   "packageManager": "npm@11.17.0",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "start:prod": "node dist/main.js",
     "db:generate": "cd .. && npx prisma generate",
     "db:push": "cd .. && npx prisma db push",
     "db:migrate": "cd .. && npx prisma migrate dev",
     "db:seed": "cd .. && npx prisma db seed",
-    "test": "jest"
+    "test": "jest",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "lint:check": "eslint \"src/**/*.ts\""
   },
   "dependencies": {
+    "@tilomnov/shared": "*",
     "@nestjs/common": "^11.1.27",
     "@nestjs/core": "^11.1.27",
-    "@nestjs/jwt": "^11.0.2",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.27",
     "@nestjs/swagger": "^11.4.7",
@@ -30,6 +33,7 @@
     "firebase-admin": "^14.3.0",
     "ioredis": "^6.0.0",
     "nodemailer": "^10.0.8",
+    "jsonwebtoken": "^9.0.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "rate-limiter-flexible": "^11.2.1",
@@ -38,17 +42,25 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.18.0",
     "@prisma/compute-sdk": "latest",
     "@types/bcrypt": "^6.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.0.0",
     "@types/nodemailer": "^8.0.1",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/passport-jwt": "^4.0.1",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-prettier": "^5.2.2",
+    "globals": "^17.0.0",
     "jest": "^30.5.2",
+    "prettier": "^3.4.2",
     "prisma": "^7.8.0",
     "ts-jest": "^29.4.14",
     "tsx": "^4.22.4",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.20.0"
   },
   "jest": {
     "moduleFileExtensions": [

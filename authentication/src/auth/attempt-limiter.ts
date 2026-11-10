@@ -1,9 +1,19 @@
-import { HttpException, HttpStatus, Injectable, Optional } from '@nestjs/common';
-import { RateLimiterMemory, RateLimiterRedis, RateLimiterRes } from 'rate-limiter-flexible';
+import {
+  HttpException,
+  HttpStatus,
+  Injectable,
+  Optional,
+} from '@nestjs/common';
+import {
+  RateLimiterMemory,
+  RateLimiterRedis,
+  RateLimiterRes,
+} from 'rate-limiter-flexible';
 import { RedisConnection } from '../redis/redis-connection';
 
 interface Limiter {
   consume(key: string): Promise<unknown>;
+  reward(key: string, points: number): Promise<unknown>;
   delete(key: string): Promise<boolean>;
 }
 
@@ -29,13 +39,21 @@ export class AttemptLimiter {
   /** Records one attempt, or answers `429` once the key has none left. */
   async consumeOrReject(key: string, retry = 'in 15 minutes'): Promise<void> {
     if (!(await this.tryConsume(key))) {
-      throw new HttpException(`Too many attempts. Try again ${retry}.`, HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        `Too many attempts. Try again ${retry}.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
   }
 
   /** Forgets a key, e.g. after a successful login. */
   async reset(key: string): Promise<void> {
     await this.limiter.delete(key);
+  }
+
+  /** Gives back one attempt that turned out not to be a guess. */
+  async refund(key: string): Promise<void> {
+    await this.limiter.reward(key, 1);
   }
 }
 
@@ -51,8 +69,25 @@ const ONE_DAY = 24 * 60 * 60;
  */
 @Injectable()
 export class AuthAttemptLimits {
-  /** Wrong passwords per account before login pauses: stops password guessing. */
-  readonly login: AttemptLimiter;
+  /**
+   * Wrong passwords for one account from one network, or from one device that
+   * signed in to it before. Stops guessing without locking the owner out:
+   * only the source that guesses is paused (see `LoginThrottle`).
+   */
+  readonly loginPerSource: AttemptLimiter;
+
+  /** Wrong passwords from one network, whatever the account: stops trying leaked passwords on many accounts. */
+  readonly loginPerNetwork: AttemptLimiter;
+
+  /**
+   * Wrong passwords for one account from devices it never signed in on, from
+   * every network together. Stops guessing spread over many networks; the
+   * owner's own devices are not counted, so they still get in.
+   */
+  readonly loginPerAccount: AttemptLimiter;
+
+  /** New accounts from one network: throwaway accounts cost something to make. */
+  readonly registrationsPerNetwork: AttemptLimiter;
 
   /** One reset email per address a minute: a tapped-twice "Resend" sends one. */
   readonly resetCooldown: AttemptLimiter;
@@ -79,21 +114,36 @@ export class AuthAttemptLimits {
    */
   readonly otpPerDay: AttemptLimiter;
 
+  /** Password resets per phone number in a day, each proven by an SMS code. */
+  readonly phoneResets: AttemptLimiter;
+
   /** Wrong passwords per signed-in account when confirming a sensitive change. */
   readonly identityProof: AttemptLimiter;
 
   constructor(@Optional() private readonly redis?: RedisConnection) {
-    this.login = this.limit('login', 10, FIFTEEN_MINUTES);
+    this.loginPerSource = this.limit('login-source', 10, FIFTEEN_MINUTES);
+    this.loginPerNetwork = this.limit('login-network', 100, ONE_HOUR);
+    this.loginPerAccount = this.limit('login-account', 50, ONE_HOUR);
+    this.registrationsPerNetwork = this.limit('register-network', 20, ONE_HOUR);
     this.resetCooldown = this.limit('reset-cooldown', 1, ONE_MINUTE);
     this.resetRequests = this.limit('reset-request', 3, FIFTEEN_MINUTES);
     this.resetRequestsPerDay = this.limit('reset-request-day', 6, ONE_DAY);
-    this.resetRequestsPerClient = this.limit('reset-request-client', 10, ONE_HOUR);
+    this.resetRequestsPerClient = this.limit(
+      'reset-request-client',
+      10,
+      ONE_HOUR,
+    );
     this.otp = this.limit('otp', 5, FIFTEEN_MINUTES);
     this.otpPerDay = this.limit('otp-day', 15, ONE_DAY);
     this.identityProof = this.limit('identity-proof', 10, FIFTEEN_MINUTES);
+    this.phoneResets = this.limit('phone-reset-day', 5, ONE_DAY);
   }
 
-  private limit(name: string, points: number, duration: number): AttemptLimiter {
+  private limit(
+    name: string,
+    points: number,
+    duration: number,
+  ): AttemptLimiter {
     const inMemory = new RateLimiterMemory({ points, duration });
     if (!this.redis) return new AttemptLimiter(inMemory);
 

@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { CreatePropertyDto } from './dto/create-property.dto';
@@ -37,7 +38,9 @@ describe('toCreateData', () => {
       hasBalcony: true,
       viewType: 'River View',
       maintenanceFee: 80,
-      keywords: { create: [{ keyword: 'near_market' }, { keyword: 'water_supply' }] },
+      keywords: {
+        create: [{ keyword: 'near_market' }, { keyword: 'water_supply' }],
+      },
     });
   });
 
@@ -57,19 +60,30 @@ describe('toCreateData', () => {
   });
 
   it('writes no keyword rows when none were picked', () => {
-    expect(toCreateData('owner-1', { ...condo, keywords: [] })).not.toHaveProperty('keywords');
-    expect(toCreateData('owner-1', { ...condo, keywords: undefined })).not.toHaveProperty('keywords');
+    expect(
+      toCreateData('owner-1', { ...condo, keywords: [] }),
+    ).not.toHaveProperty('keywords');
+    expect(
+      toCreateData('owner-1', { ...condo, keywords: undefined }),
+    ).not.toHaveProperty('keywords');
   });
 });
 
 describe('toUpdateData', () => {
   it('replaces the keywords when a list is sent, and leaves them alone when not', () => {
-    expect(toUpdateData({ keywords: ['corner_land'] }, 'Land').keywords).toEqual({
+    expect(
+      toUpdateData({ keywords: ['corner_land'] }, 'Land').keywords,
+    ).toEqual({
       deleteMany: {},
       create: [{ keyword: 'corner_land' }],
     });
-    expect(toUpdateData({ keywords: [] }, 'Land').keywords).toEqual({ deleteMany: {}, create: [] });
-    expect(toUpdateData({ title: 'New title' }, 'Land')).not.toHaveProperty('keywords');
+    expect(toUpdateData({ keywords: [] }, 'Land').keywords).toEqual({
+      deleteMany: {},
+      create: [],
+    });
+    expect(toUpdateData({ title: 'New title' }, 'Land')).not.toHaveProperty(
+      'keywords',
+    );
   });
 
   it('clears what the old type had when the type changes', () => {
@@ -79,6 +93,18 @@ describe('toUpdateData', () => {
     expect(data.unitSize).toBeNull();
     expect(data.floorNumber).toBeNull();
     expect(data.maintenanceFee).toBeNull();
+  });
+
+  it('keeps a warehouse to its sizes, floors and parking, without rooms', () => {
+    const data = toUpdateData(
+      { bedrooms: 3, bathrooms: 2, furnishing: 'Fully Furnished', floors: 2 },
+      'Warehouse',
+    );
+
+    expect(data.floors).toBe(2);
+    expect(data.bedrooms).toBeNull();
+    expect(data.bathrooms).toBeNull();
+    expect(data.furnishing).toBeNull();
   });
 
   it('keeps the current type when none is sent', () => {
@@ -114,16 +140,22 @@ describe('property DTOs', () => {
     ['bedrooms', { bedrooms: 2.5 }],
     ['price', { price: -1 }],
   ])('refuses a bad %s', async (field, change) => {
-    expect(await errorsOf(CreatePropertyDto, { ...condo, ...change })).toEqual([field]);
+    expect(await errorsOf(CreatePropertyDto, { ...condo, ...change })).toEqual([
+      field,
+    ]);
   });
 
   it('lets an edit clear a detail but never the title, price or type', async () => {
-    expect(await errorsOf(UpdatePropertyDto, { bedrooms: null, viewType: null })).toEqual([]);
-    expect(await errorsOf(UpdatePropertyDto, { title: null, price: null, propertyType: null })).toEqual([
-      'title',
-      'price',
-      'propertyType',
-    ]);
+    expect(
+      await errorsOf(UpdatePropertyDto, { bedrooms: null, viewType: null }),
+    ).toEqual([]);
+    expect(
+      await errorsOf(UpdatePropertyDto, {
+        title: null,
+        price: null,
+        propertyType: null,
+      }),
+    ).toEqual(['title', 'price', 'propertyType']);
     expect(await errorsOf(UpdatePropertyDto, {})).toEqual([]);
   });
 });

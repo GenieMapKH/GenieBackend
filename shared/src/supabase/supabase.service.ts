@@ -27,10 +27,12 @@ export class SupabaseService {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be provided');
+      throw new Error(
+        'SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be provided',
+      );
     }
 
-    this.supabase = createClient(supabaseUrl, supabaseKey);
+    this.supabase = createClient<any, 'public'>(supabaseUrl, supabaseKey);
   }
 
   /**
@@ -38,25 +40,40 @@ export class SupabaseService {
    * the limits it was made with, so they are applied to it again: a limit
    * added later must reach buckets that were created before it.
    */
-  async ensureBucket(name: string, options: { public: boolean; fileSizeLimit?: number; allowedMimeTypes?: string[] }) {
+  async ensureBucket(
+    name: string,
+    options: {
+      public: boolean;
+      fileSizeLimit?: number;
+      allowedMimeTypes?: string[];
+    },
+  ) {
     const { data: buckets, error } = await this.supabase.storage.listBuckets();
     if (error) throw error;
 
     if (buckets.some((bucket) => bucket.name === name)) {
-      const { error: updateError } = await this.supabase.storage.updateBucket(name, options);
+      const { error: updateError } = await this.supabase.storage.updateBucket(
+        name,
+        options,
+      );
       if (updateError) throw updateError;
       this.logger.log(`Bucket ${name} already exists; limits applied.`);
       return;
     }
     this.logger.log(`Bucket ${name} not found, creating it...`);
-    const { error: createError } = await this.supabase.storage.createBucket(name, options);
+    const { error: createError } = await this.supabase.storage.createBucket(
+      name,
+      options,
+    );
     if (createError) throw createError;
     this.logger.log(`Bucket ${name} created successfully.`);
   }
 
   /** A URL the client can PUT one file to, without any other credentials. */
   async createSignedUploadUrl(bucket: string, path: string): Promise<string> {
-    const { data, error } = await this.supabase.storage.from(bucket).createSignedUploadUrl(path);
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .createSignedUploadUrl(path);
     if (error || !data?.signedUrl) {
       throw error ?? new Error(`No upload URL returned for ${bucket}/${path}`);
     }
@@ -64,13 +81,43 @@ export class SupabaseService {
   }
 
   /** A short-lived URL to read one file of a private bucket. Null if the file does not exist. */
-  async createSignedDownloadUrl(bucket: string, path: string, expiresInSeconds: number): Promise<string | null> {
-    const { data, error } = await this.supabase.storage.from(bucket).createSignedUrl(path, expiresInSeconds);
+  async createSignedDownloadUrl(
+    bucket: string,
+    path: string,
+    expiresInSeconds: number,
+  ): Promise<string | null> {
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, expiresInSeconds);
     if (error) {
       if (/not.?found/i.test(error.message)) return null;
       throw error;
     }
     return data.signedUrl;
+  }
+
+  /** The bytes of one stored file. */
+  async downloadFile(bucket: string, path: string): Promise<Buffer> {
+    const { data, error } = await this.supabase.storage
+      .from(bucket)
+      .download(path);
+    if (error || !data) {
+      throw error ?? new Error(`Nothing downloaded for ${bucket}/${path}`);
+    }
+    return Buffer.from(await data.arrayBuffer());
+  }
+
+  /** Stores [data] at [path], replacing a file already there. */
+  async uploadFile(
+    bucket: string,
+    path: string,
+    data: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    const { error } = await this.supabase.storage
+      .from(bucket)
+      .upload(path, data, { contentType, upsert: true });
+    if (error) throw error;
   }
 
   /** The address of a file in a public bucket. */
@@ -81,7 +128,9 @@ export class SupabaseService {
   /** Deletes files of a bucket. Ones that do not exist are ignored. */
   async removeFiles(bucket: string, paths: string[]): Promise<void> {
     for (let start = 0; start < paths.length; start += LIST_PAGE_SIZE) {
-      const { error } = await this.supabase.storage.from(bucket).remove(paths.slice(start, start + LIST_PAGE_SIZE));
+      const { error } = await this.supabase.storage
+        .from(bucket)
+        .remove(paths.slice(start, start + LIST_PAGE_SIZE));
       if (error) throw error;
     }
   }
@@ -91,17 +140,23 @@ export class SupabaseService {
     // Storage lists one level at a time and at most a page of it, so keep
     // going until the level is empty. A folder disappears with its last file.
     for (let page = 0; page < MAX_LIST_PAGES; page++) {
-      const { data, error } = await this.supabase.storage.from(bucket).list(folder, { limit: LIST_PAGE_SIZE });
+      const { data, error } = await this.supabase.storage
+        .from(bucket)
+        .list(folder, { limit: LIST_PAGE_SIZE });
       if (error) throw error;
       if (!data || data.length === 0) return;
 
       // A folder is listed without an id.
-      const files = data.filter((entry) => entry.id !== null).map((entry) => `${folder}/${entry.name}`);
+      const files = data
+        .filter((entry) => entry.id !== null)
+        .map((entry) => `${folder}/${entry.name}`);
       for (const subfolder of data.filter((entry) => entry.id === null)) {
         await this.removeFolder(bucket, `${folder}/${subfolder.name}`);
       }
       await this.removeFiles(bucket, files);
     }
-    throw new Error(`${bucket}/${folder} still has files after ${MAX_LIST_PAGES} passes`);
+    throw new Error(
+      `${bucket}/${folder} still has files after ${MAX_LIST_PAGES} passes`,
+    );
   }
 }

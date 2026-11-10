@@ -4,7 +4,10 @@ import { BCRYPT_MAX_PASSWORD_BYTES, MaxBytes } from './max-bytes';
 
 /** The first password of an account that signs in with Google. */
 export class CreatePasswordDto {
-  @ApiProperty({ description: 'Firebase ID token from signing in with Google within the last 5 minutes.' })
+  @ApiProperty({
+    description:
+      'Firebase ID token from signing in with Google within the last 5 minutes.',
+  })
   @IsString()
   @IsNotEmpty()
   idToken!: string;

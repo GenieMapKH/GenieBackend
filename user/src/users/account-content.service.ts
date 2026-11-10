@@ -1,6 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AvatarService } from './avatar.service';
-import { CHAT_CONTENT, PROPERTY_CONTENT, RemoteAccountContent } from './remote-account-content';
+import {
+  CHAT_CONTENT,
+  PROPERTY_CONTENT,
+  RemoteAccountContent,
+} from './remote-account-content';
 import { UsersService } from './users.service';
 
 /**

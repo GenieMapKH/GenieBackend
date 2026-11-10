@@ -48,3 +48,21 @@ export abstract class RouteDistanceProvider {
     destinations: LatLng[],
   ): Promise<(RoadDistance | null)[]>;
 }
+
+/** The drawn road from one point to another. */
+export interface RoutePath {
+  meters: number;
+  /** Google's encoded polyline (precision 5) of the road. */
+  polyline: string;
+}
+
+/** Draws the road between two points, for the map. */
+export abstract class RoutePathProvider {
+  abstract readonly isConfigured: boolean;
+
+  /** The driving road from `origin` to `destination`; null when there is none. */
+  abstract drivePath(
+    origin: LatLng,
+    destination: LatLng,
+  ): Promise<RoutePath | null>;
+}

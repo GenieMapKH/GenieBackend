@@ -1,10 +1,16 @@
-import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from '@nestjs/common';
+import {
+  ArgumentMetadata,
+  BadRequestException,
+  Injectable,
+  PipeTransform,
+} from '@nestjs/common';
 
 /** True when any text inside `value` (at any depth) holds a NUL character. */
 export function containsNullByte(value: unknown): boolean {
   if (typeof value === 'string') return value.includes('\u0000');
   if (Array.isArray(value)) return value.some(containsNullByte);
-  if (value !== null && typeof value === 'object') return Object.values(value).some(containsNullByte);
+  if (value !== null && typeof value === 'object')
+    return Object.values(value).some(containsNullByte);
   return false;
 }
 
@@ -16,7 +22,10 @@ export function containsNullByte(value: unknown): boolean {
 @Injectable()
 export class RejectNullBytesPipe implements PipeTransform {
   transform(value: unknown, metadata: ArgumentMetadata): unknown {
-    if ((metadata.type === 'body' || metadata.type === 'query') && containsNullByte(value)) {
+    if (
+      (metadata.type === 'body' || metadata.type === 'query') &&
+      containsNullByte(value)
+    ) {
       throw new BadRequestException('Text cannot contain null characters');
     }
     return value;

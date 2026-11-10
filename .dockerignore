@@ -11,3 +11,11 @@ dist
 *.md
 **/*.spec.ts
 **/test
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+.vscode
+qa
+docs
+scripts
+railway

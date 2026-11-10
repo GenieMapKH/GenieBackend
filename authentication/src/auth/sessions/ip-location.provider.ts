@@ -54,15 +54,20 @@ interface IpWhoIsAnswer {
 @Injectable()
 export class IpWhoIsLocationProvider extends IpLocationProvider {
   private readonly logger = new Logger(IpWhoIsLocationProvider.name);
-  private readonly apiUrl = (process.env.IP_LOCATION_API_URL || DEFAULT_API_URL).replace(/\/+$/, '');
+  private readonly apiUrl = (
+    process.env.IP_LOCATION_API_URL || DEFAULT_API_URL
+  ).replace(/\/+$/, '');
 
   async locate(ipAddress: string): Promise<string | null> {
     if (this.apiUrl === DISABLED || !isPublicAddress(ipAddress)) return null;
 
     try {
-      const response = await fetch(`${this.apiUrl}/${encodeURIComponent(ipAddress)}?fields=success,city,country`, {
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
+      const response = await fetch(
+        `${this.apiUrl}/${encodeURIComponent(ipAddress)}?fields=success,city,country`,
+        {
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        },
+      );
       if (!response.ok) return null;
 
       const answer = (await response.json()) as IpWhoIsAnswer;
@@ -70,7 +75,9 @@ export class IpWhoIsLocationProvider extends IpLocationProvider {
       return [answer.city, answer.country].filter(Boolean).join(', ') || null;
     } catch (error) {
       // A device list without a place is better than a failed login.
-      this.logger.warn(`Could not look up a location: ${(error as Error).message}`);
+      this.logger.warn(
+        `Could not look up a location: ${(error as Error).message}`,
+      );
       return null;
     }
   }

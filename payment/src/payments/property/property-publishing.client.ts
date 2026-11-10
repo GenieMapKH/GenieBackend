@@ -1,5 +1,9 @@
-import { HttpException, Injectable, ServiceUnavailableException } from '@nestjs/common';
-import { ServiceCallError, ServiceClient } from '@genie/shared';
+import {
+  HttpException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { ServiceCallError, ServiceClient } from '@tilomnov/shared';
 
 const TIMEOUT_MS = 8_000;
 
@@ -23,23 +27,45 @@ export class PropertyPublishingClient {
   );
 
   /** Checks that `userId` may publish the listing and parks it as Pending. Answers the status it had. */
-  begin(userId: string, propertyId: string): Promise<{ previousStatus: string }> {
-    return this.send('POST', `/internal/properties/${propertyId}/begin-publish`, { userId });
+  begin(
+    userId: string,
+    propertyId: string,
+  ): Promise<{ previousStatus: string }> {
+    return this.send(
+      'POST',
+      `/internal/properties/${propertyId}/begin-publish`,
+      { userId },
+    );
   }
 
   /** A paid listing goes live; an unpaid one returns to Draft. Repeating it is harmless. */
   settle(propertyId: string, outcome: PublishOutcome): Promise<void> {
-    return this.send('POST', `/internal/properties/${propertyId}/settle-publish`, { outcome });
+    return this.send(
+      'POST',
+      `/internal/properties/${propertyId}/settle-publish`,
+      { outcome },
+    );
   }
 
   /** The payment could not be started: put the listing back as it was. */
   revert(propertyId: string, status: string): Promise<void> {
-    return this.send('POST', `/internal/properties/${propertyId}/revert-publish`, { status });
+    return this.send(
+      'POST',
+      `/internal/properties/${propertyId}/revert-publish`,
+      { status },
+    );
   }
 
-  private async send<T>(method: string, path: string, body: unknown): Promise<T> {
+  private async send<T>(
+    method: string,
+    path: string,
+    body: unknown,
+  ): Promise<T> {
     try {
-      return await this.client.call<T>(method, path, { body, timeoutMs: TIMEOUT_MS });
+      return await this.client.call<T>(method, path, {
+        body,
+        timeoutMs: TIMEOUT_MS,
+      });
     } catch (error) {
       throw toHttpException(error);
     }
@@ -49,6 +75,9 @@ export class PropertyPublishingClient {
 function toHttpException(error: unknown): unknown {
   if (!(error instanceof ServiceCallError)) return error;
   // 4xx: a rule of the property service said no. Anything else: it is not working.
-  if (error.status >= 400 && error.status < 500) return new HttpException(error.message, error.status);
-  return new ServiceUnavailableException('Listings are unavailable right now. Please try again.');
+  if (error.status >= 400 && error.status < 500)
+    return new HttpException(error.message, error.status);
+  return new ServiceUnavailableException(
+    'Listings are unavailable right now. Please try again.',
+  );
 }

@@ -20,16 +20,20 @@ export const ALLOWED_REQUEST_HEADERS = [
   'X-Guest-Session-ID', // guest browsing
   'X-Device-Name', // sign-in: "Logged-in devices"
   'X-Device-Platform',
+  'X-Device-Key', // sign-in: recognises a device that signed in before
   'If-None-Match', // asks again for a cached answer
 ];
 
-export function buildCorsOptions(env: NodeJS.ProcessEnv = process.env): CorsOptions {
+export function buildCorsOptions(
+  env: NodeJS.ProcessEnv = process.env,
+): CorsOptions {
   const allowedOrigins = (env.CORS_ORIGINS ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
-  const origin = allowedOrigins.length > 0 ? allowedOrigins : env.NODE_ENV !== 'production';
+  const origin =
+    allowedOrigins.length > 0 ? allowedOrigins : env.NODE_ENV !== 'production';
 
   return {
     origin,

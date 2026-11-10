@@ -1,18 +1,28 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NestMiddleware,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import {
+  ACCESS_TOKEN,
+  KeySetUnavailableError,
+  verifySignedToken,
+} from '@tilomnov/shared';
 import { NextFunction, Request, Response } from 'express';
-import * as jwt from 'jsonwebtoken';
 import { RevokedSessions } from './revoked-sessions';
 
 /**
  * Verifies the access token and writes the caller's id to `x-user-id`
  * for the downstream services. Anything the client sent in that header is
- * overwritten. A refresh token is refused: it is signed with the same key but
+ * overwritten. A refresh token is refused: it is signed with the same keys but
  * lives 30 days. So is the token of a device that was signed out, even though
- * it has not expired yet.
+ * it has not expired yet. The keys come from the authentication service (JWKS).
  */
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {
-  private readonly publicKey = process.env.JWT_PUBLIC_KEY?.replace(/\\n/g, '\n');
+  private readonly logger = new Logger(AuthMiddleware.name);
 
   constructor(private readonly revokedSessions: RevokedSessions) {}
 
@@ -22,28 +32,50 @@ export class AuthMiddleware implements NestMiddleware {
     }
 
     const token = this.readBearerToken(req);
-    if (!token || !this.publicKey) {
-      throw new UnauthorizedException('Missing or invalid Authorization header');
+    if (!token) {
+      throw new UnauthorizedException(
+        'Missing or invalid Authorization header',
+      );
     }
 
-    const { userId, sessionId } = this.verify(token);
+    const { userId, sessionId, role, adminMfa } = await this.verify(token);
+    if (role === 'admin' && !adminMfa) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
     if (sessionId && (await this.revokedSessions.has(sessionId))) {
       throw new UnauthorizedException('This device was signed out');
     }
 
     req.headers['x-user-id'] = userId;
+    req.headers['x-user-role'] = role;
+    req.headers['x-admin-mfa'] = adminMfa ? 'true' : 'false';
     next();
   }
 
   /** `sessionId` is missing from tokens issued before sessions existed. */
-  private verify(token: string): { userId: string; sessionId?: string } {
+  private async verify(token: string): Promise<{
+    userId: string;
+    sessionId?: string;
+    role: string;
+    adminMfa: boolean;
+  }> {
     try {
-      const payload = jwt.verify(token, this.publicKey!, { algorithms: ['RS256'] });
-      if (typeof payload === 'string' || !payload.sub) throw new Error('Token has no subject');
-      if (payload.typ !== 'access') throw new Error('Not an access token');
-
-      return { userId: payload.sub, sessionId: typeof payload.sid === 'string' ? payload.sid : undefined };
-    } catch {
+      const payload = await verifySignedToken(token, ACCESS_TOKEN);
+      return {
+        userId: payload.sub,
+        sessionId: typeof payload.sid === 'string' ? payload.sid : undefined,
+        // Missing roles on legacy tokens are regular-user sessions.
+        role: typeof payload.role === 'string' ? payload.role : 'user',
+        adminMfa: payload.adminMfa === true,
+      };
+    } catch (error) {
+      // Our outage, not a bad token: a 401 would make the app sign out.
+      if (error instanceof KeySetUnavailableError) {
+        this.logger.error(error.message);
+        throw new ServiceUnavailableException('Please try again in a moment');
+      }
       throw new UnauthorizedException('Invalid or expired token');
     }
   }

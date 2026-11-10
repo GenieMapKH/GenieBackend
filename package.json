@@ -1,5 +1,5 @@
 {
-  "name": "genie-backend",
+  "name": "tilomnov-backend",
   "version": "1.0.0",
   "workspaces": [
     "shared",
@@ -8,6 +8,7 @@
     "property",
     "chat",
     "payment",
+    "notification",
     "api-gateway"
   ],
   "description": "",
@@ -16,12 +17,15 @@
     "start:user": "npm run start:prod --workspace=user",
     "start:auth": "npm run start:prod --workspace=authentication",
     "start:gateway": "npm run start:prod --workspace=api-gateway",
-    "test": "npm test --workspaces --if-present",
+    "test": "npm test --workspaces --if-present && npm run test:scripts",
+    "test:scripts": "node --test \"scripts/test/*.test.js\" \"scripts/secret-rotation/test/*.test.js\"",
+    "lint": "npm run lint:check --workspaces --if-present",
     "db:migrate:deploy": "npx prisma migrate deploy",
-    "keys:generate": "node scripts/generate-jwt-keys.js",
+    "keys:generate": "node scripts/generate-secrets.js",
     "start:property": "npm run start:prod --workspace=property",
     "start:chat": "npm run start:prod --workspace=chat",
-    "start:payment": "npm run start:prod --workspace=payment"
+    "start:payment": "npm run start:prod --workspace=payment",
+    "start:notification": "npm run start:prod --workspace=notification"
   },
   "repository": {
     "type": "git",
@@ -41,6 +45,7 @@
     "prisma": "^7.9.1"
   },
   "overrides": {
+    "multer": "^2.5.0",
     "@nestjs/swagger": {
       "js-yaml": "5.5.0"
     }

@@ -1,6 +1,10 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { Redis } from 'ioredis';
-import { pubSubRedisOptions, RedisConnection, redisUrl } from '../redis/redis-connection';
+import {
+  pubSubRedisOptions,
+  RedisConnection,
+  redisUrl,
+} from '../redis/redis-connection';
 
 /** Written by the authentication service (`RevokedSessionStore`): spelled the same there. */
 const KEY_PREFIX = 'sessions:revoked:';
@@ -23,7 +27,9 @@ export class RevokedSessions implements OnModuleInit, OnModuleDestroy {
 
   async has(sessionId: string): Promise<boolean> {
     try {
-      return (await this.connection.client.exists(KEY_PREFIX + sessionId)) === 1;
+      return (
+        (await this.connection.client.exists(KEY_PREFIX + sessionId)) === 1
+      );
     } catch {
       return false;
     }

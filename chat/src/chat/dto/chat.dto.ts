@@ -8,92 +8,19 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  Matches,
   Max,
   MaxLength,
   Min,
 } from 'class-validator';
 
-/** Base64 length limits. A nonce is 24 bytes; the text limit is about 12 KB. */
+/** Transport length limits, including the managed-format marker. */
 const MAX_CIPHERTEXT_LENGTH = 16384;
 const MAX_NONCE_LENGTH = 64;
 const MAX_PAGE_SIZE = 100;
-/** An encrypted 32-byte key is 64 characters; this leaves room without accepting junk. */
-const MAX_BACKUP_FIELD_LENGTH = 512;
-/** Exactly 32 bytes as base64. */
-const BACKUP_VERIFIER = /^[A-Za-z0-9+/]{43}=$/;
-/** A signed token is a few hundred characters. */
-const MAX_PROOF_TOKEN_LENGTH = 2048;
+/** Three UUIDs and two slashes. */
+const MAX_ATTACHMENT_PATH_LENGTH = 120;
 
-/** A 32-byte public key is 44 characters. */
-const MAX_PUBLIC_KEY_LENGTH = 128;
-
-export class SetPublicKeyDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(MAX_PUBLIC_KEY_LENGTH)
-  identityPublicKey: string;
-}
-
-/** How the owner shows an existing backup is theirs to replace or remove. */
-export class BackupOwnerProofDto {
-  /** Proof of the PIN of the backup this one replaces. Required when there is one... */
-  @IsOptional()
-  @Matches(BACKUP_VERIFIER)
-  currentBackupVerifier?: string;
-
-  /** ...or, for a forgotten PIN, the token from `POST /auth/account/password-proof`. */
-  @IsOptional()
-  @IsString()
-  @MaxLength(MAX_PROOF_TOKEN_LENGTH)
-  passwordProofToken?: string;
-}
-
-/** The client-encrypted key backup. The server never sees the plain keys or the PIN. */
-export class SetBackupDto extends BackupOwnerProofDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(MAX_BACKUP_FIELD_LENGTH)
-  backupBlob: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(MAX_BACKUP_FIELD_LENGTH)
-  backupSalt: string;
-
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(MAX_BACKUP_FIELD_LENGTH)
-  backupNonce: string;
-
-  /** Made from the PIN on the device. Sent again later to prove the PIN. */
-  @Matches(BACKUP_VERIFIER)
-  backupVerifier: string;
-
-  /**
-   * Always the chat PIN. Backups locked with the account password are no
-   * longer made: those that exist are moved to a PIN by the app.
-   */
-  @IsOptional()
-  @IsIn(['pin'])
-  protectedBy?: 'pin';
-}
-
-/** "Reset keys": a new key pair and its backup, replacing the old ones together. */
-export class ResetKeysDto extends SetBackupDto {
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(MAX_PUBLIC_KEY_LENGTH)
-  identityPublicKey: string;
-}
-
-/** One try at opening the backup. */
-export class UnlockBackupDto {
-  @Matches(BACKUP_VERIFIER)
-  backupVerifier: string;
-}
-
-/** `sendMessage` socket event: one message encrypted on the sender's device. */
+/** `sendMessage`: a validated transport envelope, encrypted by the server for storage. */
 export class SendMessageDto {
   /** Chosen by the sender's device, so a retried send is not stored twice. */
   @IsOptional()
@@ -112,6 +39,38 @@ export class SendMessageDto {
   @IsNotEmpty()
   @MaxLength(MAX_NONCE_LENGTH)
   nonce: string;
+
+  /** The message this one replies to, in the same conversation. */
+  @IsOptional()
+  @IsUUID()
+  replyToId?: string;
+}
+
+/** `POST /chat/messages/:messageId/edit`: the replacement managed envelope. */
+export class EditMessageDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_CIPHERTEXT_LENGTH)
+  ciphertext: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(MAX_NONCE_LENGTH)
+  nonce: string;
+}
+
+/** `POST /chat/messages/:messageId/delete`. */
+export class DeleteMessageDto {
+  /** Delete the sender's own message for both people, instead of hiding it from the caller. */
+  @IsOptional()
+  @IsBoolean()
+  forEveryone?: boolean;
+
+  /** With `forEveryone`: the file the message carried, `senderId/recipientId/fileId`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_ATTACHMENT_PATH_LENGTH)
+  attachmentPath?: string;
 }
 
 /** Asks for a place to upload one encrypted file for this recipient. */
@@ -141,11 +100,27 @@ export class MessagePageQuery {
   before?: string;
 }
 
-/** `GET /chat/conversations`: the main list, or the archive. */
+/**
+ * `GET /chat/conversations`: the main list, or the archive. With `limit`, one
+ * page after `cursor` (the `nextCursor` of the page before); without, the
+ * whole list as an array, as before pages existed.
+ */
 export class ConversationListQuery {
   @IsOptional()
   @IsIn(['main', 'archived'])
   list?: 'main' | 'archived';
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(MAX_PAGE_SIZE)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cursor?: string;
 }
 
 /** `POST /chat/conversations/:participantId/delete`. */

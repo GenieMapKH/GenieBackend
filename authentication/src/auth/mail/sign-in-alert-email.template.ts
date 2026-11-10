@@ -6,7 +6,7 @@ export interface SignInAlertDetails {
   signedInAt: Date;
 }
 
-export const SIGN_IN_ALERT_SUBJECT = 'New sign-in to your Genie account';
+export const SIGN_IN_ALERT_SUBJECT = 'New sign-in to your Tilomnov account';
 
 /** The device describes itself, so its words are never trusted as HTML. */
 function escapeHtml(text: string): string {
@@ -27,7 +27,9 @@ function row(label: string, value: string): string {
 
 /** HTML body of the "someone signed in to your account" email. */
 export function signInAlertEmailHtml(details: SignInAlertDetails): string {
-  const device = [details.deviceName, details.platform].filter(Boolean).join(', ') || 'Unknown device';
+  const device =
+    [details.deviceName, details.platform].filter(Boolean).join(', ') ||
+    'Unknown device';
   const time = `${details.signedInAt.toISOString().replace('T', ' ').slice(0, 16)} UTC`;
 
   return `<!DOCTYPE html>
@@ -51,7 +53,7 @@ export function signInAlertEmailHtml(details: SignInAlertDetails): string {
             <td style="padding: 0 40px 32px;">
               <h1 style="margin: 0 0 12px; font-size: 20px; font-weight: 700; color: #0F172A; text-align: center;">New sign-in to your account</h1>
               <p style="margin: 0 0 20px; font-size: 15px; line-height: 24px; color: #475569; text-align: center;">
-                Another device just signed in to your Genie account while you were signed in elsewhere.
+                Another device just signed in to your Tilomnov account while you were signed in elsewhere.
               </p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 0 0 24px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 12px 16px;">
                 ${row('Device', device)}
@@ -62,7 +64,7 @@ export function signInAlertEmailHtml(details: SignInAlertDetails): string {
                 <tr>
                   <td style="padding: 14px 16px;">
                     <p style="margin: 0; font-size: 13px; line-height: 20px; color: #92400E;">
-                      <strong>Not you?</strong> Open Genie on a device you trust, go to
+                      <strong>Not you?</strong> Open Tilomnov on a device you trust, go to
                       User &gt; Security &gt; Logged-in devices, sign that device out, then change your password.
                     </p>
                   </td>

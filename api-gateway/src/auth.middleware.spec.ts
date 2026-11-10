@@ -1,33 +1,47 @@
-import { UnauthorizedException } from '@nestjs/common';
-import { generateKeyPairSync } from 'crypto';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { fakeAuthKeys, FakeAuthKeys } from '@tilomnov/shared/testing';
+import { generateKeyPairSync, KeyObject } from 'crypto';
 import * as jwt from 'jsonwebtoken';
-
-const { publicKey, privateKey } = generateKeyPairSync('rsa', {
-  modulusLength: 2048,
-  publicKeyEncoding: { type: 'spki', format: 'pem' },
-  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-});
-
-// The middleware reads the key when it is constructed.
-process.env.JWT_PUBLIC_KEY = publicKey;
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { AuthMiddleware } = require('./auth.middleware') as typeof import('./auth.middleware');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { RevokedSessions } = require('./revoked-sessions') as typeof import('./revoked-sessions');
+import { AuthMiddleware } from './auth.middleware';
+import { RevokedSessions } from './revoked-sessions';
 
 describe('AuthMiddleware', () => {
+  // The authentication service's JWKS, answered in-process.
+  let keys: FakeAuthKeys;
+  let privateKey: KeyObject;
+  let publicKey: KeyObject;
+  beforeAll(() => {
+    keys = fakeAuthKeys();
+    ({ privateKey, publicKey } = keys);
+  });
+  afterAll(() => keys.restore());
+
   /** The sessions that were signed out. */
   const signedOut = new Set<string>();
-  const middleware = new AuthMiddleware({ has: async (sessionId: string) => signedOut.has(sessionId) } as never);
+  const middleware = new AuthMiddleware({
+    has: async (sessionId: string) => signedOut.has(sessionId),
+  } as never);
 
   const run = async (headers: Record<string, string>, method = 'GET') => {
-    const req = { method, headers: { ...headers } } as never as { headers: Record<string, string>; method: string };
+    const req = { method, headers: { ...headers } };
     const next = jest.fn();
     await middleware.use(req as never, {} as never, next);
     return { req, next };
   };
-  const sign = (options: jwt.SignOptions = {}, key = privateKey, claims: object = { typ: 'access' }) =>
-    jwt.sign({ sub: 'user-1', ...claims }, key, { algorithm: 'RS256', expiresIn: '5m', ...options });
+  const sign = (
+    options: jwt.SignOptions = {},
+    key: KeyObject = privateKey,
+    claims: object = { typ: 'access' },
+  ) =>
+    jwt.sign({ sub: 'user-1', ...claims }, key, {
+      algorithm: 'RS256',
+      expiresIn: '5m',
+      keyid: keys.kid,
+      ...options,
+    });
 
   beforeEach(() => signedOut.clear());
 
@@ -39,9 +53,38 @@ describe('AuthMiddleware', () => {
   });
 
   it('overwrites an x-user-id the client tried to supply', async () => {
-    const { req } = await run({ authorization: `Bearer ${sign()}`, 'x-user-id': 'someone-else' });
+    const { req } = await run({
+      authorization: `Bearer ${sign()}`,
+      'x-user-id': 'someone-else',
+    });
 
     expect(req.headers['x-user-id']).toBe('user-1');
+  });
+
+  it('overwrites a client-supplied admin role with the verified token role', async () => {
+    const { req } = await run({
+      authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'user' })}`,
+      'x-user-role': 'admin',
+    });
+    expect(req.headers['x-user-role']).toBe('user');
+  });
+
+  it('rejects password-only admin tokens and overwrites a forged email claim', async () => {
+    await expect(
+      run({
+        authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'admin' })}`,
+        'x-admin-mfa': 'true',
+      }),
+    ).rejects.toThrow(UnauthorizedException);
+    const { req } = await run({
+      authorization: `Bearer ${sign()}`,
+      'x-admin-mfa': 'true',
+    });
+    expect(req.headers['x-admin-mfa']).toBe('false');
+    const verified = await run({
+      authorization: `Bearer ${sign({}, privateKey, { typ: 'access', role: 'admin', adminMfa: true })}`,
+    });
+    expect(verified.req.headers['x-admin-mfa']).toBe('true');
   });
 
   it('accepts the scheme in any letter case', async () => {
@@ -53,43 +96,98 @@ describe('AuthMiddleware', () => {
 
   it('rejects a missing or malformed Authorization header', async () => {
     await expect(run({})).rejects.toThrow(UnauthorizedException);
-    await expect(run({ authorization: 'Basic abc' })).rejects.toThrow(UnauthorizedException);
-    await expect(run({ authorization: 'Bearer' })).rejects.toThrow(UnauthorizedException);
+    await expect(run({ authorization: 'Basic abc' })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    await expect(run({ authorization: 'Bearer' })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects an expired token', async () => {
-    await expect(run({ authorization: `Bearer ${sign({ expiresIn: -10 })}` })).rejects.toThrow(UnauthorizedException);
+    await expect(
+      run({ authorization: `Bearer ${sign({ expiresIn: -10 })}` }),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('rejects a token signed with a different key', async () => {
-    const other = generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
-    });
+    const other = generateKeyPairSync('rsa', { modulusLength: 2048 });
 
-    await expect(run({ authorization: `Bearer ${sign({}, other.privateKey)}` })).rejects.toThrow(UnauthorizedException);
+    await expect(
+      run({ authorization: `Bearer ${sign({}, other.privateKey)}` }),
+    ).rejects.toThrow(UnauthorizedException);
   });
 
   it('rejects a refresh token, and a token that does not say what it is', async () => {
-    const refresh = sign({ expiresIn: '30d' }, privateKey, { typ: 'refresh', jti: 'token-1' });
+    const refresh = sign({ expiresIn: '30d' }, privateKey, {
+      typ: 'refresh',
+      jti: 'token-1',
+    });
     const untyped = sign({}, privateKey, {});
 
-    await expect(run({ authorization: `Bearer ${refresh}` })).rejects.toThrow(UnauthorizedException);
-    await expect(run({ authorization: `Bearer ${untyped}` })).rejects.toThrow(UnauthorizedException);
+    await expect(run({ authorization: `Bearer ${refresh}` })).rejects.toThrow(
+      UnauthorizedException,
+    );
+    await expect(run({ authorization: `Bearer ${untyped}` })).rejects.toThrow(
+      UnauthorizedException,
+    );
   });
 
   it('rejects the proof and internal tokens the authentication service also signs', async () => {
     for (const typ of ['password-proof', 'internal']) {
       const token = sign({}, privateKey, { typ });
-      await expect(run({ authorization: `Bearer ${token}` })).rejects.toThrow(UnauthorizedException);
+      await expect(run({ authorization: `Bearer ${token}` })).rejects.toThrow(
+        UnauthorizedException,
+      );
     }
   });
 
   it('rejects an HS256 token (algorithm confusion)', async () => {
-    const forged = jwt.sign({ sub: 'user-1' }, publicKey, { algorithm: 'HS256' });
+    const pem = publicKey.export({ type: 'spki', format: 'pem' }).toString();
+    const forged = jwt.sign({ sub: 'user-1', typ: 'access' }, pem, {
+      algorithm: 'HS256',
+      keyid: keys.kid,
+    });
 
-    await expect(run({ authorization: `Bearer ${forged}` })).rejects.toThrow(UnauthorizedException);
+    await expect(run({ authorization: `Bearer ${forged}` })).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects a token naming a key the authentication service does not publish', async () => {
+    await expect(
+      run({ authorization: `Bearer ${sign({ keyid: 'retired-key' })}` }),
+    ).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('answers 503, not 401, when the keys cannot be loaded, so the app does not sign out', async () => {
+    keys.restore();
+    const down = fakeAuthKeys();
+    down.setDown(true);
+    try {
+      await expect(
+        run({ authorization: `Bearer ${down.sign({ typ: 'access' })}` }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    } finally {
+      down.restore();
+      keys = fakeAuthKeys();
+      ({ privateKey, publicKey } = keys);
+    }
+  });
+
+  it('accepts a token from before rotation (no kid) while the old key is published', async () => {
+    keys.restore();
+    const legacy = fakeAuthKeys({ legacy: true });
+    try {
+      const { next } = await run({
+        authorization: `Bearer ${legacy.sign({ typ: 'access' })}`,
+      });
+      expect(next).toHaveBeenCalled();
+    } finally {
+      legacy.restore();
+      keys = fakeAuthKeys();
+      ({ privateKey, publicKey } = keys);
+    }
   });
 
   it('lets CORS preflight requests through without a token', async () => {
@@ -106,20 +204,26 @@ describe('AuthMiddleware', () => {
 
       signedOut.add('phone');
 
-      await expect(run({ authorization: `Bearer ${token('phone')}` })).rejects.toThrow('This device was signed out');
+      await expect(
+        run({ authorization: `Bearer ${token('phone')}` }),
+      ).rejects.toThrow('This device was signed out');
     });
 
     it("does not take the account's other devices with it", async () => {
       signedOut.add('phone');
 
-      const { next } = await run({ authorization: `Bearer ${token('laptop')}` });
+      const { next } = await run({
+        authorization: `Bearer ${token('laptop')}`,
+      });
 
       expect(next).toHaveBeenCalled();
     });
   });
 
   it('keeps working while Redis is down: the token still expires on its own', async () => {
-    const revoked = new RevokedSessions({ client: { exists: () => Promise.reject(new Error('Redis is down')) } } as never);
+    const revoked = new RevokedSessions({
+      client: { exists: () => Promise.reject(new Error('Redis is down')) },
+    } as never);
     const next = jest.fn();
     const token = sign({}, privateKey, { typ: 'access', sid: 'phone' });
 

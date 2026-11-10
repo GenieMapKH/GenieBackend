@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { Redis } from 'ioredis';
 
 export function redisUrl(): string {
@@ -25,7 +30,10 @@ export class RedisConnection implements OnModuleInit, OnModuleDestroy {
   constructor() {
     // Logged once per outage, not once per failed command.
     this.client.on('error', (error: Error & { code?: string }) => {
-      if (this.healthy) this.logger.error(`Redis is unavailable: ${error.message || error.code || 'cannot connect'}`);
+      if (this.healthy)
+        this.logger.error(
+          `Redis is unavailable: ${error.message || error.code || 'cannot connect'}`,
+        );
       this.healthy = false;
     });
     this.client.on('ready', () => {

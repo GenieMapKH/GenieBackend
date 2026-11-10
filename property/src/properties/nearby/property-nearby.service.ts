@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@genie/shared';
+import { PrismaService } from '@tilomnov/shared';
 import { PublicPropertyCache } from '../services/public-property-cache.service';
 import {
   categoriesFor,
@@ -66,7 +66,10 @@ export class PropertyNearbyService {
 
   private refreshInBackground(propertyId: string): void {
     this.refresh(propertyId).catch((error: unknown) =>
-      this.logger.error(`Nearby places of ${propertyId} not updated`, error as Error),
+      this.logger.error(
+        `Nearby places of ${propertyId} not updated`,
+        error as Error,
+      ),
     );
   }
 
@@ -109,13 +112,19 @@ export class PropertyNearbyService {
   }
 
   /** Road distances, or none at all when the routing provider is unavailable. */
-  private async roadDistances(origin: LatLng, places: LatLng[]): Promise<(RoadDistance | null)[]> {
-    if (!this.routes.isConfigured || places.length === 0) return places.map(() => null);
+  private async roadDistances(
+    origin: LatLng,
+    places: LatLng[],
+  ): Promise<(RoadDistance | null)[]> {
+    if (!this.routes.isConfigured || places.length === 0)
+      return places.map(() => null);
     try {
       return await this.routes.roadDistances(origin, places);
     } catch (error) {
       // The places are still worth showing, with the straight-line distance.
-      this.logger.warn(`Road distances unavailable: ${(error as Error).message}`);
+      this.logger.warn(
+        `Road distances unavailable: ${(error as Error).message}`,
+      );
       return places.map(() => null);
     }
   }
@@ -137,11 +146,17 @@ export class PropertyNearbyService {
         roadMeters: road?.meters ?? null,
         driveSeconds: road?.seconds ?? null,
       }))
-      .sort((a, b) => (a.roadMeters ?? Infinity) - (b.roadMeters ?? Infinity) || a.straightMeters - b.straightMeters)
+      .sort(
+        (a, b) =>
+          (a.roadMeters ?? Infinity) - (b.roadMeters ?? Infinity) ||
+          a.straightMeters - b.straightMeters,
+      )
       .map((row, rank) => ({ ...row, rank }));
   }
 
-  private async currentTarget(propertyId: string): Promise<LookupTarget | null> {
+  private async currentTarget(
+    propertyId: string,
+  ): Promise<LookupTarget | null> {
     const property = await this.prisma.property.findUnique({
       where: { id: propertyId },
       select: { lat: true, lng: true, keywords: { select: { keyword: true } } },
@@ -169,12 +184,18 @@ export class PropertyNearbyService {
 
       const now = await tx.property.findUnique({
         where: { id: propertyId },
-        select: { lat: true, lng: true, status: true, keywords: { select: { keyword: true } } },
+        select: {
+          lat: true,
+          lng: true,
+          status: true,
+          keywords: { select: { keyword: true } },
+        },
       });
       const stillCurrent =
         now?.lat === target.location.lat &&
         now?.lng === target.location.lng &&
-        categoriesFor(now.keywords.map((k) => k.keyword)).join() === target.categories.join();
+        categoriesFor(now.keywords.map((k) => k.keyword)).join() ===
+          target.categories.join();
       if (!stillCurrent) return null;
 
       await tx.propertyNearbyPlace.deleteMany({ where: { propertyId } });
@@ -190,6 +211,7 @@ export class PropertyNearbyService {
       return now.status;
     });
 
-    if (status === 'Active') await this.publicCache.changed(propertyId);
+    // Only the listing's own page shows its nearby places.
+    if (status === 'Active') await this.publicCache.detailChanged(propertyId);
   }
 }

@@ -1,13 +1,22 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { JsonCache, PrismaService } from '@genie/shared';
-import { CHAT_PIN_TTL_SECONDS, chatPinCacheKey } from './chat-pin-cache';
+import { MessageProtection } from './message-protection';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { PrismaService } from '@tilomnov/shared';
+import { BlockChecker } from './block-checker';
 import { ConversationStateService } from './conversation-state.service';
-import { PUBLIC_KEY_TTL_SECONDS, publicKeyCacheKey } from './public-key-cache';
+import { DISPLAY_FIELDS, displayName } from './display-name';
+import { betweenPair, toMessageView, withReplyTo } from './message-view';
+import { NotificationClient } from './notification.client';
 
 export interface Conversation {
   participantId: string;
   participantName: string;
   participantAvatar: string | null;
+  participantIsAdmin?: boolean;
   lastMessage: {
     id: string;
     ciphertext: string;
@@ -29,33 +38,21 @@ type LastMessageRow = Conversation['lastMessage'] & {
 /** Which of a user's conversations to list. */
 export type ConversationList = 'main' | 'archived';
 
-/** An encrypted message as the sender's device submits it. */
+/** A managed transport envelope as the sender submits it. */
 export interface NewMessage {
   /** Chosen by the sender's device, so a retried send is not stored twice. */
   id?: string;
   recipientId: string;
   ciphertext: string;
   nonce: string;
+  /** The message this one replies to, in the same conversation. */
+  replyToId?: string;
 }
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 
 /** A deactivated account is hidden from everyone else, as if it did not exist. */
 const VISIBLE = { deactivatedAt: null } as const;
-
-const DISPLAY_FIELDS = { name: true, username: true, email: true, phone: true, avatarUrl: true } as const;
-
-type DisplayFields = {
-  name: string | null;
-  username: string | null;
-  email: string | null;
-  phone: string | null;
-};
-
-/** The name a user chose, else their handle. */
-function displayName(user: DisplayFields | null): string {
-  return user?.name || user?.username || user?.email || user?.phone || 'Property Owner';
-}
 
 /**
  * Whether a conversation, as of its newest message, belongs in [list]. A
@@ -71,116 +68,123 @@ function isInList(row: LastMessageRow, list: ConversationList): boolean {
 export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly cache: JsonCache,
     private readonly states: ConversationStateService,
+    private readonly notifications: NotificationClient,
+    private readonly blocks: BlockChecker,
+    private readonly protection: MessageProtection,
   ) {}
 
   /**
-   * Publishes a device's public key. Once the account has a PIN-protected
-   * backup its key is fixed: a different one is refused here and can only come
-   * in through "reset keys" with the current PIN (`ChatBackupService.save`).
-   */
-  async setPublicKey(userId: string, publicKey: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { identityPublicKey: true, keyBackup: { select: { userId: true } } },
-    });
-    if (user?.identityPublicKey === publicKey) return { success: true };
-    if (user?.identityPublicKey && user.keyBackup) {
-      throw new ConflictException('This account already has chat keys. Replacing them needs the backup PIN.');
-    }
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { identityPublicKey: publicKey },
-    });
-    await this.cache.delete(publicKeyCacheKey(userId));
-    return { success: true };
-  }
-
-  /** Fetched every time a conversation opens. */
-  getPublicKey(userId: string) {
-    return this.cache.remember(publicKeyCacheKey(userId), PUBLIC_KEY_TTL_SECONDS, async () => {
-      const user = await this.prisma.user.findFirst({
-        where: { id: userId, ...VISIBLE },
-        select: { identityPublicKey: true },
-      });
-      if (!user || !user.identityPublicKey) {
-        throw new NotFoundException('Public key not found for this user');
-      }
-      return { identityPublicKey: user.identityPublicKey };
-    });
-  }
-
-  /** Called when the account is hidden, shown again or deleted. */
-  async forgetPublicKey(userId: string): Promise<void> {
-    await this.cache.delete(publicKeyCacheKey(userId));
-  }
-
-  /**
-   * Stores an encrypted message and returns it with the sender's display info.
-   * Sending the same `id` again returns the stored message instead of a duplicate.
+   * Stores an encrypted message and returns it with the sender's display info
+   * and the message it replies to. Sending the same `id` again returns the
+   * stored message instead of a duplicate. A new message also reaches the
+   * recipient's phones as a push; a retried one does not ping them twice.
    */
   async sendMessage(senderId: string, message: NewMessage) {
     if (message.recipientId === senderId) {
       throw new BadRequestException('You cannot message yourself');
     }
 
-    await this.requireChatPin(senderId);
-
-    if (!(await this.isVisible(message.recipientId))) {
+    // Independent of each other, so asked at once; a refusal is still the
+    // one the first failing check gives.
+    const [visible, replyToId, notBlocked] = await Promise.allSettled([
+      this.isVisible(message.recipientId),
+      this.quotable(senderId, message),
+      this.blocks.requireNotBlocked(senderId, message.recipientId),
+    ]);
+    if (visible.status === 'rejected') throw visible.reason;
+    if (!visible.value) {
       throw new NotFoundException('Recipient not found');
     }
+    if (notBlocked.status === 'rejected') throw notBlocked.reason;
+    if (replyToId.status === 'rejected') throw replyToId.reason;
 
-    const saved = await this.createOrFindMessage(senderId, message);
-    const { sender, ...stored } = saved;
-    return { ...stored, senderName: displayName(sender), senderAvatar: sender.avatarUrl || null };
-  }
-
-  /**
-   * Every account protects its chats with a chat PIN before it chats: the app
-   * asks for one right after sign-in, and this stops a build that skips it.
-   * A backup still locked with the account password does not count; nor does
-   * none at all. One from before PIN tries were counted does.
-   */
-  private async requireChatPin(userId: string): Promise<void> {
-    if (await this.cache.get<boolean>(chatPinCacheKey(userId))) return;
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { backupBlob: true, keyBackup: { select: { protectedBy: true } } },
-    });
-    const hasPin = user?.keyBackup?.protectedBy === 'pin' || (!user?.keyBackup && !!user?.backupBlob);
-    if (!hasPin) {
-      throw new ForbiddenException('Create your chat PIN before sending messages.');
+    const { saved, created } = await this.createOrFindMessage(
+      senderId,
+      message,
+      replyToId.value,
+    );
+    const { sender, ...stored } = toMessageView(saved);
+    const senderName = displayName(sender);
+    if (created) {
+      this.notifications.chatMessage({
+        recipientId: stored.recipientId,
+        senderId,
+        senderName,
+        messageId: stored.id,
+        ciphertext: stored.ciphertext,
+        nonce: stored.nonce,
+      });
     }
-    await this.cache.set(chatPinCacheKey(userId), true, CHAT_PIN_TTL_SECONDS);
+    return this.protection.view({
+      ...stored,
+      senderName,
+      senderAvatar: sender.avatarUrl || null,
+    });
   }
 
-  private async createOrFindMessage(senderId: string, message: NewMessage) {
-    const include = { sender: { select: DISPLAY_FIELDS } };
+  private async createOrFindMessage(
+    senderId: string,
+    message: NewMessage,
+    replyToId: string | null,
+  ) {
+    const include = {
+      sender: { select: DISPLAY_FIELDS },
+      ...withReplyTo(senderId),
+    };
     try {
-      return await this.prisma.message.create({
+      const saved = await this.prisma.message.create({
         data: {
           id: message.id,
           senderId,
           recipientId: message.recipientId,
-          ciphertext: message.ciphertext,
-          nonce: message.nonce,
+          ...this.protection.seal(message, {
+            id: message.id ?? '',
+            senderId,
+            recipientId: message.recipientId,
+          }),
+          replyToId,
         },
         include,
       });
+      return { saved, created: true };
     } catch (error) {
-      if (!message.id || (error as { code?: string }).code !== UNIQUE_CONSTRAINT_VIOLATION) {
+      if (
+        !message.id ||
+        (error as { code?: string }).code !== UNIQUE_CONSTRAINT_VIOLATION
+      ) {
         throw error;
       }
       // A retry of a message that was already stored.
-      const existing = await this.prisma.message.findUnique({ where: { id: message.id }, include });
+      const existing = await this.prisma.message.findUnique({
+        where: { id: message.id },
+        include,
+      });
       if (!existing || existing.senderId !== senderId) {
         throw new ConflictException('Message id is already in use');
       }
-      return existing;
+      return { saved: existing, created: false };
     }
+  }
+
+  /**
+   * The message [message] replies to, if it is in the same conversation. One
+   * deleted meanwhile (or never there) leaves an ordinary message: the reply
+   * is still worth sending.
+   */
+  private async quotable(
+    senderId: string,
+    message: NewMessage,
+  ): Promise<string | null> {
+    if (!message.replyToId) return null;
+    const quoted = await this.prisma.message.findFirst({
+      where: {
+        id: message.replyToId,
+        OR: betweenPair(senderId, message.recipientId),
+      },
+      select: { id: true },
+    });
+    return quoted?.id ?? null;
   }
 
   /**
@@ -201,22 +205,25 @@ export class ChatService {
    * themselves; `archived` lists only the archived ones. Either comes back
    * to the main list when a newer message arrives.
    */
-  async getConversations(userId: string, list: ConversationList = 'main'): Promise<Conversation[]> {
+  async getConversations(
+    userId: string,
+    list: ConversationList = 'main',
+  ): Promise<Conversation[]> {
     const lastMessages = await this.prisma.$queryRaw<LastMessageRow[]>`
       WITH RECURSIVE sent AS (
-        (SELECT recipient_id AS id FROM messages WHERE sender_id = ${userId}::uuid ORDER BY recipient_id LIMIT 1)
+        (SELECT recipient_id AS id FROM chat.messages WHERE sender_id = ${userId}::uuid ORDER BY recipient_id LIMIT 1)
         UNION ALL
         SELECT (
-          SELECT recipient_id FROM messages
+          SELECT recipient_id FROM chat.messages
           WHERE sender_id = ${userId}::uuid AND recipient_id > sent.id
           ORDER BY recipient_id LIMIT 1
         )
         FROM sent WHERE sent.id IS NOT NULL
       ), received AS (
-        (SELECT sender_id AS id FROM messages WHERE recipient_id = ${userId}::uuid ORDER BY sender_id LIMIT 1)
+        (SELECT sender_id AS id FROM chat.messages WHERE recipient_id = ${userId}::uuid ORDER BY sender_id LIMIT 1)
         UNION ALL
         SELECT (
-          SELECT sender_id FROM messages
+          SELECT sender_id FROM chat.messages
           WHERE recipient_id = ${userId}::uuid AND sender_id > received.id
           ORDER BY sender_id LIMIT 1
         )
@@ -237,16 +244,22 @@ export class ChatService {
         state.archived_at AS "archivedAt",
         state.cleared_at AS "clearedAt"
       FROM partners p
-      LEFT JOIN chat_conversation_states state
+      LEFT JOIN chat.chat_conversation_states state
         ON state.user_id = ${userId}::uuid AND state.partner_id = p.partner_id
       CROSS JOIN LATERAL (
         SELECT * FROM (
-          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM messages
+          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM chat.messages m
             WHERE sender_id = ${userId}::uuid AND recipient_id = p.partner_id
+              AND NOT EXISTS (
+                SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+              )
             ORDER BY created_at DESC LIMIT 1)
           UNION ALL
-          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM messages
+          (SELECT id, sender_id, ciphertext, nonce, created_at, read_at FROM chat.messages m
             WHERE sender_id = p.partner_id AND recipient_id = ${userId}::uuid
+              AND NOT EXISTS (
+                SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+              )
             ORDER BY created_at DESC LIMIT 1)
         ) both_directions
         ORDER BY created_at DESC
@@ -258,52 +271,86 @@ export class ChatService {
     const [partners, unread] = await Promise.all([
       this.prisma.user.findMany({
         where: { id: { in: shown.map((row) => row.partnerId) }, ...VISIBLE },
-        select: { id: true, ...DISPLAY_FIELDS },
+        select: { id: true, role: true, ...DISPLAY_FIELDS },
       }),
-      // Messages hidden by "delete for me" do not count as unread.
+      // Messages hidden by "delete for me" (the chat or one message) do not count as unread.
       this.prisma.$queryRaw<{ senderId: string; count: number }[]>`
         SELECT m.sender_id AS "senderId", count(*)::int AS count
-        FROM messages m
-        LEFT JOIN chat_conversation_states state
+        FROM chat.messages m
+        LEFT JOIN chat.chat_conversation_states state
           ON state.user_id = ${userId}::uuid AND state.partner_id = m.sender_id
         WHERE m.recipient_id = ${userId}::uuid
           AND m.read_at IS NULL
           AND (state.cleared_at IS NULL OR m.created_at > state.cleared_at)
+          AND NOT EXISTS (
+            SELECT 1 FROM chat.chat_hidden_messages h WHERE h.user_id = ${userId}::uuid AND h.message_id = m.id
+          )
         GROUP BY m.sender_id`,
     ]);
-    const partnerById = new Map(partners.map((partner) => [partner.id, partner]));
-    const unreadBySender = new Map(unread.map((group) => [group.senderId, group.count]));
+    const partnerById = new Map(
+      partners.map((partner) => [partner.id, partner]),
+    );
+    const unreadBySender = new Map(
+      unread.map((group) => [group.senderId, group.count]),
+    );
 
-    return shown
-      .filter((row) => partnerById.has(row.partnerId))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .map(({ partnerId, archivedAt: _archivedAt, clearedAt: _clearedAt, ...lastMessage }) => {
-        const partner = partnerById.get(partnerId)!;
-        return {
-          participantId: partnerId,
-          participantName: displayName(partner),
-          participantAvatar: partner.avatarUrl || null,
-          lastMessage,
-          unreadCount: unreadBySender.get(partnerId) ?? 0,
-        };
-      });
+    return (
+      shown
+        .filter((row) => partnerById.has(row.partnerId))
+        // Ties by the other person, so pages (conversation-pages.ts) are exact.
+        .sort(
+          (a, b) =>
+            b.createdAt.getTime() - a.createdAt.getTime() ||
+            (a.partnerId < b.partnerId ? -1 : 1),
+        )
+        .map(
+          ({
+            partnerId,
+            archivedAt: _archivedAt,
+            clearedAt: _clearedAt,
+            ...lastMessage
+          }) => {
+            const partner = partnerById.get(partnerId)!;
+            return {
+              participantId: partnerId,
+              participantName: displayName(partner),
+              participantAvatar: partner.avatarUrl || null,
+              participantIsAdmin: partner.role === 'admin',
+              lastMessage: this.protection.open(lastMessage, {
+                id: lastMessage.id,
+                senderId: lastMessage.senderId,
+                recipientId:
+                  lastMessage.senderId === userId ? partnerId : userId,
+              }),
+              unreadCount: unreadBySender.get(partnerId) ?? 0,
+            };
+          },
+        )
+    );
   }
 
   /**
    * The newest `limit` messages of a conversation (older than `before`, when
-   * given), returned oldest first so they can be shown top to bottom.
+   * given), returned oldest first so they can be shown top to bottom. Each
+   * carries the message it replies to. Messages the user deleted for
+   * themselves are left out.
    */
-  async getMessagesWith(userId: string, participantId: string, limit = 50, before?: string) {
-    if (!(await this.isVisible(participantId))) return [];
-
+  async getMessagesWith(
+    userId: string,
+    participantId: string,
+    limit = 50,
+    before?: string,
+  ) {
     // "Delete for me" hides everything up to that moment.
-    const clearedAt = await this.states.clearedAt(userId, participantId);
+    const [visible, clearedAt] = await Promise.all([
+      this.isVisible(participantId),
+      this.states.clearedAt(userId, participantId),
+    ]);
+    if (!visible) return [];
     const newestFirst = await this.prisma.message.findMany({
       where: {
-        OR: [
-          { senderId: userId, recipientId: participantId },
-          { senderId: participantId, recipientId: userId },
-        ],
+        OR: betweenPair(userId, participantId),
+        hiddenBy: { none: { userId } },
         ...((before || clearedAt) && {
           createdAt: {
             ...(before && { lt: new Date(before) }),
@@ -313,12 +360,18 @@ export class ChatService {
       },
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: withReplyTo(userId),
     });
-    return newestFirst.reverse();
+    return newestFirst
+      .reverse()
+      .map((row) => this.protection.view(toMessageView(row, clearedAt)));
   }
 
   private async isVisible(userId: string): Promise<boolean> {
-    const user = await this.prisma.user.findFirst({ where: { id: userId, ...VISIBLE }, select: { id: true } });
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, ...VISIBLE },
+      select: { id: true },
+    });
     return user !== null;
   }
 

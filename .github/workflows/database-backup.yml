@@ -1,0 +1,98 @@
+name: Database backup
+
+# Every night: dump the app's data, prove the dump restores, encrypt it to the
+# owner's key and keep it as an artifact for 90 days. GitHub only ever holds
+# the encrypted file; the key that opens it is kept offline (docs/BACKUPS.md).
+
+on:
+  schedule:
+    # 19:00 UTC is 02:00 in Cambodia, when the app is quietest.
+    - cron: '0 19 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never two dumps at once.
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    # An empty Postgres 17 to restore into, to prove each dump is usable.
+    services:
+      restore-check:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: restore-check
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
+
+    env:
+      DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+      CHECK_URL: postgresql://postgres:restore-check@localhost:5432/postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the settings
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::Add the BACKUP_DATABASE_URL secret (docs/BACKUPS.md)."; exit 1
+          fi
+          if [[ "$AGE_RECIPIENT" != age1* ]]; then
+            echo "::error::Add the BACKUP_AGE_RECIPIENT variable: the public key from age-keygen (docs/BACKUPS.md)."; exit 1
+          fi
+
+      - name: Install pg_dump 17 and age
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17 age
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+
+      - name: Dump
+        env:
+          # The dump crosses the internet: never without encryption.
+          PGSSLMODE: require
+        run: bash scripts/backup-database.sh "$RUNNER_TEMP/tilomnov.dump"
+
+      - name: Prove it restores
+        env:
+          TARGET_DATABASE_URL: ${{ env.CHECK_URL }}
+        run: |
+          bash scripts/restore-database.sh "$RUNNER_TEMP/tilomnov.dump"
+          url=$(sed -E 's/([?&])pgbouncer=[^&]*(&|$)/\1/; s/[?&]$//' <<<"$DATABASE_URL")
+          tables="SELECT count(*) FROM pg_tables WHERE schemaname IN ('public', 'account', 'listing', 'chat', 'payment', 'notification')"
+          live=$(PGSSLMODE=require psql "$url" -tAc "$tables")
+          restored=$(psql "$TARGET_DATABASE_URL" -tAc "$tables")
+          if [ "$live" != "$restored" ]; then
+            echo "::error::The live database has $live tables, the restored backup $restored."; exit 1
+          fi
+          echo "All $restored tables restored."
+
+      - name: Encrypt
+        run: |
+          name="tilomnov-db-$(date -u +%Y-%m-%dT%H%MZ).dump.age"
+          age --recipient "$AGE_RECIPIENT" --output "$RUNNER_TEMP/$name" "$RUNNER_TEMP/tilomnov.dump"
+          shred --remove "$RUNNER_TEMP/tilomnov.dump"
+          echo "BACKUP_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Keep the encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_NAME }}
+          path: ${{ runner.temp }}/${{ env.BACKUP_NAME }}
+          retention-days: 90
+          # Already compressed by pg_dump, and encrypted.
+          compression-level: 0
+          if-no-files-found: error

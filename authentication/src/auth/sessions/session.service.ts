@@ -1,16 +1,29 @@
-import { Inject, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 import { UserRepository } from '../users/user.repository';
 import { ClientContext } from './client-context';
-import { EstablishedDeviceService, SessionCaller, sessionStartOf } from './established-device.service';
-import { RefreshTokenRecord, RefreshTokenRepository } from './refresh-token.repository';
+import {
+  EstablishedDeviceService,
+  SessionCaller,
+  sessionStartOf,
+} from './established-device.service';
+import { refreshTokenMatches } from './refresh-token-hash';
+import {
+  RefreshTokenRecord,
+  RefreshTokenRepository,
+} from './refresh-token.repository';
 import { SessionRevocationService } from './session-revocation.service';
 import { TokenIssuerService, TokenPair } from './token-issuer.service';
 
 interface RefreshPayload {
   sub?: string;
   jti?: string;
+  adminMfa?: boolean;
 }
 
 /** One signed-in device, as the app lists it. */
@@ -38,17 +51,23 @@ export interface DeviceList {
 @Injectable()
 export class SessionService {
   constructor(
-    @Inject(JwtService) private readonly jwt: JwtService,
-    @Inject(RefreshTokenRepository) private readonly refreshTokens: RefreshTokenRepository,
+    @Inject(TokenSigner) private readonly signer: TokenSigner,
+    @Inject(RefreshTokenRepository)
+    private readonly refreshTokens: RefreshTokenRepository,
     @Inject(TokenIssuerService) private readonly issuer: TokenIssuerService,
     @Inject(UserRepository) private readonly users: UserRepository,
-    @Inject(SessionRevocationService) private readonly revocations: SessionRevocationService,
-    @Inject(EstablishedDeviceService) private readonly devices: EstablishedDeviceService,
+    @Inject(SessionRevocationService)
+    private readonly revocations: SessionRevocationService,
+    @Inject(EstablishedDeviceService)
+    private readonly devices: EstablishedDeviceService,
   ) {}
 
   /** Exchanges a refresh token for a new pair; the old token can never be used again. */
-  async refresh(refreshToken: string, client: ClientContext): Promise<TokenPair> {
-    const { sub, jti } = this.verifyRefreshToken(refreshToken);
+  async refresh(
+    refreshToken: string,
+    client: ClientContext,
+  ): Promise<TokenPair> {
+    const { sub, jti, adminMfa } = this.verifyRefreshToken(refreshToken);
 
     const record = await this.refreshTokens.findById(jti);
     if (!record) {
@@ -59,7 +78,7 @@ export class SessionService {
       await this.rejectRevokedToken(record, sub);
     }
 
-    if (!(await bcrypt.compare(refreshToken, record.token_hash))) {
+    if (!(await refreshTokenMatches(refreshToken, record.token_hash))) {
       throw new UnauthorizedException('Invalid refresh token signature');
     }
 
@@ -67,22 +86,38 @@ export class SessionService {
     const won = await this.refreshTokens.revokeIfActive(jti);
     if (!won) {
       await this.revocations.endAllSessions(sub);
-      throw new UnauthorizedException('Token theft detected (Concurrent). All sessions revoked.');
+      throw new UnauthorizedException(
+        'Token theft detected (Concurrent). All sessions revoked.',
+      );
     }
 
     const user = await this.users.findById(sub);
-    if (!user) {
+    if (!user || user.banned_at) {
       throw new UnauthorizedException('User no longer exists');
     }
+    if (user.role === 'admin' && !adminMfa) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
 
-    return this.issuer.issue(sub, user.role, client, record);
+    const { sessionId: _sessionId, ...tokens } = await this.issuer.issue(
+      sub,
+      user.role,
+      client,
+      record,
+      adminMfa,
+    );
+    return tokens;
   }
 
   /** Signs out the device that holds this refresh token. Expired tokens are accepted. */
   async logout(refreshToken: string): Promise<{ message: string }> {
     let payload: RefreshPayload;
     try {
-      payload = this.jwt.verify<RefreshPayload>(refreshToken, { ignoreExpiration: true });
+      payload = this.signer.verifyRefreshToken<RefreshPayload>(refreshToken, {
+        ignoreExpiration: true,
+      });
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -116,7 +151,10 @@ export class SessionService {
   }
 
   /** Signs one device out, at once. Signing out another device than the caller's needs an established device. */
-  async revokeSession(caller: SessionCaller, sessionId: string): Promise<{ message: string }> {
+  async revokeSession(
+    caller: SessionCaller,
+    sessionId: string,
+  ): Promise<{ message: string }> {
     if (sessionId !== caller.sessionId) {
       await this.devices.require(caller);
     }
@@ -139,26 +177,43 @@ export class SessionService {
    * session ends. If the session has no usable token, the device was simply
    * signed out (here or from another device) and only needs to log in again.
    */
-  private async rejectRevokedToken(record: RefreshTokenRecord, userId: string): Promise<never> {
-    const signedOut = record.session_id !== null && !(await this.refreshTokens.hasActiveToken(record.session_id));
+  private async rejectRevokedToken(
+    record: RefreshTokenRecord,
+    userId: string,
+  ): Promise<never> {
+    const signedOut =
+      record.session_id !== null &&
+      !(await this.refreshTokens.hasActiveToken(record.session_id));
     if (signedOut) {
-      throw new UnauthorizedException('This device was signed out. Please log in again.');
+      throw new UnauthorizedException(
+        'This device was signed out. Please log in again.',
+      );
     }
 
     await this.revocations.endAllSessions(userId);
-    throw new UnauthorizedException('Token theft detected. All sessions revoked.');
+    throw new UnauthorizedException(
+      'Token theft detected. All sessions revoked.',
+    );
   }
 
-  private verifyRefreshToken(token: string): { sub: string; jti: string } {
+  private verifyRefreshToken(token: string): {
+    sub: string;
+    jti: string;
+    adminMfa: boolean;
+  } {
     let payload: RefreshPayload;
     try {
-      payload = this.jwt.verify<RefreshPayload>(token);
+      payload = this.signer.verifyRefreshToken<RefreshPayload>(token);
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
     if (!payload.sub || !payload.jti) {
       throw new UnauthorizedException('Invalid refresh token payload');
     }
-    return { sub: payload.sub, jti: payload.jti };
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+      adminMfa: payload.adminMfa === true,
+    };
   }
 }

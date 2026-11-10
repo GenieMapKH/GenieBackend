@@ -7,7 +7,11 @@ import { signServiceToken, verifyServiceToken } from './service-token';
 const SECRET = 'a-shared-secret-of-at-least-thirty-two-characters';
 
 function requestWith(authorization: string | undefined) {
-  return { switchToHttp: () => ({ getRequest: () => ({ headers: { authorization } }) }) } as never;
+  return {
+    switchToHttp: () => ({
+      getRequest: () => ({ headers: { authorization } }),
+    }),
+  } as never;
 }
 
 describe('calls between services', () => {
@@ -18,7 +22,8 @@ describe('calls between services', () => {
   });
 
   afterAll(() => {
-    if (originalSecret === undefined) delete process.env.INTERNAL_SERVICE_SECRET;
+    if (originalSecret === undefined)
+      delete process.env.INTERNAL_SERVICE_SECRET;
     else process.env.INTERNAL_SERVICE_SECRET = originalSecret;
   });
 
@@ -27,10 +32,44 @@ describe('calls between services', () => {
       expect(verifyServiceToken(signServiceToken('payment'))).toBe('payment');
     });
 
+    describe('while the secret is being replaced', () => {
+      const NEW_SECRET = 'the-replacement-secret-also-thirty-two-plus-chars';
+      afterEach(() => delete process.env.INTERNAL_SERVICE_SECRET_PREVIOUS);
+
+      it('accept tokens signed with the previous secret too', () => {
+        const oldToken = signServiceToken('payment');
+        process.env.INTERNAL_SERVICE_SECRET = NEW_SECRET;
+        process.env.INTERNAL_SERVICE_SECRET_PREVIOUS = SECRET;
+
+        expect(verifyServiceToken(oldToken)).toBe('payment');
+        expect(verifyServiceToken(signServiceToken('chat'))).toBe('chat');
+      });
+
+      it('refuse the old secret once INTERNAL_SERVICE_SECRET_PREVIOUS is removed', () => {
+        const oldToken = signServiceToken('payment');
+        process.env.INTERNAL_SERVICE_SECRET = NEW_SECRET;
+
+        expect(() => verifyServiceToken(oldToken)).toThrow('invalid signature');
+      });
+
+      it('do not retry an expired token with the previous secret', () => {
+        process.env.INTERNAL_SERVICE_SECRET_PREVIOUS = NEW_SECRET;
+        const expired = jwt.sign(
+          { iss: 'payment', typ: 'service', exp: 1 },
+          SECRET,
+          { algorithm: 'HS256' },
+        );
+
+        expect(() => verifyServiceToken(expired)).toThrow('jwt expired');
+      });
+    });
+
     it('cannot be signed or checked without the shared secret', () => {
       delete process.env.INTERNAL_SERVICE_SECRET;
 
-      expect(() => signServiceToken('payment')).toThrow('INTERNAL_SERVICE_SECRET');
+      expect(() => signServiceToken('payment')).toThrow(
+        'INTERNAL_SERVICE_SECRET',
+      );
     });
 
     it('refuses a secret too short to be safe', () => {
@@ -40,10 +79,29 @@ describe('calls between services', () => {
     });
 
     it.each([
-      ['a token signed with another secret', () => jwt.sign({ iss: 'payment', typ: 'service' }, 'other-secret-other-secret-other-1234')],
-      ['an expired token', () => jwt.sign({ iss: 'payment', typ: 'service' }, SECRET, { expiresIn: -10 })],
+      [
+        'a token signed with another secret',
+        () =>
+          jwt.sign(
+            { iss: 'payment', typ: 'service' },
+            'other-secret-other-secret-other-1234',
+          ),
+      ],
+      [
+        'an expired token',
+        () =>
+          jwt.sign({ iss: 'payment', typ: 'service' }, SECRET, {
+            expiresIn: -10,
+          }),
+      ],
       // A user token has no business on an internal route, whatever it is signed with.
-      ['a token of another type', () => jwt.sign({ iss: 'payment', typ: 'access' }, SECRET, { expiresIn: 60 })],
+      [
+        'a token of another type',
+        () =>
+          jwt.sign({ iss: 'payment', typ: 'access' }, SECRET, {
+            expiresIn: 60,
+          }),
+      ],
       ['nonsense', () => 'not-a-token'],
     ])('are refused for %s', (_case, token) => {
       expect(() => verifyServiceToken(token())).toThrow();
@@ -54,21 +112,36 @@ describe('calls between services', () => {
     const guard = new (serviceCallGuard('payment'))();
 
     it('lets in a service on the list', () => {
-      expect(guard.canActivate(requestWith(`Bearer ${signServiceToken('payment')}`))).toBe(true);
+      expect(
+        guard.canActivate(requestWith(`Bearer ${signServiceToken('payment')}`)),
+      ).toBe(true);
     });
 
     it.each([
       ['no token', () => undefined],
-      ['a service that is not on the list', () => `Bearer ${signServiceToken('chat')}`],
-      ['a forged token', () => `Bearer ${jwt.sign({ iss: 'payment', typ: 'service' }, 'forged-forged-forged-forged-12345')}`],
+      [
+        'a service that is not on the list',
+        () => `Bearer ${signServiceToken('chat')}`,
+      ],
+      [
+        'a forged token',
+        () =>
+          `Bearer ${jwt.sign({ iss: 'payment', typ: 'service' }, 'forged-forged-forged-forged-12345')}`,
+      ],
     ])('refuses %s', (_case, authorization) => {
-      expect(() => guard.canActivate(requestWith(authorization()))).toThrow(UnauthorizedException);
+      expect(() => guard.canActivate(requestWith(authorization()))).toThrow(
+        UnauthorizedException,
+      );
     });
   });
 
   describe('ServiceClient', () => {
     const fetchMock = jest.fn();
-    const client = new ServiceClient('property', 'http://property.test/', 'payment');
+    const client = new ServiceClient(
+      'property',
+      'http://property.test/',
+      'payment',
+    );
 
     beforeEach(() => {
       fetchMock.mockReset();
@@ -76,13 +149,22 @@ describe('calls between services', () => {
     });
 
     it('signs the call as its owner and sends the body as JSON', async () => {
-      fetchMock.mockResolvedValue(new Response(JSON.stringify({ previousStatus: 'Draft' }), { status: 200 }));
+      fetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ previousStatus: 'Draft' }), {
+          status: 200,
+        }),
+      );
 
-      const result = await client.call('POST', '/internal/x', { body: { a: 1 }, timeoutMs: 1000 });
+      const result = await client.call('POST', '/internal/x', {
+        body: { a: 1 },
+        timeoutMs: 1000,
+      });
 
       const [url, init] = fetchMock.mock.calls[0];
       expect(url).toBe('http://property.test/internal/x');
-      expect(verifyServiceToken(init.headers.authorization.slice('Bearer '.length))).toBe('payment');
+      expect(
+        verifyServiceToken(init.headers.authorization.slice('Bearer '.length)),
+      ).toBe('payment');
       expect(init.body).toBe('{"a":1}');
       expect(result).toEqual({ previousStatus: 'Draft' });
     });
@@ -90,15 +172,22 @@ describe('calls between services', () => {
     it('returns nothing for an empty answer', async () => {
       fetchMock.mockResolvedValue(new Response(null, { status: 204 }));
 
-      await expect(client.call('DELETE', '/internal/x', { timeoutMs: 1000 })).resolves.toBeUndefined();
+      await expect(
+        client.call('DELETE', '/internal/x', { timeoutMs: 1000 }),
+      ).resolves.toBeUndefined();
     });
 
     it("keeps the other service's status and message on a refusal", async () => {
       fetchMock.mockResolvedValue(
-        new Response(JSON.stringify({ statusCode: 404, message: 'Property not found' }), { status: 404 }),
+        new Response(
+          JSON.stringify({ statusCode: 404, message: 'Property not found' }),
+          { status: 404 },
+        ),
       );
 
-      await expect(client.call('POST', '/internal/x', { timeoutMs: 1000 })).rejects.toMatchObject({
+      await expect(
+        client.call('POST', '/internal/x', { timeoutMs: 1000 }),
+      ).rejects.toMatchObject({
         status: 404,
         message: 'Property not found',
       });
@@ -107,7 +196,9 @@ describe('calls between services', () => {
     it('reports a service that cannot be reached with status 0', async () => {
       fetchMock.mockRejectedValue(new TypeError('fetch failed'));
 
-      const failure = await client.call('POST', '/internal/x', { timeoutMs: 1000 }).catch((error) => error);
+      const failure = await client
+        .call('POST', '/internal/x', { timeoutMs: 1000 })
+        .catch((error) => error);
 
       expect(failure).toBeInstanceOf(ServiceCallError);
       expect(failure.status).toBe(0);

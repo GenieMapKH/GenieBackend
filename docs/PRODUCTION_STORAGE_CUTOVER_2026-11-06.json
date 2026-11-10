@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-06T13:39:45.674Z",
+  "sourceProject": "nzurymawikvamjjfbdmz",
+  "destinationProject": "ovrwutngmsompqpchlgt",
+  "productionUsers": 2,
+  "productionImageRecords": 0,
+  "productionReferencesToStaging": 0,
+  "productionOwnedSourceObjects": 0,
+  "copiedObjects": 0,
+  "sourceObjectsUnchanged": 132,
+  "bucketsPrepared": 3,
+  "privateUploadDownloadSignedAccessVerified": true,
+  "temporaryObjectRemoved": true,
+  "postCutoverVerifiedAt": "2026-11-06T13:51:38.371Z",
+  "postCutoverObjectCounts": {
+    "Staging": 132,
+    "production": 0
+  },
+  "productionReferencesToStagingAfterCutover": 0
+}

@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, Type, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Type,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ServiceName, verifyServiceToken } from './service-token';
 
 /**
@@ -9,9 +14,13 @@ import { ServiceName, verifyServiceToken } from './service-token';
 export function serviceCallGuard(...allowed: ServiceName[]): Type<CanActivate> {
   class ServiceCallGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
-      const { headers } = context.switchToHttp().getRequest<{ headers: Record<string, string | undefined> }>();
+      const { headers } = context
+        .switchToHttp()
+        .getRequest<{ headers: Record<string, string | undefined> }>();
       const header = headers.authorization;
-      const token = header?.startsWith('Bearer ') ? header.slice('Bearer '.length) : null;
+      const token = header?.startsWith('Bearer ')
+        ? header.slice('Bearer '.length)
+        : null;
 
       try {
         if (token && allowed.includes(verifyServiceToken(token))) return true;

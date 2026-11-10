@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
-import { PrismaService } from "./prisma.service";
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class UsersService {
@@ -10,7 +10,7 @@ export class UsersService {
     return this.prisma.user.findMany({
       take: 10,
       orderBy: {
-        createdAt: "desc",
+        createdAt: 'desc',
       },
     });
   }

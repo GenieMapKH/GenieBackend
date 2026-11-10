@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
-import { SupabaseModule } from '@genie/shared';
+import { SupabaseModule } from '@tilomnov/shared';
 import { AccountContentService } from './account-content.service';
 import { AvatarService } from './avatar.service';
 import { InternalAccountsController } from './internal-accounts.controller';
-import { CHAT_CONTENT, PROPERTY_CONTENT, RemoteAccountContent } from './remote-account-content';
+import {
+  CHAT_CONTENT,
+  PROPERTY_CONTENT,
+  RemoteAccountContent,
+} from './remote-account-content';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
@@ -22,11 +26,19 @@ import { UsersService } from './users.service';
     AccountContentService,
     {
       provide: PROPERTY_CONTENT,
-      useFactory: () => new RemoteAccountContent('property', process.env.PROPERTY_SERVICE_URL || 'http://localhost:4003'),
+      useFactory: () =>
+        new RemoteAccountContent(
+          'property',
+          process.env.PROPERTY_SERVICE_URL || 'http://localhost:4003',
+        ),
     },
     {
       provide: CHAT_CONTENT,
-      useFactory: () => new RemoteAccountContent('chat', process.env.CHAT_SERVICE_URL || 'http://localhost:4004'),
+      useFactory: () =>
+        new RemoteAccountContent(
+          'chat',
+          process.env.CHAT_SERVICE_URL || 'http://localhost:4004',
+        ),
     },
   ],
 })

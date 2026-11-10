@@ -1,19 +1,25 @@
 import {
+  BadRequestException,
   ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JsonCache, PrismaService } from '@genie/shared';
+import { JsonCache, PrismaService } from '@tilomnov/shared';
 import { isGooglePhotoUrl } from './avatar-url';
 import { UpdateProfileDto, USERNAME_PATTERN } from './dto/update-profile.dto';
-import { PROPERTY_CONTENT, RemoteAccountContent } from './remote-account-content';
+import {
+  PROPERTY_CONTENT,
+  RemoteAccountContent,
+} from './remote-account-content';
 
 /** The columns the owner's own profile is built from. Never the password hash. */
 const PROFILE_SELECT = {
   id: true,
   email: true,
   phone: true,
+  emailVerified: true,
+  phoneVerified: true,
   username: true,
   name: true,
   firstName: true,
@@ -47,6 +53,7 @@ function toProfile<Row extends ProfileRow>(row: Row) {
 /** What any signed-in user may see about another user. No contact details. */
 const PUBLIC_PROFILE_SELECT = {
   id: true,
+  role: true,
   username: true,
   name: true,
   avatarUrl: true,
@@ -151,6 +158,10 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.phone !== undefined)
+      throw new BadRequestException(
+        'Change or verify your phone number through Account Security.',
+      );
     try {
       const profile = await this.prisma.user.update({
         where: { id: userId },

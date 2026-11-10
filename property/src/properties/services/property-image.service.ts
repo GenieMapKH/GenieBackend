@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@genie/shared';
+import { PrismaService } from '@tilomnov/shared';
 import { PropertyPhotoStorage } from '../storage/property-photo-storage';
 import { PropertyQueryService } from './property-query.service';
-import { PublicPropertyCache } from './public-property-cache.service';
+import { ListingChanges } from './listing-changes.service';
+import { PropertyThumbnailService } from './property-thumbnail.service';
 
 /** The most photos one listing can have. The app stops at the same number. */
 export const MAX_PROPERTY_IMAGES = 30;
@@ -19,14 +20,22 @@ export class PropertyImageService {
     private readonly prisma: PrismaService,
     private readonly query: PropertyQueryService,
     private readonly storage: PropertyPhotoStorage,
-    private readonly publicCache: PublicPropertyCache,
+    private readonly listingChanges: ListingChanges,
+    private readonly thumbnails: PropertyThumbnailService,
   ) {}
 
   /** One upload URL per name, in the same order, inside this listing's own folder. */
-  async createUploadUrls(userId: string, propertyId: string, fileNames: string[]) {
+  async createUploadUrls(
+    userId: string,
+    propertyId: string,
+    fileNames: string[],
+  ) {
     const property = await this.query.findOwned(userId, propertyId);
     this.ensureRoomFor(property.images.length, fileNames.length);
-    return this.storage.createPresignedUrls(uploadFolder(userId, propertyId), fileNames);
+    return this.storage.createPresignedUrls(
+      uploadFolder(userId, propertyId),
+      fileNames,
+    );
   }
 
   /**
@@ -35,30 +44,60 @@ export class PropertyImageService {
    * someone else's photo is refused. Confirming the same file again changes
    * nothing.
    */
-  async confirmUploads(userId: string, propertyId: string, fileNames: string[]) {
+  async confirmUploads(
+    userId: string,
+    propertyId: string,
+    fileNames: string[],
+  ) {
     const property = await this.query.findOwned(userId, propertyId);
     const folder = `${uploadFolder(userId, propertyId)}/`;
     const isOwnUpload = (fileName: string) =>
-      fileName.startsWith(folder) && this.storage.isUploadedFileName(fileName);
+      fileName.startsWith(folder) &&
+      this.storage.isUploadedFileName(fileName) &&
+      !this.storage.isThumbnailName(fileName);
     if (!fileNames.every(isOwnUpload)) {
       throw new BadRequestException('Unknown image file');
     }
 
     const attached = new Set(property.images.map((image) => image.url));
-    const urls = [...new Set(fileNames)]
-      .map((fileName) => this.storage.getPublicUrl(fileName))
-      .filter((url) => !attached.has(url));
-    this.ensureRoomFor(property.images.length, urls.length);
+    const added = [...new Set(fileNames)].filter(
+      (fileName) => !attached.has(this.storage.getPublicUrl(fileName)),
+    );
+    this.ensureRoomFor(property.images.length, added.length);
 
-    if (urls.length > 0) {
-      const lastOrder = Math.max(0, ...property.images.map((image) => image.order));
-      await this.prisma.propertyImage.createMany({
-        data: urls.map((url, index) => ({ propertyId, url, order: lastOrder + index + 1 })),
+    if (added.length > 0) {
+      const thumbnails = await this.thumbnails.createFor(added);
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${propertyId}, 3))`;
+        const current = await tx.property.findFirst({
+          where: { id: propertyId, userId, status: { not: 'Deleted' } },
+          select: { images: { select: { url: true, order: true } } },
+        });
+        if (!current)
+          throw new BadRequestException('Property is no longer available');
+        const attachedNow = new Set(current.images.map((image) => image.url));
+        const fresh = added.filter(
+          (fileName) => !attachedNow.has(this.storage.getPublicUrl(fileName)),
+        );
+        this.ensureRoomFor(current.images.length, fresh.length);
+        const lastOrder = Math.max(
+          0,
+          ...current.images.map((image) => image.order),
+        );
+        if (fresh.length)
+          await tx.propertyImage.createMany({
+            data: fresh.map((fileName, index) => ({
+              propertyId,
+              url: this.storage.getPublicUrl(fileName),
+              thumbnailUrl: thumbnails.get(fileName) ?? null,
+              order: lastOrder + index + 1,
+            })),
+          });
       });
 
       // New photos of a published listing should show up right away.
       if (property.status === 'Active') {
-        await this.publicCache.changed(propertyId);
+        await this.listingChanges.changed(property);
       }
     }
     return this.query.findOwned(userId, propertyId);
@@ -72,12 +111,16 @@ export class PropertyImageService {
   async removeImages(userId: string, propertyId: string, urls: string[]) {
     const property = await this.query.findOwned(userId, propertyId);
     const wanted = new Set(urls);
-    const removed = property.images.map((image) => image.url).filter((url) => wanted.has(url));
+    const removed = property.images
+      .map((image) => image.url)
+      .filter((url) => wanted.has(url));
     if (removed.length === 0) return property;
 
-    await this.prisma.propertyImage.deleteMany({ where: { propertyId, url: { in: removed } } });
+    await this.prisma.propertyImage.deleteMany({
+      where: { propertyId, url: { in: removed } },
+    });
     if (property.status === 'Active') {
-      await this.publicCache.changed(propertyId);
+      await this.listingChanges.changed(property);
     }
 
     const stillShown = await this.prisma.propertyImage.findMany({
@@ -133,7 +176,11 @@ export class PropertyImageService {
     return urls
       .map((url) => this.storage.uploadedFileNameOf(url))
       .filter((fileName): fileName is string => fileName !== null)
-      .filter((fileName) => this.storage.isLegacyFileName(fileName) || fileName.startsWith(`${userId}/`));
+      .filter(
+        (fileName) =>
+          this.storage.isLegacyFileName(fileName) ||
+          fileName.startsWith(`${userId}/`),
+      );
   }
 
   /**
@@ -145,13 +192,18 @@ export class PropertyImageService {
     try {
       await this.storage.removeUploadedFiles(fileNames);
     } catch (error) {
-      this.logger.error(`Could not delete ${fileNames.length} removed photo file(s)`, error);
+      this.logger.error(
+        `Could not delete ${fileNames.length} removed photo file(s)`,
+        error,
+      );
     }
   }
 
   private ensureRoomFor(existing: number, added: number) {
     if (existing + added > MAX_PROPERTY_IMAGES) {
-      throw new BadRequestException(`A listing can have at most ${MAX_PROPERTY_IMAGES} photos`);
+      throw new BadRequestException(
+        `A listing can have at most ${MAX_PROPERTY_IMAGES} photos`,
+      );
     }
   }
 }

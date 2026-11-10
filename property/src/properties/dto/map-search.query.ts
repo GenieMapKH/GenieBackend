@@ -1,14 +1,25 @@
-import { IsIn, IsOptional } from 'class-validator';
-import { LISTING_TYPES, PROPERTY_TYPES } from '../property-options';
+import { IntersectionType } from '@nestjs/swagger';
+import { MapFilter } from '../map-filter';
 import { MapBoundsQuery } from './map-bounds.query';
+import { MapFilterQuery, mapFilterOf } from './map-filter.query';
 
-/** The visible map rectangle plus the filter pills under the search bar. */
-export class MapSearchQuery extends MapBoundsQuery {
-  @IsIn(PROPERTY_TYPES)
-  @IsOptional()
-  propertyType?: string;
+/** The visible map rectangle plus the map filter. */
+export class MapSearchQuery extends IntersectionType(
+  MapBoundsQuery,
+  MapFilterQuery,
+) {
+  /** The filter part, for the services. */
+  filter(): MapFilter {
+    return mapFilterOf(this);
+  }
 
-  @IsIn(LISTING_TYPES)
-  @IsOptional()
-  listingType?: string;
+  /** The rectangle part. */
+  bounds() {
+    return {
+      minLat: this.minLat,
+      maxLat: this.maxLat,
+      minLng: this.minLng,
+      maxLng: this.maxLng,
+    };
+  }
 }

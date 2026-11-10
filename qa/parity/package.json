@@ -1,0 +1,17 @@
+{
+  "name": "tilomnov-parity-qa",
+  "private": true,
+  "description": "End-to-end use-case tests run against staging and production through the public gateway, with a side-by-side parity report.",
+  "type": "commonjs",
+  "scripts": {
+    "test:staging": "node run.js staging",
+    "test:production": "node run.js production",
+    "test:parity": "node run.js staging production"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

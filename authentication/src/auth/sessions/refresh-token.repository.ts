@@ -1,9 +1,11 @@
-import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../../supabase/supabase.module';
+import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@tilomnov/prisma-client';
+import { PrismaService } from '@tilomnov/shared';
+import { databaseCall } from '../database-call';
 
 /**
- * A row of `refresh_tokens` (column names are the database's snake_case).
+ * A row of `account.refresh_tokens` (column names are the database's snake_case,
+ * times are ISO strings).
  *
  * A session is one sign-in on one device: all the tokens it was given over
  * time share a `session_id`, and at most one of them is not revoked. Tokens
@@ -42,41 +44,59 @@ export interface NewRefreshToken {
   session: SessionDetails;
 }
 
-interface SessionIdRow {
-  session_id: string | null;
-}
+const RECORD_COLUMNS = {
+  id: true,
+  userId: true,
+  tokenHash: true,
+  revoked: true,
+  createdAt: true,
+  sessionId: true,
+  sessionStartedAt: true,
+  deviceName: true,
+  platform: true,
+  ipAddress: true,
+  location: true,
+} satisfies Prisma.RefreshTokenSelect;
 
-const RECORD_COLUMNS =
-  'id, user_id, token_hash, revoked, created_at, session_id, session_started_at, device_name, platform, ip_address, location';
+type RefreshTokenRow = Prisma.RefreshTokenGetPayload<{
+  select: typeof RECORD_COLUMNS;
+}>;
 
 /** All reads and writes of the `refresh_tokens` table. */
 @Injectable()
 export class RefreshTokenRepository {
   private readonly logger = new Logger(RefreshTokenRepository.name);
 
-  constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async insert(token: NewRefreshToken): Promise<void> {
-    const { error } = await this.supabase.from('refresh_tokens').insert([
-      {
-        id: token.id,
-        user_id: token.userId,
-        token_hash: token.tokenHash,
-        expires_at: token.expiresAt.toISOString(),
-        session_id: token.session.id,
-        session_started_at: token.session.startedAt,
-        device_name: token.session.deviceName,
-        platform: token.session.platform,
-        ip_address: token.session.ipAddress,
-        location: token.session.location,
-      },
-    ]);
-    this.throwIfFailed(error, 'Failed to store refresh token');
+    await databaseCall(this.logger, 'Failed to store refresh token', () =>
+      this.prisma.refreshToken.create({
+        data: {
+          id: token.id,
+          userId: token.userId,
+          tokenHash: token.tokenHash,
+          expiresAt: token.expiresAt,
+          sessionId: token.session.id,
+          sessionStartedAt: new Date(token.session.startedAt),
+          deviceName: token.session.deviceName,
+          platform: token.session.platform,
+          ipAddress: token.session.ipAddress,
+          location: token.session.location,
+        },
+        select: { id: true },
+      }),
+    );
   }
 
   async findById(id: string): Promise<RefreshTokenRecord | null> {
-    const { data } = await this.supabase.from('refresh_tokens').select(RECORD_COLUMNS).eq('id', id).maybeSingle();
-    return (data as RefreshTokenRecord | null) ?? null;
+    const row = await databaseCall(this.logger, 'Failed to read token', () =>
+      this.prisma.refreshToken.findUnique({
+        where: { id },
+        select: RECORD_COLUMNS,
+      }),
+    );
+    return row ? toRecord(row) : null;
   }
 
   /**
@@ -84,88 +104,123 @@ export class RefreshTokenRepository {
    * Returns false when someone else already revoked it (a concurrent or replayed use).
    */
   async revokeIfActive(id: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from('refresh_tokens')
-      .update({ revoked: true })
-      .eq('id', id)
-      .eq('revoked', false)
-      .select('id');
-    return !error && !!data && data.length > 0;
+    const { count } = await databaseCall(
+      this.logger,
+      'Failed to revoke token',
+      () =>
+        this.prisma.refreshToken.updateMany({
+          where: { id, revoked: false },
+          data: { revoked: true },
+        }),
+    );
+    return count > 0;
   }
 
   /** Revokes one token and returns the session it belonged to, if it had one. */
   async revokeById(id: string): Promise<string | null> {
-    const { data, error } = await this.supabase
-      .from('refresh_tokens')
-      .update({ revoked: true })
-      .eq('id', id)
-      .select('session_id');
-    this.throwIfFailed(error, 'Failed to revoke token');
-    return (data as SessionIdRow[] | null)?.[0]?.session_id ?? null;
+    const rows = await databaseCall(this.logger, 'Failed to revoke token', () =>
+      this.prisma.refreshToken.updateManyAndReturn({
+        where: { id },
+        data: { revoked: true },
+        select: { sessionId: true },
+      }),
+    );
+    return rows[0]?.sessionId ?? null;
   }
 
   /**
    * Revokes every usable token of the user, or every one outside
    * `exceptSessionId`. Returns the sessions that ended with them.
    */
-  async revokeAllForUser(userId: string, exceptSessionId?: string | null): Promise<string[]> {
-    let query = this.supabase.from('refresh_tokens').update({ revoked: true }).eq('user_id', userId).eq('revoked', false);
+  async revokeAllForUser(
+    userId: string,
+    exceptSessionId?: string | null,
+  ): Promise<string[]> {
+    const where: Prisma.RefreshTokenWhereInput = { userId, revoked: false };
     if (exceptSessionId) {
-      // Spelled out because `neq` alone would skip the tokens that have no session.
-      query = query.or(`session_id.is.null,session_id.neq.${exceptSessionId}`);
+      // Spelled out because `not` alone would skip the tokens that have no session.
+      where.OR = [{ sessionId: null }, { sessionId: { not: exceptSessionId } }];
     }
-    const { data, error } = await query.select('session_id');
-    this.throwIfFailed(error, 'Failed to revoke all sessions');
-    return ((data as SessionIdRow[] | null) ?? []).flatMap((row) => (row.session_id ? [row.session_id] : []));
+    const rows = await databaseCall(
+      this.logger,
+      'Failed to revoke all sessions',
+      () =>
+        this.prisma.refreshToken.updateManyAndReturn({
+          where,
+          data: { revoked: true },
+          select: { sessionId: true },
+        }),
+    );
+    return rows.flatMap((row) => (row.sessionId ? [row.sessionId] : []));
   }
 
   /** Ends one session of the user. Returns false if they have no such active session. */
   async revokeSession(userId: string, sessionId: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from('refresh_tokens')
-      .update({ revoked: true })
-      .eq('user_id', userId)
-      .eq('session_id', sessionId)
-      .eq('revoked', false)
-      .select('id');
-    this.throwIfFailed(error, 'Failed to revoke session');
-    return !!data && data.length > 0;
+    const { count } = await databaseCall(
+      this.logger,
+      'Failed to revoke session',
+      () =>
+        this.prisma.refreshToken.updateMany({
+          where: { userId, sessionId, revoked: false },
+          data: { revoked: true },
+        }),
+    );
+    return count > 0;
   }
 
   /** Whether the session still has a token that can be used. */
   async hasActiveToken(sessionId: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from('refresh_tokens')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('revoked', false)
-      .limit(1);
-    this.throwIfFailed(error, 'Failed to check session');
-    return !!data && data.length > 0;
+    const row = await databaseCall(this.logger, 'Failed to check session', () =>
+      this.prisma.refreshToken.findFirst({
+        where: { sessionId, revoked: false },
+        select: { id: true },
+      }),
+    );
+    return row !== null;
   }
 
   /** The usable token of each of the user's sessions, most recently used first. */
   async listSessionTokens(userId: string): Promise<RefreshTokenRecord[]> {
-    const { data, error } = await this.supabase
-      .from('refresh_tokens')
-      .select(RECORD_COLUMNS)
-      .eq('user_id', userId)
-      .eq('revoked', false)
-      .not('session_id', 'is', null)
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false });
-    this.throwIfFailed(error, 'Failed to fetch sessions');
-    return (data as RefreshTokenRecord[]) ?? [];
+    const rows = await databaseCall(
+      this.logger,
+      'Failed to fetch sessions',
+      () =>
+        this.prisma.refreshToken.findMany({
+          where: {
+            userId,
+            revoked: false,
+            sessionId: { not: null },
+            expiresAt: { gte: new Date() },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: RECORD_COLUMNS,
+        }),
+    );
+    return rows.map(toRecord);
   }
 
   async setLocation(id: string, location: string): Promise<void> {
-    const { error } = await this.supabase.from('refresh_tokens').update({ location }).eq('id', id);
-    this.throwIfFailed(error, 'Failed to store session location');
+    await databaseCall(this.logger, 'Failed to store session location', () =>
+      this.prisma.refreshToken.updateMany({
+        where: { id },
+        data: { location },
+      }),
+    );
   }
+}
 
-  private throwIfFailed(error: { message: string } | null, publicMessage: string): void {
-    if (!error) return;
-    this.logger.error(`${publicMessage}: ${error.message}`);
-    throw new InternalServerErrorException(publicMessage);
-  }
+function toRecord(row: RefreshTokenRow): RefreshTokenRecord {
+  return {
+    id: row.id,
+    user_id: row.userId,
+    token_hash: row.tokenHash,
+    revoked: row.revoked,
+    created_at: row.createdAt.toISOString(),
+    session_id: row.sessionId,
+    session_started_at: row.sessionStartedAt?.toISOString() ?? null,
+    device_name: row.deviceName,
+    platform: row.platform,
+    ip_address: row.ipAddress,
+    location: row.location,
+  };
 }

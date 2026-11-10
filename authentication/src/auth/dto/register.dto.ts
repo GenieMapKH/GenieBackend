@@ -1,28 +1,87 @@
 import { Transform } from 'class-transformer';
-import { IsEmail, IsNotEmpty, IsString, Matches, MinLength, ValidateIf } from 'class-validator';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BCRYPT_MAX_PASSWORD_BYTES, MaxBytes } from './max-bytes';
-import { normalizeEmailInput } from './normalize-email';
-import { PHONE_NUMBER, PHONE_NUMBER_MESSAGE } from './phone-number';
+import {
+  EMAIL_MAX_LENGTH,
+  normalizeOptionalEmailInput,
+} from './normalize-email';
+import {
+  normalizePhoneInput,
+  PHONE_NUMBER,
+  PHONE_NUMBER_MESSAGE,
+} from './phone-number';
 
+/** No control characters and no "<" or ">": a name is never markup. */
+const DISPLAY_NAME = /^[^\p{Cc}<>]*$/u;
+
+/** Surrounding spaces never count; left blank means "not given". */
+function trimToUndefined({ value }: { value: unknown }): unknown {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  return trimmed === '' ? undefined : trimmed;
+}
+
+/**
+ * A phone number is required: many people only have one. An email is
+ * optional and can be added later (`POST /auth/account/email`).
+ */
 export class RegisterDto {
-  @ApiPropertyOptional({ description: 'User email address', example: 'user@example.com' })
-  @ValidateIf(o => !o.phone)
-  @IsEmail({}, { message: 'Must be a valid email if phone is not provided' })
-  @IsNotEmpty()
-  @Transform(normalizeEmailInput)
+  @ApiProperty({
+    description:
+      'Phone number. Without a country code it is read as Cambodian; stored as E.164.',
+    example: '012 345 678',
+  })
+  @Transform(normalizePhoneInput)
+  @IsString({ message: PHONE_NUMBER_MESSAGE })
+  @Matches(PHONE_NUMBER, { message: PHONE_NUMBER_MESSAGE })
+  phone!: string;
+
+  @ApiPropertyOptional({
+    description: 'Email address. Optional; blank means none.',
+    example: 'user@example.com',
+  })
+  @IsOptional()
+  @Transform(normalizeOptionalEmailInput)
+  @IsEmail({}, { message: 'Enter a valid email address' })
+  @MaxLength(EMAIL_MAX_LENGTH)
   email?: string;
 
-  @ApiPropertyOptional({ description: 'User phone number', example: '+1234567890' })
-  @ValidateIf(o => !o.email)
+  @ApiPropertyOptional({
+    description: 'The name shown to other people (at most 60 characters)',
+    example: 'Sok Dara',
+  })
+  @IsOptional()
+  @Transform(trimToUndefined)
   @IsString()
-  @IsNotEmpty({ message: 'Must provide a valid phone if email is not provided' })
-  @Matches(PHONE_NUMBER, { message: PHONE_NUMBER_MESSAGE })
-  phone?: string;
+  @MaxLength(60)
+  @Matches(DISPLAY_NAME, { message: 'Name contains characters not allowed' })
+  name?: string;
 
-  @ApiProperty({ description: 'User password (min 8 characters)', example: 'strongpassword123' })
+  @ApiProperty({
+    description: 'User password (min 8 characters)',
+    example: 'strongpassword123',
+  })
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   @MaxBytes(BCRYPT_MAX_PASSWORD_BYTES)
   password!: string;
+
+  @ApiPropertyOptional({ description: 'Firebase SMS proof, when available.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  phoneToken?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4096)
+  emailProof?: string;
 }

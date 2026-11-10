@@ -1,17 +1,20 @@
 import { OTP_TTL_MINUTES } from '../auth.constants';
 
 export function otpEmailSubject(otp: string): string {
-  return `${otp} is your Genie verification code`;
+  return `${otp} is your Tilomnov verification code`;
 }
 
 /** HTML body of the password-reset code email. */
-export function otpEmailHtml(otp: string): string {
+export function otpEmailHtml(
+  otp: string,
+  purpose: 'reset' | 'verification' = 'reset',
+): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Password Reset Verification Code</title>
+  <title>${purpose === 'reset' ? 'Password Reset' : 'Email'} Verification Code</title>
 </head>
 <body style="margin: 0; padding: 0; background-color: #F1F5F9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #F1F5F9; padding: 40px 16px;">
@@ -30,7 +33,7 @@ export function otpEmailHtml(otp: string): string {
             <td style="padding: 0 40px 32px;">
               <h1 style="margin: 0 0 12px; font-size: 22px; font-weight: 700; color: #0F172A; text-align: center;">Password Reset Code</h1>
               <p style="margin: 0 0 24px; font-size: 15px; line-height: 24px; color: #475569; text-align: center;">
-                We received a request to reset the password for your Genie account. Use the 6-digit verification code below to complete your reset:
+                ${purpose === 'reset' ? 'We received a request to reset the password for your Tilomnov account. Use the 6-digit verification code below to complete your reset:' : 'Use the 6-digit code below to verify this email address for your Tilomnov account:'}
               </p>
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin: 0 0 24px; background: #F8FAFC; border: 1.5px dashed #CBD5E1; border-radius: 16px; text-align: center;">
                 <tr>
@@ -46,20 +49,20 @@ export function otpEmailHtml(otp: string): string {
                 <tr>
                   <td style="padding: 14px 16px;">
                     <p style="margin: 0; font-size: 13px; line-height: 20px; color: #92400E;">
-                      <strong>Security Tip:</strong> Never share this code with anyone. Genie team members will never ask for your verification code or password.
+                      <strong>Security Tip:</strong> Never share this code with anyone. Tilomnov team members will never ask for your verification code or password.
                     </p>
                   </td>
                 </tr>
               </table>
               <p style="margin: 0; font-size: 14px; line-height: 22px; color: #64748B; text-align: center;">
-                If you did not request this password reset, please ignore this email or contact support if you have security concerns.
+                If you did not request this code, please ignore this email or contact support if you have security concerns.
               </p>
             </td>
           </tr>
           <tr>
             <td style="padding: 24px 40px 32px; text-align: center; border-top: 1px solid #E2E8F0;">
               <p style="margin: 0 0 6px; font-size: 12px; color: #94A3B8; font-weight: 500;">
-                © 2026 Genie Real Estate &amp; Property Marketplace. All rights reserved.
+                © 2026 Tilomnov Real Estate &amp; Property Marketplace. All rights reserved.
               </p>
               <p style="margin: 0; font-size: 11px; color: #CBD5E1;">
                 This is an automated security message. Please do not reply directly to this email.

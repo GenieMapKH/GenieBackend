@@ -1,8 +1,17 @@
-import { Controller, Delete, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+  VERSION_NEUTRAL,
+} from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { serviceCallGuard } from '@genie/shared';
+import { serviceCallGuard } from '@tilomnov/shared';
 import { ChatAttachmentService } from './chat-attachment.service';
-import { ChatService } from './chat.service';
 
 /**
  * What the chat service keeps for an account, acted on when the user service
@@ -11,24 +20,25 @@ import { ChatService } from './chat.service';
  */
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
-@Controller('internal/accounts/:userId')
+@Controller({ path: 'internal/accounts/:userId', version: VERSION_NEUTRAL })
 export class InternalAccountsController {
-  constructor(
-    private readonly chat: ChatService,
-    private readonly attachments: ChatAttachmentService,
-  ) {}
+  constructor(private readonly attachments: ChatAttachmentService) {}
 
   /** The account is being deleted: remove the files it sent and received. */
   @Delete('files')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async eraseFiles(@Param('userId', ParseUUIDPipe) userId: string): Promise<void> {
+  async eraseFiles(
+    @Param('userId', ParseUUIDPipe) userId: string,
+  ): Promise<void> {
     await this.attachments.removeAllOf(userId);
   }
 
-  /** The account was hidden, shown again or deleted: forget its cached public key. */
+  /** Compatibility endpoint for account lifecycle callers; chat reads check account visibility. */
   @Post('visibility-changed')
   @HttpCode(HttpStatus.NO_CONTENT)
-  visibilityChanged(@Param('userId', ParseUUIDPipe) userId: string): Promise<void> {
-    return this.chat.forgetPublicKey(userId);
+  visibilityChanged(
+    @Param('userId', ParseUUIDPipe) _userId: string,
+  ): Promise<void> {
+    return Promise.resolve();
   }
 }

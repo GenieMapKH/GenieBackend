@@ -1,7 +1,8 @@
 import * as jwt from 'jsonwebtoken';
 
 /** The services that call each other. A token names its sender; a receiver names who it accepts. */
-export type ServiceName = 'user' | 'payment' | 'property' | 'chat';
+export type ServiceName =
+  'user' | 'payment' | 'property' | 'chat' | 'authentication' | 'notification';
 
 /** `typ` of a token one service signs for another. Never accepted as a user's token. */
 export const SERVICE_TOKEN = 'service';
@@ -14,7 +15,9 @@ const MIN_SECRET_LENGTH = 32;
 function secret(): string {
   const value = process.env.INTERNAL_SERVICE_SECRET;
   if (!value || value.length < MIN_SECRET_LENGTH) {
-    throw new Error(`INTERNAL_SERVICE_SECRET (at least ${MIN_SECRET_LENGTH} characters) is required for calls between services`);
+    throw new Error(
+      `INTERNAL_SERVICE_SECRET (at least ${MIN_SECRET_LENGTH} characters) is required for calls between services`,
+    );
   }
   return value;
 }
@@ -27,11 +30,43 @@ export function signServiceToken(issuer: ServiceName): string {
   });
 }
 
+/**
+ * `INTERNAL_SERVICE_SECRET_PREVIOUS`, while the secret is being replaced. Set
+ * the old value there and the new one in `INTERNAL_SERVICE_SECRET` on every
+ * service: calls signed with either pass while services redeploy one by one.
+ * Remove it once all of them run on the new secret.
+ */
+function previousSecret(): string | null {
+  const value = process.env.INTERNAL_SERVICE_SECRET_PREVIOUS;
+  return value && value.length >= MIN_SECRET_LENGTH ? value : null;
+}
+
 /** The service that signed `token`. Throws when it is forged, expired, or not a service token. */
 export function verifyServiceToken(token: string): ServiceName {
-  const payload = jwt.verify(token, secret(), { algorithms: ['HS256'] });
-  if (typeof payload === 'string' || payload.typ !== SERVICE_TOKEN || typeof payload.iss !== 'string') {
+  const payload = verifyWithEitherSecret(token);
+  if (
+    typeof payload === 'string' ||
+    payload.typ !== SERVICE_TOKEN ||
+    typeof payload.iss !== 'string'
+  ) {
     throw new Error('Not a service token');
   }
   return payload.iss as ServiceName;
+}
+
+function verifyWithEitherSecret(token: string): string | jwt.JwtPayload {
+  try {
+    return jwt.verify(token, secret(), { algorithms: ['HS256'] });
+  } catch (error) {
+    const previous = previousSecret();
+    // Only a wrong signature is worth a second try; an expired token stays expired.
+    if (
+      !previous ||
+      !(error instanceof jwt.JsonWebTokenError) ||
+      error instanceof jwt.TokenExpiredError
+    ) {
+      throw error;
+    }
+    return jwt.verify(token, previous, { algorithms: ['HS256'] });
+  }
 }

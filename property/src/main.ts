@@ -2,16 +2,29 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+// Error reporting starts before the rest is loaded, so it can wrap it.
+import { initSentry, SentryLogger } from '@tilomnov/shared/sentry';
+initSentry('property');
+
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { describeJwtPublicKey, RejectNullBytesPipe } from '@genie/shared';
+import { enableApiVersioning } from '@tilomnov/shared/api-versions';
+import { RejectNullBytesPipe, warmUpAuthKeys } from '@tilomnov/shared';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: new SentryLogger(),
+  });
+
+  // Routes answer as /v1/...: see docs/API_VERSIONING.md.
+  enableApiVersioning(app);
 
   // Reject malformed bodies and drop any field a DTO does not declare.
-  app.useGlobalPipes(new RejectNullBytesPipe(), new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalPipes(
+    new RejectNullBytesPipe(),
+    new ValidationPipe({ whitelist: true, transform: true }),
+  );
 
   // On SIGTERM (every deploy): stop accepting work and close the DB pool.
   app.enableShutdownHooks();
@@ -22,6 +35,6 @@ async function bootstrap() {
   const host = process.env.HOST || '0.0.0.0';
   await app.listen(port, host);
   Logger.log(`Listening on ${host}:${port}`, 'Bootstrap');
-  Logger.log(describeJwtPublicKey(), 'Bootstrap');
+  void warmUpAuthKeys().then((status) => Logger.log(status, 'Bootstrap'));
 }
-bootstrap();
+void bootstrap();

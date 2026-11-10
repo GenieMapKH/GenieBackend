@@ -2,13 +2,13 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
-import { PrismaClient } from "@genie/prisma-client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from '@tilomnov/prisma-client';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const rawDatabaseUrl = process.env.DATABASE_URL;
-const databaseUrl = (rawDatabaseUrl ?? "").trim();
+const databaseUrl = (rawDatabaseUrl ?? '').trim();
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL is required");
+  throw new Error('DATABASE_URL is required');
 }
 
 const adapter = new PrismaPg({
@@ -20,4 +20,3 @@ export const prismaClientOptions = { adapter };
 export function createPrismaClient() {
   return new PrismaClient(prismaClientOptions);
 }
-

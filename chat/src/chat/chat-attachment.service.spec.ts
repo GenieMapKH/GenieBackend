@@ -1,4 +1,8 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ChatAttachmentService } from './chat-attachment.service';
 
 const ALICE = '11111111-1111-4111-8111-111111111111';
@@ -14,15 +18,23 @@ describe('ChatAttachmentService', () => {
     createSignedUploadUrl: jest.fn(),
     createSignedDownloadUrl: jest.fn(),
     removeFolder: jest.fn(),
+    removeFiles: jest.fn(),
   };
   let service: ChatAttachmentService;
 
   beforeEach(() => {
     jest.clearAllMocks();
     userTable.findFirst.mockResolvedValue({ id: BOB });
-    storage.createSignedUploadUrl.mockResolvedValue('https://storage.test/upload?token=t');
-    storage.createSignedDownloadUrl.mockResolvedValue('https://storage.test/download?token=t');
-    service = new ChatAttachmentService({ user: userTable, message: messageTable } as never, storage as never);
+    storage.createSignedUploadUrl.mockResolvedValue(
+      'https://storage.test/upload?token=t',
+    );
+    storage.createSignedDownloadUrl.mockResolvedValue(
+      'https://storage.test/download?token=t',
+    );
+    service = new ChatAttachmentService(
+      { user: userTable, message: messageTable } as never,
+      storage as never,
+    );
   });
 
   it('keeps attachments in a private, size-limited bucket', async () => {
@@ -44,9 +56,14 @@ describe('ChatAttachmentService', () => {
     it('gives the sender one upload location that names both people', async () => {
       const upload = await service.createUpload(ALICE, BOB);
 
-      expect(upload.path).toMatch(new RegExp(`^${ALICE}/${BOB}/[0-9a-f-]{36}$`));
+      expect(upload.path).toMatch(
+        new RegExp(`^${ALICE}/${BOB}/[0-9a-f-]{36}$`),
+      );
       expect(upload.uploadUrl).toBe('https://storage.test/upload?token=t');
-      expect(storage.createSignedUploadUrl).toHaveBeenCalledWith('chat-attachments', upload.path);
+      expect(storage.createSignedUploadUrl).toHaveBeenCalledWith(
+        'chat-attachments',
+        upload.path,
+      );
     });
 
     it('never reuses a location', async () => {
@@ -57,10 +74,14 @@ describe('ChatAttachmentService', () => {
     });
 
     it('refuses an unknown or deactivated recipient, and a file to yourself', async () => {
-      await expect(service.createUpload(ALICE, ALICE)).rejects.toThrow(BadRequestException);
+      await expect(service.createUpload(ALICE, ALICE)).rejects.toThrow(
+        BadRequestException,
+      );
 
       userTable.findFirst.mockResolvedValue(null);
-      await expect(service.createUpload(ALICE, BOB)).rejects.toThrow(NotFoundException);
+      await expect(service.createUpload(ALICE, BOB)).rejects.toThrow(
+        NotFoundException,
+      );
       expect(storage.createSignedUploadUrl).not.toHaveBeenCalled();
     });
   });
@@ -75,31 +96,74 @@ describe('ChatAttachmentService', () => {
       const result = await service.createDownloadUrl(userId, location);
 
       expect(result).toEqual({ url: 'https://storage.test/download?token=t' });
-      expect(storage.createSignedDownloadUrl).toHaveBeenCalledWith('chat-attachments', `${ALICE}/${BOB}/${FILE}`, 60);
+      expect(storage.createSignedDownloadUrl).toHaveBeenCalledWith(
+        'chat-attachments',
+        `${ALICE}/${BOB}/${FILE}`,
+        60,
+      );
     });
 
     it('gives nobody else a link, and does not even ask storage', async () => {
-      await expect(service.createDownloadUrl(MALLORY, location)).rejects.toThrow(ForbiddenException);
+      await expect(
+        service.createDownloadUrl(MALLORY, location),
+      ).rejects.toThrow(ForbiddenException);
       expect(storage.createSignedDownloadUrl).not.toHaveBeenCalled();
     });
 
     it('reports a file that does not exist', async () => {
       storage.createSignedDownloadUrl.mockResolvedValue(null);
 
-      await expect(service.createDownloadUrl(BOB, location)).rejects.toThrow(NotFoundException);
+      await expect(service.createDownloadUrl(BOB, location)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   it('erases both directions of a deleted account: what it sent and what it was sent', async () => {
-    messageTable.findMany.mockResolvedValue([{ senderId: BOB }, { senderId: MALLORY }]);
+    messageTable.findMany.mockResolvedValue([
+      { senderId: BOB },
+      { senderId: MALLORY },
+    ]);
 
     await service.removeAllOf(ALICE);
 
-    expect(messageTable.findMany.mock.calls[0][0]).toMatchObject({ where: { recipientId: ALICE }, distinct: ['senderId'] });
+    expect(messageTable.findMany.mock.calls[0][0]).toMatchObject({
+      where: { recipientId: ALICE },
+      distinct: ['senderId'],
+    });
     expect(storage.removeFolder.mock.calls).toEqual([
       ['chat-attachments', ALICE],
       ['chat-attachments', `${BOB}/${ALICE}`],
       ['chat-attachments', `${MALLORY}/${ALICE}`],
     ]);
+  });
+  describe('the file of a deleted message', () => {
+    const parties = { senderId: ALICE, recipientId: BOB };
+
+    it('accepts a file the sender sent to the recipient', () => {
+      expect(() =>
+        service.requireSentFile(parties, `${ALICE}/${BOB}/${FILE}`),
+      ).not.toThrow();
+    });
+
+    it.each([
+      ['sent the other way', `${BOB}/${ALICE}/${FILE}`],
+      ['of another conversation', `${ALICE}/${MALLORY}/${FILE}`],
+      ['a whole folder', `${ALICE}/${BOB}`],
+      ['deeper than a file', `${ALICE}/${BOB}/${FILE}/x`],
+      ['not a file id', `${ALICE}/${BOB}/..`],
+    ])('refuses a path %s', (_case, path) => {
+      expect(() => service.requireSentFile(parties, path)).toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('removes exactly that file', async () => {
+      await service.removeFile(`${ALICE}/${BOB}/${FILE}`);
+
+      expect(storage.removeFiles).toHaveBeenCalledWith('chat-attachments', [
+        `${ALICE}/${BOB}/${FILE}`,
+      ]);
+    });
   });
 });

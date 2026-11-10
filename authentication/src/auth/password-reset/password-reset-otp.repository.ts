@@ -1,6 +1,6 @@
-import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { SupabaseClient } from '@supabase/supabase-js';
-import { SUPABASE_CLIENT } from '../../supabase/supabase.module';
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@tilomnov/shared';
+import { databaseCall } from '../database-call';
 
 export interface PasswordResetOtpRecord {
   id: string;
@@ -12,52 +12,42 @@ export interface PasswordResetOtpRecord {
 export class PasswordResetOtpRepository {
   private readonly logger = new Logger(PasswordResetOtpRepository.name);
 
-  constructor(@Inject(SUPABASE_CLIENT) private readonly supabase: SupabaseClient) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   /** Marks every unused code for the email as used, so only the newest one works. */
   async invalidateAllFor(email: string): Promise<void> {
-    await this.supabase
-      .from('password_reset_otps')
-      .update({ used: true })
-      .eq('email', email)
-      .eq('used', false);
+    await databaseCall(this.logger, 'Failed to initiate password reset', () =>
+      this.prisma.password_reset_otps.updateMany({
+        where: { email, used: false },
+        data: { used: true },
+      }),
+    );
   }
 
   async create(email: string, otpHash: string, expiresAt: Date): Promise<void> {
-    const { error } = await this.supabase
-      .from('password_reset_otps')
-      .insert([{ email, otp_hash: otpHash, expires_at: expiresAt.toISOString(), used: false }]);
-
-    if (error) {
-      this.logger.error(`Failed to store OTP: ${error.message}`);
-      throw new InternalServerErrorException('Failed to initiate password reset');
-    }
+    await databaseCall(this.logger, 'Failed to initiate password reset', () =>
+      this.prisma.password_reset_otps.create({
+        data: { email, otp_hash: otpHash, expires_at: expiresAt, used: false },
+        select: { id: true },
+      }),
+    );
   }
 
-  async findLatestActive(email: string): Promise<PasswordResetOtpRecord | null> {
-    const { data, error } = await this.supabase
-      .from('password_reset_otps')
-      .select('id, otp_hash')
-      .eq('email', email)
-      .eq('used', false)
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    if (error) {
-      this.logger.error(`Failed to read OTP: ${error.message}`);
-      throw new InternalServerErrorException('Failed to verify code');
-    }
-    return (data?.[0] as PasswordResetOtpRecord | undefined) ?? null;
+  findLatestActive(email: string): Promise<PasswordResetOtpRecord | null> {
+    return databaseCall(this.logger, 'Failed to verify code', () =>
+      this.prisma.password_reset_otps.findFirst({
+        where: { email, used: false, expires_at: { gte: new Date() } },
+        orderBy: { created_at: 'desc' },
+        select: { id: true, otp_hash: true },
+      }),
+    );
   }
 
   /** Removes every code ever sent to the email: nothing of a deleted account is kept. */
   async deleteAllFor(email: string): Promise<void> {
-    const { error } = await this.supabase.from('password_reset_otps').delete().eq('email', email);
-    if (error) {
-      this.logger.error(`Failed to delete OTPs: ${error.message}`);
-      throw new InternalServerErrorException('Failed to delete account');
-    }
+    await databaseCall(this.logger, 'Failed to delete account', () =>
+      this.prisma.password_reset_otps.deleteMany({ where: { email } }),
+    );
   }
 
   /**
@@ -66,17 +56,15 @@ export class PasswordResetOtpRepository {
    * once with the same code must not both go through.
    */
   async claim(id: string): Promise<boolean> {
-    const { data, error } = await this.supabase
-      .from('password_reset_otps')
-      .update({ used: true })
-      .eq('id', id)
-      .eq('used', false)
-      .select('id');
-
-    if (error) {
-      this.logger.error(`Failed to use OTP: ${error.message}`);
-      throw new InternalServerErrorException('Failed to verify code');
-    }
-    return (data?.length ?? 0) > 0;
+    const { count } = await databaseCall(
+      this.logger,
+      'Failed to verify code',
+      () =>
+        this.prisma.password_reset_otps.updateMany({
+          where: { id, used: false },
+          data: { used: true },
+        }),
+    );
+    return count > 0;
   }
 }

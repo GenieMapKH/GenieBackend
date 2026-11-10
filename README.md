@@ -1,6 +1,6 @@
-# Genie Backend
+# Tilomnov Backend services
 
-Backend for the Genie property marketplace (NestJS monorepo, PostgreSQL via Supabase, Prisma, Redis).
+Backend for the Tilomnov property marketplace (NestJS monorepo, PostgreSQL via Supabase, Prisma, Redis).
 
 ## Services
 
@@ -53,7 +53,7 @@ user/src/users/    profile, profile picture, hiding and erasing an account's con
 property/src/
   properties/      services/ (query, lifecycle, publication, images, engagement, guest sessions), internal/
   search/          places, listings and people, search history
-chat/src/chat/     REST, WebSocket gateway, E2EE message storage, attachments
+chat/src/chat/     REST, WebSocket gateway, encrypted message storage, attachments
 payment/src/payments/  checkout, webhook, provider adapter, client for the property service
 shared/src/        prisma, redis, supabase, auth (who is calling), internal (service calls, health)
 ```
@@ -66,7 +66,7 @@ repositories (or Prisma/Supabase calls) hold persistence.
 ```bash
 cp .env.example .env            # then fill in the values
 npm ci
-node scripts/generate-jwt-keys.js   # paste the output into .env
+npm run keys:generate          # paste the output into .env
 npm run build                   # prisma generate + shared + every service
 npm run start:auth & npm run start:user & npm run start:property &   npm run start:chat & npm run start:payment & npm run start:gateway
 ```
@@ -74,15 +74,45 @@ npm run start:auth & npm run start:user & npm run start:property &   npm run sta
 ### With Docker (one container per service)
 
 ```bash
-docker compose up -d --build      # build + start (needs a filled-in .env, incl. INTERNAL_SERVICE_SECRET)
+docker compose up -d --build      # rebuild changed layers; recreate changed services only
+docker compose up -d --build --no-deps chat  # fastest when only chat changed
 docker compose logs -f chat       # follow one service's logs
 docker compose restart chat       # restart one service; the rest keep running
 docker compose down --remove-orphans   # stop (and remove the old single-container setup)
 ```
 
-Redis, six services, one image definition (`Dockerfile`, chosen with `--build-arg SERVICE=...`).
+Redis, seven services, one image definition (`Dockerfile`, chosen with `--build-arg SERVICE=...`).
+Compose reads `.env` by default. Fill in `INTERNAL_SERVICE_SECRET` and the other
+required settings from `.env.example`, including all six dedicated database logins:
+`AUTHENTICATION_DATABASE_URL`, `USER_DATABASE_URL`, `PROPERTY_DATABASE_URL`,
+`CHAT_DATABASE_URL`, `PAYMENT_DATABASE_URL`, and `NOTIFICATION_DATABASE_URL`.
+The shared `DATABASE_URL` does not substitute for these service credentials.
+See [database service logins](docs/DATABASE_SCHEMAS.md) for their permissions and setup.
+
+Validate the configuration without printing secrets or starting containers:
+
+```bash
+docker compose config --quiet
+```
+
+Keep local development on staging credentials. `.env.prod-db` is a separate
+production configuration; Compose does not load it automatically.
+
+The build caches dependencies, Prisma generation and the shared library separately. A source edit
+in `chat` compiles only Chat; unchanged services reuse their existing image layers. Changes to
+`shared` or the Prisma schema rebuild the services that use them. npm downloads are cached even
+when a dependency change requires a fresh install. Local logs, coverage and TypeScript build
+metadata are excluded from the build context. Local Compose builds disable provenance attestations
+so a cached build keeps the same image ID instead of triggering container recreation solely due to
+new build metadata. This requires Docker Compose 2.39+; Railway builds keep their default metadata.
+
+Use `up -d --build` after backend code changes; plain `up -d` does not rebuild existing images.
+Avoid `down`, `--no-cache`, `--force-recreate` and clearing the build cache during routine updates:
+they discard running containers or reusable work. The first build after changing the Dockerfile
+warms the new cache; subsequent updates benefit from it.
 Only port 4000 is published. Each container restarts by itself (`restart: unless-stopped`).
-Deploying to Railway: see [docs/RAILWAY.md](docs/RAILWAY.md).
+Deploying to Railway: see [docs/RAILWAY.md](docs/RAILWAY.md). Nightly encrypted database backups and how to
+restore one: see [docs/BACKUPS.md](docs/BACKUPS.md).
 
 ### Redis: cache, limits, chat between instances
 
@@ -92,7 +122,9 @@ sockets on the same instance.
 
 | Cached | Expires | Cleared at once when |
 |---|---|---|
-| Map search (`/public/properties/map`), per ~1 km grid box | 30 s | any published listing is created, edited, published, hidden, sold, paid for, or gets photos, or an owner's name or picture changes |
+| Map search (`/public/properties/map`) and its price bars (`/map/prices`), per ~1 km grid box and filter | 30 s | a published listing inside it (in the same ~11 km cell) is created, edited, moved, published, hidden, sold, paid for, or gets photos, or its owner's name or picture changes. A map wider than 64 cells is cleared by any such change |
+| Positions ranked by `/public/properties/closest`, per filter | 30 s | any published listing changes |
+| Text search listings / one owner's listings | 30 s | any published listing changes / one of that owner's does |
 | Listing page (`/public/properties/:id`) | 60 s | that listing changes, or its owner's name or picture does |
 | Chat public key (`/chat/keys/:userId`) | 10 min | that user publishes a new key, or their account is hidden, shown again or deleted |
 | Public profile (`/users/:id`) | 2 min | that user edits their profile or picture, or their account is hidden, shown again or deleted |
@@ -101,7 +133,11 @@ Redis also holds the sessions that were signed out (`sessions:revoked:<id>`, 15 
 a `sessions:revoked` channel), see "Sessions, password and account".
 
 Only data that is the same for every viewer is cached; `isVisited` is looked up per user. Map
-searches are widened to the grid box, so the answer can contain listings just outside the viewport.
+searches are widened to the grid box (the app asks for the box already widened, so nearby positions
+reuse its in-memory answer too), so the answer can contain listings just outside the viewport.
+
+The gateway gzips responses for clients that accept it (the app does): a map answer of 500 listings
+shrinks several times.
 
 Also in Redis: the gateway's 300 requests/minute per address, login and reset-code attempt limits,
 chat send / upload / backup-lookup limits, and the Socket.IO adapter that relays chat events and
@@ -111,7 +147,8 @@ presence between instances.
 
 1. Point every instance at the same external Redis (`REDIS_URL`). The Redis inside the container
    is private to that container.
-2. Keep instances x `DATABASE_POOL_MAX` (default 10) under the database's connection limit.
+2. Keep the sum of every service's instances x `DATABASE_POOL_MAX` (default 2) under
+   the database pooler's session limit, including space for a rolling replacement.
 3. Clients must connect to chat with the `websocket` transport only (the app does); long-polling
    would need sticky sessions.
 4. Every service closes its connections on `SIGTERM`, so instances can be replaced one at a time.
@@ -152,9 +189,14 @@ If a database was built by hand and `_prisma_migrations` does not list `0_init`,
 
 All routes go through the gateway. JWT = `Authorization: Bearer <accessToken>`.
 
+Every path below is called under the API version: `/v1/auth/login`, `/v1/users/me`. The chat
+socket sends `apiVersion: '1'` with its token. App builds from before versioning call the paths
+without `/v1` and are answered as v1. How versions are added and retired:
+[docs/API_VERSIONING.md](docs/API_VERSIONING.md).
+
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/auth/register` | – | `{email|phone, password}` |
+| POST | `/auth/register` | – | `{phone, email?, name?, password}`: phone required, stored as E.164 (`012 345 678` → `+85512345678`) |
 | POST | `/auth/login` | – | `{email|phone, password}` → `{accessToken, refreshToken}`; reactivates a deactivated account |
 | POST | `/auth/firebase-login` | – | `{idToken}` → tokens |
 | POST | `/auth/refresh` | – | `{refreshToken}` → new pair (old one is revoked) |
@@ -164,19 +206,34 @@ All routes go through the gateway. JWT = `Authorization: Bearer <accessToken>`.
 | POST | `/auth/logout-all` | JWT | sign every device out, the caller's included; `403` as above |
 | POST | `/auth/change-password` | JWT | `{currentPassword, newPassword}`; other devices are signed out. `403 DEVICE_TOO_NEW` from a device signed in for less than a day |
 | POST | `/auth/account/password` | JWT | `{idToken, newPassword}`: the first password of a Google account |
-| POST | `/auth/account/password-proof` | JWT | `{password}` → `{proofToken, expiresInSeconds}`, for a forgotten chat PIN |
+| POST | `/auth/account/email` | JWT | `{email, password}`: adds an email to an account that has none. `409` if it has one or the email is taken; `403 DEVICE_TOO_NEW` as above |
+| POST | `/auth/account/password-proof` | JWT | `{password}` → `{proofToken, expiresInSeconds}`, for sensitive account actions |
 | POST | `/auth/account/deactivate` | JWT | `{password}` or `{idToken}`; hides the account until the next sign-in. `403 DEVICE_TOO_NEW` as above |
 | POST | `/auth/account/delete` | JWT | `{password}` or `{idToken}`; deletes the account and its files for good. `403 DEVICE_TOO_NEW` as above |
 | POST | `/auth/forgot-password`, `/auth/verify-otp`, `/auth/reset-password` | – | password reset |
-| GET | `/public/properties/map` | optional | `minLat,maxLat,minLng,maxLng` |
+| GET | `/public/properties/map` | optional | `minLat,maxLat,minLng,maxLng`; optional filter: `propertyType`, `listingType` (repeatable: any of), `minPrice,maxPrice` (USD, asking price), `minSize,maxSize` (m², land else unit else building size), `keyword` (repeatable: all of) |
+| GET | `/public/properties/map/prices` | no | the same as the map search plus `upTo` (USD): `{ counts }`, 60 bars of asking prices from 0 to `upTo` (last bar includes above), ignoring the price range |
+| GET | `/public/properties/closest` | optional | `lat,lng` (the user, or the map centre), `limit` (1-50, default 20), `offset`, and the map search's optional filter: `{ items, nextOffset }`, every published listing with a position, nearest first, each with `distanceMeters`. Ranks at most the newest 20,000; past that it needs a spatial index |
 | GET | `/public/properties/:id` | – | published property |
 | POST | `/public/properties/guest-session` | – | `{deviceId}` |
 | `*` | `/properties/...` | JWT | own listings, images, like, favorite, contact |
 | GET / PATCH | `/users/me` | JWT | profile (see below) |
 | GET | `/users/username-available` | JWT | is this username free (see below) |
 | POST / PUT / DELETE | `/users/me/avatar...` | JWT | profile picture (see below) |
+| GET / PUT / DELETE | `/users/:id/follow` | JWT | follow counts / follow / unfollow; each answers `{ followerCount, followingCount, isFollowing }` (see docs/SYSTEM_DESIGN.md 9a) |
+| GET | `/feed?limit=&cursor=&sort=&since=&until=&propertyType=&minPrice=&maxPrice=` | JWT | followed listings sorted by newest, saves or buyer price, with date/category/price filters: `{ items, nextCursor }` (see docs/SYSTEM_DESIGN.md 9a) |
+| POST | `/properties/:id/lead` | JWT | `{ channel: call\|chat }`: a buyer tapped Call or Chat (204; once per person and channel; see docs/SYSTEM_DESIGN.md 9) |
+| GET | `/properties/:id/insights` | JWT, owner | `{ totals: { views, saves, calls, chats }, days: [{ date, views, saves, leads }] }` for the last 14 days |
+| GET / PUT / DELETE | `/users/:id/block` | JWT | block status / block / unblock; each answers `{ isBlocked, canMessage }` (see docs/SYSTEM_DESIGN.md 9b) |
+| GET | `/users/me/blocks` | JWT | the accounts you blocked, newest first: `[{ id, name, username, avatarUrl, blockedAt }]` |
+| POST | `/reports` | JWT | report a listing or an account: `{ targetType: listing\|user, targetId, reason, details? }` -> `{ id, status, createdAt }`; the same open report again answers the same one |
+| GET / PATCH | `/reports/admin`, `/reports/admin/:id` | JWT, admin | the review queue `?status=&limit=&cursor=`, and resolving or dismissing one `{ status, note? }` |
 | `*` | `/chat/...` | JWT | keys, backup, conversations, messages |
-| POST | `/payments/checkout` | JWT | `{propertyId}` → `{checkoutUrl, transactionId}` |
+| POST | `/payments/checkout` | JWT | `{propertyId, requestId, method?}` → server-recorded mock purchase; unavailable unless staging/development mock mode is enabled |
+| POST | `/payments/subscriptions/checkout` | JWT | `{tier, method, requestId}` → server-recorded subscription purchase |
+| GET | `/payments/subscriptions/current` | JWT | current paid period or `null` under `subscription` |
+| POST | `/payments/subscriptions/cancel` | JWT | stops renewal; retains the paid plan until its expiry |
+| GET | `/payments/transactions/:id` | JWT, owner | transaction ID and payment status |
 | POST | `/payments/webhook` | signature | called by the payment provider |
 | GET | `/health` | – | liveness |
 
@@ -274,7 +331,7 @@ confirmed by a fresh Google sign-in; "forgot password" by email does the same.
 
 **Password proof.** `POST /auth/account/password-proof` `{password}` → a token valid for
 5 minutes that says the password was just typed. The chat service accepts it where only the
-password can vouch for the owner (a forgotten chat PIN, below). It is not an access token.
+password can vouch for the owner (sensitive account actions). It is not an access token.
 
 **Deactivate** sets `users.deactivated_at` and signs every device out. From that moment the
 account is hidden from everyone else: its public profile and chat key answer `404`, its listings
@@ -294,84 +351,44 @@ service directly at `USER_SERVICE_URL`: `DELETE /internal/accounts/:id/files` an
 `POST /internal/accounts/:id/visibility-changed`. The gateway does not forward `/internal`, and
 each call carries a one-minute token signed with the JWT key and naming the account.
 
-## Chat (end-to-end encrypted)
+## Chat
 
-Messages are encrypted on the device; the server stores and forwards ciphertext only.
+Chat uses authenticated TLS/WSS in transit and AES-256-GCM encryption in server storage.
+New messages require no PIN or device identity keys. The client uses the existing transport
+fields `ciphertext` (base64 JSON) and `nonce: "managed-v1"`; base64 is transport encoding,
+not encryption. The server validates the envelope's id, sender and recipient before encrypting
+it with a fresh IV. Encryption binds all three identifiers as authenticated data.
 
-REST (JWT):
+Set a distinct, stable `CHAT_MESSAGE_SECRET` of at least 32 characters in each environment.
+Keep it outside the database and back it up separately. Losing or replacing it without
+rewrapping stored messages makes those messages unreadable. `npm run keys:generate` prints
+a fresh value for initial setup; do not rotate it by simply replacing it.
+
+All `/chat` REST routes and Socket.IO messages require a valid access token. Conversation
+membership, blocking, account visibility, rate limits, edit windows, reply visibility and
+per-user deletion checks still apply. Attachments remain encrypted in private storage; their
+per-file keys travel inside the server-encrypted message. Push payloads carry no readable text.
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/chat/keys` | `{identityPublicKey}`: publish own public key. `409` for a different key once a PIN backup exists |
-| POST | `/chat/keys/reset` | `{identityPublicKey, backupBlob, backupSalt, backupNonce, backupVerifier, currentBackupVerifier? \| passwordProofToken?}`: replace the key pair and its backup together |
-| GET | `/chat/keys/:userId` | a user's public key, `404` if they have none |
-| POST | `/chat/backup` | `{backupBlob, backupSalt, backupNonce, backupVerifier, currentBackupVerifier? \| passwordProofToken?}`: store the PIN-encrypted key backup |
-| GET | `/chat/backup` | `{backupSalt}`, `404` if there is none (5 per 15 min) |
-| POST | `/chat/backup/unlock` | `{backupVerifier}` → `{backupBlob, backupNonce}` for the right PIN |
-| GET | `/chat/conversations` | one row per partner: last message + `unreadCount` |
-| GET | `/chat/messages/:participantId?limit=&before=` | newest page (default 50, max 100), oldest first; `before` = ISO time for older pages |
-| POST | `/chat/messages/:participantId/read` | mark that partner's messages as read |
+| GET | `/chat/conversations` | Main or archived conversations; optional pagination |
+| GET | `/chat/messages/:participantId` | Message history for the signed-in participant |
+| POST | `/chat/messages/:participantId/read` | Mark received messages read |
+| POST | `/chat/messages/:messageId/edit` | Edit the sender's message within one hour |
+| POST | `/chat/messages/:messageId/delete` | Delete for the caller or, for the sender, everyone |
+| POST | `/chat/conversations/:participantId/archive` | Archive for the caller |
+| POST | `/chat/conversations/:participantId/unarchive` | Restore to the caller's main list |
+| POST | `/chat/conversations/:participantId/delete` | Clear conversation history |
+| POST | `/chat/attachments` | Create a signed upload URL |
+| GET | `/chat/attachments/:senderId/:recipientId/:fileId` | Participant-only signed download URL |
 
-Socket.IO, namespace `/chat`, connected through the gateway with `auth: { token: <accessToken> }`:
+Socket.IO retains `sendMessage`, `newMessage`, message edits/deletes and presence events.
+The client supplies a UUID `id`; retries return the same stored message.
 
-- An invalid or expired token fails the handshake with `connect_error` `unauthorized`.
-  The token is checked again on every message; once it expires the server disconnects the
-  socket and the client reconnects with a renewed token.
-- Client emits `sendMessage` `{ id?, recipientId, ciphertext, nonce }` and gets an ack:
-  `{ status: 'ok', messageId, message }` or `{ status: 'error', message }`.
-  `id` is a UUID chosen by the client; sending the same `id` again returns the stored
-  message instead of creating a duplicate, so a retry is safe.
-- Server emits `newMessage` (the stored message) to every device of the recipient and to
-  the sender's other devices, never back to the socket that sent it.
-- `sendMessage` is limited to 30 messages per 10 seconds per user.
-- Client emits `watchPresence` `{ userId }` and gets
-  `{ status: 'ok', presence: { userId, online, lastSeenAt } }`. From then on the server emits
-  `presence` with the same shape whenever that user's first device connects or last device
-  disconnects (`users.last_seen_at` is written at that moment). `unwatchPresence` `{ userId }`
-  stops it. Watching ends with the connection, so clients ask again after reconnecting.
-
-The key backup is protected by a 6-digit PIN, so the server counts every try. The device turns
-the PIN and the salt into two values (Argon2id): a key that encrypts the backup and never leaves
-the device, and `backupVerifier` (32 bytes, base64), which proves the PIN to the server.
-
-- `POST /chat/backup/unlock` answers `403` `{ message, attemptsLeft }` for a wrong PIN and `429`
-  `{ message, retryAfterSeconds }` while locked. Every 5th wrong PIN in a row locks the backup:
-  15 minutes, then 30, then double each time up to 24 hours. A correct PIN clears the count.
-  The count is stored in `chat_key_backups`, so restarts and deploys do not reset it.
-- Replacing what the PIN protects needs the PIN. Once a backup exists, `POST /chat/backup`
-  (change PIN) and `POST /chat/keys/reset` (reset keys) must carry `currentBackupVerifier`, the
-  proof of the current PIN; it is checked and counted exactly like an unlock (`403`, `429`). And
-  `POST /chat/keys` no longer accepts a different key. Without this, anyone holding a signed-in
-  phone could publish keys of their own and read the account's chats from then on.
-- A forgotten PIN is recovered with the account password: both calls accept `passwordProofToken`
-  (from `POST /auth/account/password-proof`) in place of `currentBackupVerifier`, also while
-  wrong PINs have the backup locked. A device that still holds the keys saves a new backup of
-  them under a new PIN (`POST /chat/backup`), and no history is lost. A device without them can
-  only reset the keys (`POST /chat/keys/reset`); earlier history can then no longer be read.
-- Stored backups are sealed with `CHAT_BACKUP_SECRET` (the proof as a keyed hash, the encrypted
-  key encrypted once more), so a copy of the database alone cannot be used to try PINs. Without
-  that variable saving and unlocking answer `503`. Losing or changing it makes stored backups
-  unreadable; users then need "Reset keys".
-- A backup saved before this (in `users.backup_*`) is still returned whole by `GET /chat/backup`
-  as `{backupSalt, backupBlob, backupNonce}`. The app opens it with the PIN and saves it again in
-  the protected form, which removes the old copy.
-
-Pictures are encrypted on the sender's device with a one-time key that travels inside the
-encrypted message. The server only stores unreadable bytes in the private `chat-attachments`
-bucket (25 MB per file):
-
-- `POST /chat/attachments` `{ recipientId }` → `{ path, uploadUrl }`: a signed URL to PUT one
-  encrypted file to (20 requests per user per minute). `path` is `sender/recipient/fileId`.
-- `GET /chat/attachments/:senderId/:recipientId/:fileId` → `{ url }`: a download link valid for
-  one minute, given only to the sender or the recipient (`403` for anyone else).
-
-What the server cannot do: read messages, show one person's message as the other's (sender
-and recipient are sealed inside each message), or swap a user's public key unnoticed (the app
-remembers the key first seen for each contact, warns when it changes, and shows a security
-code both people can compare).
-
-Delivery and presence go through the Socket.IO Redis adapter, so they work across several `user`
-instances that share one Redis.
+The previous `/chat/keys*` and `/chat/backup*` routes are removed. Older message ciphertext
+and backup rows remain stored. Older message bodies are withheld from API responses and
+appear as unavailable in the app; no recovery or PIN prompt is offered. Deploy the server
+with its message secret before distributing the new app; older-format sends are refused.
 
 ## Payments (mock)
 

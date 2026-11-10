@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { ServiceClient } from '@genie/shared';
+import { ServiceClient } from '@tilomnov/shared';
 
 const ERASE_TIMEOUT_MS = 30_000;
 const NOTICE_TIMEOUT_MS = 5_000;
@@ -26,7 +26,9 @@ export class RemoteAccountContent {
 
   /** Deletes every file the service holds for the account. Throws when it is not confirmed. */
   eraseFiles(userId: string): Promise<void> {
-    return this.client.call('DELETE', `/internal/accounts/${userId}/files`, { timeoutMs: ERASE_TIMEOUT_MS });
+    return this.client.call('DELETE', `/internal/accounts/${userId}/files`, {
+      timeoutMs: ERASE_TIMEOUT_MS,
+    });
   }
 
   /**
@@ -36,9 +38,15 @@ export class RemoteAccountContent {
    */
   async notifyVisibilityChanged(userId: string): Promise<void> {
     try {
-      await this.client.call('POST', `/internal/accounts/${userId}/visibility-changed`, { timeoutMs: NOTICE_TIMEOUT_MS });
+      await this.client.call(
+        'POST',
+        `/internal/accounts/${userId}/visibility-changed`,
+        { timeoutMs: NOTICE_TIMEOUT_MS },
+      );
     } catch (error) {
-      this.logger.warn(`The ${this.name} service did not clear its caches for ${userId}: ${(error as Error).message}`);
+      this.logger.warn(
+        `The ${this.name} service did not clear its caches for ${userId}: ${(error as Error).message}`,
+      );
     }
   }
 }

@@ -1,4 +1,13 @@
-/** Seven to twenty characters: digits, with an optional leading "+" and spaces, dots, dashes or brackets between them. */
-export const PHONE_NUMBER = /^\+?[0-9][0-9 ().-]{5,18}[0-9]$/;
+import { E164_PHONE_NUMBER, normalizePhoneNumber } from '@tilomnov/shared';
 
-export const PHONE_NUMBER_MESSAGE = 'Enter a valid phone number, for example +85512345678';
+/** Checked after `normalizePhoneInput`, which leaves a number it cannot read as typed. */
+export const PHONE_NUMBER = E164_PHONE_NUMBER;
+
+export const PHONE_NUMBER_MESSAGE =
+  'Enter a valid phone number, for example 012 345 678';
+
+/** `class-transformer` step for phone fields: one stored spelling per number (see `normalizePhoneNumber`). */
+export function normalizePhoneInput({ value }: { value: unknown }): unknown {
+  if (typeof value !== 'string') return value;
+  return normalizePhoneNumber(value) ?? value;
+}

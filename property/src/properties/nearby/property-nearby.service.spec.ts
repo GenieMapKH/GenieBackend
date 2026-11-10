@@ -5,7 +5,10 @@ import { PropertyNearbyService } from './property-nearby.service';
 const HOME = { lat: 11.55, lng: 104.92 };
 
 /** A listing as the service reads it. */
-function listing(keywords: string[], location: { lat: number; lng: number } | null = HOME) {
+function listing(
+  keywords: string[],
+  location: { lat: number; lng: number } | null = HOME,
+) {
   return {
     lat: location?.lat ?? null,
     lng: location?.lng ?? null,
@@ -16,7 +19,9 @@ function listing(keywords: string[], location: { lat: number; lng: number } | nu
 
 describe('categoriesFor', () => {
   it('asks only for the categories tagged, in display order', () => {
-    expect(categoriesFor(['near_school', 'road_access', 'near_market'])).toEqual(['market', 'school']);
+    expect(
+      categoriesFor(['near_school', 'road_access', 'near_market']),
+    ).toEqual(['market', 'school']);
     expect(categoriesFor(['corner_land'])).toEqual([]);
   });
 });
@@ -33,7 +38,7 @@ describe('PropertyNearbyService', () => {
   let written: { deleted: number; created: object[]; searchedAt?: Date | null };
   let places: jest.Mocked<NearbyPlaceProvider>;
   let routes: jest.Mocked<RouteDistanceProvider>;
-  let publicCache: { changed: jest.Mock };
+  let publicCache: { changed: jest.Mock; detailChanged: jest.Mock };
   let service: PropertyNearbyService;
 
   beforeEach(() => {
@@ -69,10 +74,24 @@ describe('PropertyNearbyService', () => {
         Promise.resolve(
           category === 'market'
             ? [
-                { providerPlaceId: 'm-far', name: 'Phsar Far', location: { lat: 11.56, lng: 104.92 } },
-                { providerPlaceId: 'm-near', name: 'Phsar Near', location: { lat: 11.555, lng: 104.92 } },
+                {
+                  providerPlaceId: 'm-far',
+                  name: 'Phsar Far',
+                  location: { lat: 11.56, lng: 104.92 },
+                },
+                {
+                  providerPlaceId: 'm-near',
+                  name: 'Phsar Near',
+                  location: { lat: 11.555, lng: 104.92 },
+                },
               ]
-            : [{ providerPlaceId: 's-1', name: 'Hun Sen School', location: { lat: 11.551, lng: 104.92 } }],
+            : [
+                {
+                  providerPlaceId: 's-1',
+                  name: 'Hun Sen School',
+                  location: { lat: 11.551, lng: 104.92 },
+                },
+              ],
         ),
       ),
     } as never;
@@ -87,8 +106,13 @@ describe('PropertyNearbyService', () => {
         ]),
       ),
     } as never;
-    publicCache = { changed: jest.fn() };
-    service = new PropertyNearbyService(prisma as never, places, routes, publicCache as never);
+    publicCache = { changed: jest.fn(), detailChanged: jest.fn() };
+    service = new PropertyNearbyService(
+      prisma as never,
+      places,
+      routes,
+      publicCache as never,
+    );
   });
 
   it('stores the nearest places of each tagged category, closest by road first', async () => {
@@ -98,13 +122,31 @@ describe('PropertyNearbyService', () => {
     expect(places.findNearest).toHaveBeenCalledWith('market', HOME, 5000, 3);
     expect(routes.roadDistances).toHaveBeenCalledTimes(1);
     expect(written.created).toEqual([
-      expect.objectContaining({ category: 'market', rank: 0, name: 'Phsar Near', roadMeters: 900, driveSeconds: 180 }),
-      expect.objectContaining({ category: 'market', rank: 1, name: 'Phsar Far', roadMeters: 2500 }),
+      expect.objectContaining({
+        category: 'market',
+        rank: 0,
+        name: 'Phsar Near',
+        roadMeters: 900,
+        driveSeconds: 180,
+      }),
+      expect.objectContaining({
+        category: 'market',
+        rank: 1,
+        name: 'Phsar Far',
+        roadMeters: 2500,
+      }),
       // No road found: kept, with its straight-line distance only.
-      expect.objectContaining({ category: 'school', rank: 0, roadMeters: null, straightMeters: 111 }),
+      expect.objectContaining({
+        category: 'school',
+        rank: 0,
+        roadMeters: null,
+        straightMeters: 111,
+      }),
     ]);
     expect(written.searchedAt).toBeInstanceOf(Date);
-    expect(publicCache.changed).toHaveBeenCalledWith('p-1');
+    // Only the listing's own page shows them.
+    expect(publicCache.detailChanged).toHaveBeenCalledWith('p-1');
+    expect(publicCache.changed).not.toHaveBeenCalled();
   });
 
   it('records "nothing within 5 km" as a search with no places', async () => {
@@ -119,12 +161,18 @@ describe('PropertyNearbyService', () => {
   });
 
   it('still stores the places when road distances fail', async () => {
-    routes.roadDistances.mockRejectedValue(new Error('Routes API answered 403'));
+    routes.roadDistances.mockRejectedValue(
+      new Error('Routes API answered 403'),
+    );
 
     await service.refresh('p-1');
 
     expect(written.created).toHaveLength(3);
-    expect(written.created.every((row) => (row as { roadMeters: null }).roadMeters === null)).toBe(true);
+    expect(
+      written.created.every(
+        (row) => (row as { roadMeters: null }).roadMeters === null,
+      ),
+    ).toBe(true);
   });
 
   it('clears the places once no basic-needs keyword is left, without calling the provider', async () => {
@@ -164,16 +212,24 @@ describe('PropertyNearbyService', () => {
     await service.refresh('p-1');
 
     expect(written.deleted).toBe(0);
-    expect(publicCache.changed).not.toHaveBeenCalled();
+    expect(publicCache.detailChanged).not.toHaveBeenCalled();
   });
 
   it('looks again after an edit only when the asked categories changed', () => {
     const refresh = jest.spyOn(service, 'refresh').mockResolvedValue();
 
-    service.keywordsChanged('p-1', ['near_market', 'road_access'], ['near_market', 'corner_land']);
+    service.keywordsChanged(
+      'p-1',
+      ['near_market', 'road_access'],
+      ['near_market', 'corner_land'],
+    );
     expect(refresh).not.toHaveBeenCalled();
 
-    service.keywordsChanged('p-1', ['near_market'], ['near_market', 'near_hospital']);
+    service.keywordsChanged(
+      'p-1',
+      ['near_market'],
+      ['near_market', 'near_hospital'],
+    );
     expect(refresh).toHaveBeenCalledWith('p-1');
   });
 });

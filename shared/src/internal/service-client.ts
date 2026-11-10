@@ -33,7 +33,11 @@ export class ServiceClient {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
 
-  async call<T = void>(method: string, path: string, options: ServiceCallOptions): Promise<T> {
+  async call<T = void>(
+    method: string,
+    path: string,
+    options: ServiceCallOptions,
+  ): Promise<T> {
     // Signed before the try: a missing secret is a configuration error, not an unreachable service.
     const token = signServiceToken(this.caller);
 
@@ -43,17 +47,28 @@ export class ServiceClient {
         method,
         headers: {
           authorization: `Bearer ${token}`,
-          ...(options.body === undefined ? {} : { 'content-type': 'application/json' }),
+          ...(options.body === undefined
+            ? {}
+            : { 'content-type': 'application/json' }),
         },
-        body: options.body === undefined ? undefined : JSON.stringify(options.body),
+        body:
+          options.body === undefined ? undefined : JSON.stringify(options.body),
         signal: AbortSignal.timeout(options.timeoutMs),
       });
     } catch (error) {
-      throw new ServiceCallError(this.name, 0, `the ${this.name} service is unreachable: ${(error as Error).message}`);
+      throw new ServiceCallError(
+        this.name,
+        0,
+        `the ${this.name} service is unreachable: ${(error as Error).message}`,
+      );
     }
 
     if (!response.ok) {
-      throw new ServiceCallError(this.name, response.status, await messageOf(response));
+      throw new ServiceCallError(
+        this.name,
+        response.status,
+        await messageOf(response),
+      );
     }
     const text = await response.text();
     return (text ? JSON.parse(text) : undefined) as T;
@@ -64,7 +79,9 @@ export class ServiceClient {
 async function messageOf(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { message?: string | string[] };
-    const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    const message = Array.isArray(body.message)
+      ? body.message.join(', ')
+      : body.message;
     if (message) return message;
   } catch {
     // Not JSON: the status line below is all there is to say.

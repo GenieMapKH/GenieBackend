@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import { PropertyQueryService } from '../properties/services/property-query.service';
 import { PropertySearchService } from '../properties/services/property-search.service';
-import { JsonCache } from '@genie/shared';
+import { JsonCache } from '@tilomnov/shared';
 import { PeopleSearchService } from './people-search.service';
 import { nearestFirst, withMinimumSpan } from './area-geometry';
 import { PlaceSessionQuery, SearchQuery } from './dto/search.query';
 import { PlaceArea, PlaceProvider } from './places/place-provider';
+import { TextSearchService } from './text-search.service';
 import {
   MIN_SEARCH_LENGTH,
   normalizeSearchText,
@@ -40,6 +41,7 @@ export class SearchService {
     private readonly propertySearch: PropertySearchService,
     private readonly propertyQuery: PropertyQueryService,
     private readonly people: PeopleSearchService,
+    private readonly textSearch: TextSearchService,
     private readonly cache: JsonCache,
   ) {}
 
@@ -53,8 +55,8 @@ export class SearchService {
     const terms = searchTerms(text);
     const [places, properties, people] = await Promise.all([
       this.suggestPlaces(text, query),
-      this.propertySearch.matching(terms, PROPERTY_LIMIT),
-      this.people.matching(terms, PEOPLE_LIMIT),
+      this.textSearch.listings(text, terms, PROPERTY_LIMIT),
+      this.textSearch.people(text, terms, PEOPLE_LIMIT),
     ]);
     return { places, properties, people };
   }

@@ -1,7 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { AvatarService } from './avatar.service';
 
-
 const ME = '11111111-1111-4111-8111-111111111111';
 const SOMEONE_ELSE = '22222222-2222-4222-8222-222222222222';
 const FILE = '33333333-3333-4333-8333-333333333333';

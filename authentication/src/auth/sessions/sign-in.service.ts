@@ -1,7 +1,16 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AccountService } from '../account/account.service';
 import { EmailDeliveryService } from '../mail/email-delivery.service';
-import { SIGN_IN_ALERT_SUBJECT, signInAlertEmailHtml } from '../mail/sign-in-alert-email.template';
+import {
+  SIGN_IN_ALERT_SUBJECT,
+  signInAlertEmailHtml,
+} from '../mail/sign-in-alert-email.template';
+import { NotificationClient } from '../notifications/notification.client';
 import { UserRecord } from '../users/user.repository';
 import { ClientContext } from './client-context';
 import { RefreshTokenRepository } from './refresh-token.repository';
@@ -20,25 +29,54 @@ export class SignInService {
   constructor(
     @Inject(AccountService) private readonly account: AccountService,
     @Inject(TokenIssuerService) private readonly tokens: TokenIssuerService,
-    @Inject(RefreshTokenRepository) private readonly refreshTokens: RefreshTokenRepository,
+    @Inject(RefreshTokenRepository)
+    private readonly refreshTokens: RefreshTokenRepository,
     @Inject(EmailDeliveryService) private readonly mail: EmailDeliveryService,
+    @Inject(NotificationClient)
+    private readonly notifications: NotificationClient,
   ) {}
 
-  async complete(user: UserRecord, client: ClientContext): Promise<TokenPair> {
+  async complete(
+    user: UserRecord,
+    client: ClientContext,
+    { adminEmailVerified = false }: { adminEmailVerified?: boolean } = {},
+  ): Promise<TokenPair> {
+    if (user.role === 'admin' && !adminEmailVerified) {
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    }
     await this.account.reactivate(user);
 
-    const alreadySignedInElsewhere = (await this.refreshTokens.listSessionTokens(user.id)).length > 0;
-    const tokens = await this.tokens.issue(user.id, user.role, client);
-    if (alreadySignedInElsewhere) this.alertOwner(user, client);
+    const alreadySignedInElsewhere =
+      (await this.refreshTokens.listSessionTokens(user.id)).length > 0;
+    const { sessionId, ...tokens } = await this.tokens.issue(
+      user.id,
+      user.role,
+      client,
+      undefined,
+      adminEmailVerified,
+    );
+    if (alreadySignedInElsewhere) this.alertOwner(user, client, sessionId);
     return tokens;
   }
 
   /**
-   * By email, because it reaches the owner wherever they are. Their other
-   * devices also show the new one (the app compares the device list). Signing
-   * in does not wait for the mail provider, and never fails because of it.
+   * By push to the account's other devices, and by email, because it reaches
+   * the owner wherever they are. Signing in waits for neither, and never
+   * fails because of them.
    */
-  private alertOwner(user: UserRecord, client: ClientContext): void {
+  private alertOwner(
+    user: UserRecord,
+    client: ClientContext,
+    sessionId: string,
+  ): void {
+    this.notifications.signIn({
+      userId: user.id,
+      sessionId,
+      deviceName: client.deviceName,
+      platform: client.platform,
+    });
     if (!user.email) return;
 
     this.mail
@@ -47,6 +85,8 @@ export class SignInService {
         subject: SIGN_IN_ALERT_SUBJECT,
         html: signInAlertEmailHtml({ ...client, signedInAt: new Date() }),
       })
-      .catch((error: Error) => this.logger.warn(`Sign-in alert not sent: ${error.message}`));
+      .catch((error: Error) =>
+        this.logger.warn(`Sign-in alert not sent: ${error.message}`),
+      );
   }
 }

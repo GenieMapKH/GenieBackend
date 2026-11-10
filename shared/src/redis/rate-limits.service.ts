@@ -22,7 +22,10 @@ export class RateLimits {
       keyPrefix: `limit:${name}`,
       points,
       duration: durationSeconds,
-      insuranceLimiter: new RateLimiterMemory({ points, duration: durationSeconds }),
+      insuranceLimiter: new RateLimiterMemory({
+        points,
+        duration: durationSeconds,
+      }),
     });
   }
 }

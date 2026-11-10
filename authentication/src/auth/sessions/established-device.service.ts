@@ -1,5 +1,13 @@
-import { ForbiddenException, HttpStatus, Inject, Injectable } from '@nestjs/common';
-import { RefreshTokenRecord, RefreshTokenRepository } from './refresh-token.repository';
+import {
+  ForbiddenException,
+  HttpStatus,
+  Inject,
+  Injectable,
+} from '@nestjs/common';
+import {
+  RefreshTokenRecord,
+  RefreshTokenRepository,
+} from './refresh-token.repository';
 
 /** The session a request comes from. `sessionId` is null for a token from before sessions existed. */
 export interface SessionCaller {
@@ -36,27 +44,39 @@ export function sessionStartOf(token: RefreshTokenRecord): string {
  */
 @Injectable()
 export class EstablishedDeviceService {
-  constructor(@Inject(RefreshTokenRepository) private readonly refreshTokens: RefreshTokenRepository) {}
+  constructor(
+    @Inject(RefreshTokenRepository)
+    private readonly refreshTokens: RefreshTokenRepository,
+  ) {}
 
   /** `403` with `code: DEVICE_TOO_NEW` while the caller's device is not established. */
   async require(caller: SessionCaller): Promise<void> {
-    const status = this.statusAmong(await this.refreshTokens.listSessionTokens(caller.userId), caller);
+    const status = this.statusAmong(
+      await this.refreshTokens.listSessionTokens(caller.userId),
+      caller,
+    );
     if (status.isEstablished) return;
 
     throw new ForbiddenException({
       statusCode: HttpStatus.FORBIDDEN,
       code: DEVICE_TOO_NEW,
-      message: 'This device signed in less than a day ago. To protect the account it cannot do this yet.',
+      message:
+        'This device signed in less than a day ago. To protect the account it cannot do this yet.',
       canSignOutOthersFrom: status.from?.toISOString() ?? null,
     });
   }
 
   /** The caller's status, given the account's session tokens (to save reading them twice). */
-  statusAmong(tokens: RefreshTokenRecord[], caller: SessionCaller): EstablishedStatus {
+  statusAmong(
+    tokens: RefreshTokenRecord[],
+    caller: SessionCaller,
+  ): EstablishedStatus {
     const own = tokens.find((token) => token.session_id === caller.sessionId);
     if (!own) return { isEstablished: false, from: null };
 
-    const from = new Date(new Date(sessionStartOf(own)).getTime() + ESTABLISHED_AFTER_MS);
+    const from = new Date(
+      new Date(sessionStartOf(own)).getTime() + ESTABLISHED_AFTER_MS,
+    );
     return { isEstablished: from.getTime() <= Date.now(), from };
   }
 }

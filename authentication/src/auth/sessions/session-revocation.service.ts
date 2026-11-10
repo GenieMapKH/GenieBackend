@@ -10,7 +10,8 @@ import { RevokedSessionStore } from './revoked-session.store';
 @Injectable()
 export class SessionRevocationService {
   constructor(
-    @Inject(RefreshTokenRepository) private readonly refreshTokens: RefreshTokenRepository,
+    @Inject(RefreshTokenRepository)
+    private readonly refreshTokens: RefreshTokenRepository,
     @Inject(RevokedSessionStore) private readonly revoked: RevokedSessionStore,
   ) {}
 
@@ -22,8 +23,13 @@ export class SessionRevocationService {
   }
 
   /** Signs the user out everywhere, or everywhere but `exceptSessionId`. */
-  async endAllSessions(userId: string, exceptSessionId?: string | null): Promise<void> {
-    await this.revoked.add(await this.refreshTokens.revokeAllForUser(userId, exceptSessionId));
+  async endAllSessions(
+    userId: string,
+    exceptSessionId?: string | null,
+  ): Promise<void> {
+    await this.revoked.add(
+      await this.refreshTokens.revokeAllForUser(userId, exceptSessionId),
+    );
   }
 
   /** Signs out the device that holds this refresh token. */

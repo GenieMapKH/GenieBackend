@@ -1,11 +1,19 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@genie/prisma-client';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
+import { PrismaClient } from '@tilomnov/prisma-client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { poolOptions } from './pool-options';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
   private readonly keepsConnectionsOpen: boolean;
 
@@ -17,7 +25,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // Each instance opens its own pool: instances x max must stay under the
     // database's connection limit.
     const options = poolOptions();
-    super({ adapter: new PrismaPg(new Pool({ connectionString, ...options })) });
+    super({
+      adapter: new PrismaPg(new Pool({ connectionString, ...options })),
+    });
     this.keepsConnectionsOpen = options.min > 0;
   }
 
@@ -39,7 +49,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$queryRaw`SELECT 1`;
     } catch (error) {
-      this.logger.warn(`Could not open a database connection at start-up: ${(error as Error).message}`);
+      this.logger.warn(
+        `Could not open a database connection at start-up: ${(error as Error).message}`,
+      );
     }
   }
 }

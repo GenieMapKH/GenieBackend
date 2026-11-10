@@ -2,7 +2,9 @@ import { buildCorsOptions } from './cors.config';
 
 describe('buildCorsOptions', () => {
   it('uses the configured origin list', () => {
-    const options = buildCorsOptions({ CORS_ORIGINS: 'https://a.com, https://b.com' });
+    const options = buildCorsOptions({
+      CORS_ORIGINS: 'https://a.com, https://b.com',
+    });
 
     expect(options.origin).toEqual(['https://a.com', 'https://b.com']);
   });
@@ -17,9 +19,16 @@ describe('buildCorsOptions', () => {
   });
 
   it('lets a browser send the headers the app sets', () => {
-    const allowed = String(buildCorsOptions({}).allowedHeaders).toLowerCase().split(',');
+    const allowed = String(buildCorsOptions({}).allowedHeaders)
+      .toLowerCase()
+      .split(',');
 
-    for (const header of ['x-device-name', 'x-device-platform', 'x-guest-session-id', 'if-none-match']) {
+    for (const header of [
+      'x-device-name',
+      'x-device-platform',
+      'x-guest-session-id',
+      'if-none-match',
+    ]) {
       expect(allowed).toContain(header);
     }
   });
@@ -29,6 +38,8 @@ describe('buildCorsOptions', () => {
   });
 
   it('never lets a client set x-user-id', () => {
-    expect(String(buildCorsOptions({}).allowedHeaders)).not.toMatch(/x-user-id/i);
+    expect(String(buildCorsOptions({}).allowedHeaders)).not.toMatch(
+      /x-user-id/i,
+    );
   });
 });

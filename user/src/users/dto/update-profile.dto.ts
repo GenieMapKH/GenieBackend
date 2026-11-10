@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { E164_PHONE_NUMBER, normalizePhoneNumber } from '@tilomnov/shared';
 import { Transform } from 'class-transformer';
 import {
   IsIn,
@@ -12,9 +13,6 @@ import {
 /** A handle: 3 to 30 lowercase letters, digits, "_" or ".". */
 export const USERNAME_PATTERN = /^[a-z0-9_.]{3,30}$/;
 
-/** Seven to twenty characters: digits, with an optional leading "+" and spaces, dots, dashes or brackets between them. */
-const PHONE_NUMBER = /^\+?[0-9][0-9 ().-]{5,18}[0-9]$/;
-
 /** The values the `users.sex` column accepts. */
 export const SEXES = ['male', 'female', 'other'] as const;
 export type Sex = (typeof SEXES)[number];
@@ -26,13 +24,21 @@ function trimToNull({ value }: { value: unknown }): unknown {
   return trimmed === '' ? null : trimmed;
 }
 
+/** One stored spelling per number, as at sign-up; a number it cannot read is left for `@Matches` to refuse. */
+function toPhoneNumber({ value }: { value: unknown }): unknown {
+  return typeof value === 'string'
+    ? (normalizePhoneNumber(value) ?? value)
+    : value;
+}
+
 function toLowerCase({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim().toLowerCase() : value;
 }
 
 /**
  * Every field is optional: only the ones sent are changed. Sending `null`
- * (or an empty string) clears a field, except `username`, which every account keeps.
+ * (or an empty string) clears a field, except `username` and `phone`, which
+ * stay once set.
  * The profile picture has its own endpoints (`AvatarService`).
  */
 export class UpdateProfileDto {
@@ -75,10 +81,15 @@ export class UpdateProfileDto {
   @IsIn(SEXES)
   sex?: Sex | null;
 
-  @ApiPropertyOptional({ description: 'The new phone number for the user' })
-  @IsOptional()
+  @ApiPropertyOptional({
+    description:
+      'The new phone number. Without a country code it is read as Cambodian; stored as E.164. Cannot be cleared: it is how phone-only accounts sign in.',
+  })
+  @ValidateIf((dto: UpdateProfileDto) => dto.phone !== undefined)
+  @Transform(toPhoneNumber)
   @IsString()
-  @MaxLength(20)
-  @Matches(PHONE_NUMBER, { message: 'Enter a valid phone number, for example +85512345678' })
+  @Matches(E164_PHONE_NUMBER, {
+    message: 'Enter a valid phone number, for example 012 345 678',
+  })
   phone?: string;
 }

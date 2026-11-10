@@ -7,8 +7,8 @@ export interface GeoPoint {
 export function boundaryCentroid(points: unknown): GeoPoint | null {
   if (!Array.isArray(points) || points.length === 0) return null;
 
-  const sum = points.reduce(
-    (total: GeoPoint, point: Partial<GeoPoint>) => ({
+  const sum = (points as Partial<GeoPoint>[]).reduce<GeoPoint>(
+    (total, point) => ({
       lat: total.lat + (point.lat || 0),
       lng: total.lng + (point.lng || 0),
     }),

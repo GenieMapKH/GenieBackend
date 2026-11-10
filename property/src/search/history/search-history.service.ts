@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '@genie/shared';
+import { PrismaService } from '@tilomnov/shared';
 import { MIN_SEARCH_LENGTH, normalizeSearchText } from '../search-text';
 
 /** How long a search is remembered. */

@@ -23,9 +23,25 @@ export class JsonCache {
     }
   }
 
+  /** Several values in one round trip, in the order of `keys`; null where missing. */
+  async getMany<T>(keys: string[]): Promise<(T | null)[]> {
+    if (keys.length === 0) return [];
+    try {
+      const raws = await this.connection.client.mget(...keys);
+      return raws.map((raw) => (raw === null ? null : (JSON.parse(raw) as T)));
+    } catch {
+      return keys.map(() => null);
+    }
+  }
+
   async set(key: string, value: unknown, ttlSeconds: number): Promise<void> {
     try {
-      await this.connection.client.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+      await this.connection.client.set(
+        key,
+        JSON.stringify(value),
+        'EX',
+        ttlSeconds,
+      );
     } catch {
       // Not cached this time; the next read loads it again.
     }
@@ -53,7 +69,11 @@ export class JsonCache {
    * `ttlSeconds`. A cached value went through JSON: dates come back as strings,
    * exactly as they would in the HTTP response.
    */
-  async remember<T>(key: string, ttlSeconds: number, load: () => Promise<T>): Promise<T> {
+  async remember<T>(
+    key: string,
+    ttlSeconds: number,
+    load: () => Promise<T>,
+  ): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached !== null) return cached;
 

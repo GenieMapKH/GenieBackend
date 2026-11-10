@@ -1,4 +1,9 @@
-import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { FirebaseService } from '../../firebase/firebase.service';
 import { UserRecord, UserRepository } from '../users/user.repository';
@@ -38,21 +43,29 @@ export class IdentityProofService {
 
     const proven = proof.password
       ? await bcrypt.compare(proof.password, user.password_hash)
-      : !!proof.idToken && (await this.isFreshGoogleSignIn(user, proof.idToken));
+      : !!proof.idToken &&
+        (await this.isFreshGoogleSignIn(user, proof.idToken));
     if (!proven) {
       throw new ForbiddenException(
-        proof.password ? 'The password is incorrect' : 'Could not confirm your Google account. Please try again.',
+        proof.password
+          ? 'The password is incorrect'
+          : 'Could not confirm your Google account. Please try again.',
       );
     }
     return user;
   }
 
-  private async isFreshGoogleSignIn(user: UserRecord, idToken: string): Promise<boolean> {
+  private async isFreshGoogleSignIn(
+    user: UserRecord,
+    idToken: string,
+  ): Promise<boolean> {
     if (!user.firebase_uid) return false;
     try {
       const token = await this.firebase.verifyIdToken(idToken);
       const ageSeconds = Date.now() / 1000 - token.auth_time;
-      return token.uid === user.firebase_uid && ageSeconds <= MAX_SIGN_IN_AGE_SECONDS;
+      return (
+        token.uid === user.firebase_uid && ageSeconds <= MAX_SIGN_IN_AGE_SECONDS
+      );
     } catch {
       return false;
     }

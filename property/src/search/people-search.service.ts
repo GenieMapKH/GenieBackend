@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '@genie/shared';
+import { ReadPrisma } from '@tilomnov/shared';
+import { inOrderOf } from '../properties/services/property-search.service';
 
 /** What a list of search results shows of a person: no contact details. */
 export interface PublisherSummary {
@@ -15,17 +16,19 @@ export interface PublisherSummary {
 
 /**
  * Someone's own profile page (opened from search or from a chat) adds how to
- * reach them, but only for publishers: their listings already show the same
- * email and phone. Someone who has published nothing keeps theirs private.
- * Never in result lists, so a search cannot collect contact details in bulk.
+ * reach them, but only for publishers. Someone who has published nothing
+ * keeps theirs private. Never in result lists, so a search cannot collect
+ * contact details in bulk; and only a limited number of pages a day show them
+ * (`ContactDetailsInterceptor`).
  */
 export interface PublisherProfile extends PublisherSummary {
+  isAdmin: boolean;
   email: string | null;
   phone: string | null;
 }
 
 /** Someone the public may find: not deactivated, with at least one published listing. */
-const PUBLISHER = {
+export const PUBLISHER = {
   deactivatedAt: null,
   properties: { some: { status: 'Active' } },
 } as const;
@@ -41,6 +44,7 @@ const PUBLISHER_SELECT = {
 
 const PROFILE_SELECT = {
   ...PUBLISHER_SELECT,
+  role: true,
   email: true,
   phone: true,
 } as const;
@@ -60,7 +64,8 @@ type PublisherRow = {
  */
 @Injectable()
 export class PeopleSearchService {
-  constructor(private readonly prisma: PrismaService) {}
+  /** Public reads: a moment old is fine. */
+  constructor(private readonly prisma: ReadPrisma) {}
 
   /** Publishers whose name or username contains every one of `terms`; the busiest first. */
   async matching(terms: string[], limit: number): Promise<PublisherSummary[]> {
@@ -84,6 +89,20 @@ export class PeopleSearchService {
   }
 
   /**
+   * The publishers among `ids`, in the order of `ids` (a search engine's
+   * ranking). Someone who has since hidden their account or unpublished
+   * everything is left out, however stale the engine that found them.
+   */
+  async byIds(ids: string[]): Promise<PublisherSummary[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.prisma.user.findMany({
+      where: { ...PUBLISHER, id: { in: ids } },
+      select: PUBLISHER_SELECT,
+    });
+    return inOrderOf(ids, rows).map(toSummary);
+  }
+
+  /**
    * Anyone's profile, publisher or not (people chat before they list
    * anything); 404 when the account is missing or deactivated. It can only be
    * reached by id: search finds publishers alone.
@@ -100,6 +119,7 @@ export class PeopleSearchService {
     const publishes = summary.listingCount > 0;
     return {
       ...summary,
+      isAdmin: row.role === 'admin',
       email: publishes ? row.email : null,
       phone: publishes ? row.phone : null,
     };

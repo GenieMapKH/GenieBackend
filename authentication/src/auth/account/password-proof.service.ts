@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { PASSWORD_PROOF_TOKEN_TYPE, PASSWORD_PROOF_TTL_SECONDS } from '../auth.constants';
+import {
+  PASSWORD_PROOF_TOKEN_TYPE,
+  PASSWORD_PROOF_TTL_SECONDS,
+} from '../auth.constants';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 import { IdentityProofService } from './identity-proof.service';
 
 export interface PasswordProof {
@@ -19,7 +22,7 @@ export interface PasswordProof {
 @Injectable()
 export class PasswordProofService {
   constructor(
-    @Inject(JwtService) private readonly jwt: JwtService,
+    @Inject(TokenSigner) private readonly signer: TokenSigner,
     @Inject(IdentityProofService) private readonly proofs: IdentityProofService,
   ) {}
 
@@ -27,9 +30,9 @@ export class PasswordProofService {
   async issue(userId: string, password: string): Promise<PasswordProof> {
     await this.proofs.verify(userId, { password });
 
-    const proofToken = this.jwt.sign(
+    const proofToken = this.signer.sign(
       { sub: userId, typ: PASSWORD_PROOF_TOKEN_TYPE },
-      { expiresIn: PASSWORD_PROOF_TTL_SECONDS },
+      PASSWORD_PROOF_TTL_SECONDS,
     );
     return { proofToken, expiresInSeconds: PASSWORD_PROOF_TTL_SECONDS };
   }

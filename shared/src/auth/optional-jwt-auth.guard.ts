@@ -6,13 +6,16 @@ import { AuthGuard } from '@nestjs/passport';
 export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
   private readonly logger = new Logger(OptionalJwtAuthGuard.name);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handleRequest(err: any, user: any, info: any) {
+  handleRequest<TUser = unknown>(
+    err: { message?: string } | undefined,
+    user: TUser,
+    info: { message?: string } | undefined,
+  ): TUser {
     const reason: string | undefined = info?.message ?? err?.message;
     // A request with no token at all is normal here; one that carried a token that failed is not.
     if (!user && reason && reason !== 'No auth token') {
       this.logger.warn(`Token rejected: ${reason}`);
     }
-    return user || null;
+    return (user || null) as TUser;
   }
 }

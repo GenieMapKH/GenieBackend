@@ -7,13 +7,21 @@ const ME = '11111111-1111-4111-8111-111111111111';
 describe('AccountContentService', () => {
   const users = { publicViewChanged: jest.fn() };
   const avatars = { removeAllOf: jest.fn() };
-  const properties = { eraseFiles: jest.fn(), notifyVisibilityChanged: jest.fn() };
+  const properties = {
+    eraseFiles: jest.fn(),
+    notifyVisibilityChanged: jest.fn(),
+  };
   const chat = { eraseFiles: jest.fn(), notifyVisibilityChanged: jest.fn() };
   let content: AccountContentService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    content = new AccountContentService(users as never, avatars as never, properties as never, chat as never);
+    content = new AccountContentService(
+      users as never,
+      avatars as never,
+      properties as never,
+      chat as never,
+    );
   });
 
   it('erases every kind of file an account can upload', async () => {
@@ -25,7 +33,9 @@ describe('AccountContentService', () => {
   });
 
   it('does not report success when one kind could not be erased', async () => {
-    chat.eraseFiles.mockRejectedValue(new Error('the chat service is unreachable'));
+    chat.eraseFiles.mockRejectedValue(
+      new Error('the chat service is unreachable'),
+    );
 
     await expect(content.eraseFiles(ME)).rejects.toThrow('chat service');
   });
@@ -33,7 +43,9 @@ describe('AccountContentService', () => {
   it('does not report success when a whole service is down', async () => {
     properties.eraseFiles.mockRejectedValue(new ServiceUnavailableException());
 
-    await expect(content.eraseFiles(ME)).rejects.toThrow(ServiceUnavailableException);
+    await expect(content.eraseFiles(ME)).rejects.toThrow(
+      ServiceUnavailableException,
+    );
   });
 
   it('drops everything cached about an account that was hidden or came back', async () => {
@@ -51,7 +63,8 @@ describe('RemoteAccountContent', () => {
   beforeEach(() => {
     fetchMock.mockReset();
     global.fetch = fetchMock as never;
-    process.env.INTERNAL_SERVICE_SECRET = 'a-shared-secret-of-at-least-thirty-two-characters';
+    process.env.INTERNAL_SERVICE_SECRET =
+      'a-shared-secret-of-at-least-thirty-two-characters';
     remote = new RemoteAccountContent('property', 'http://property.test');
   });
 

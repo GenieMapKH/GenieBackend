@@ -1,21 +1,29 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   ACCESS_TOKEN_TYPE,
-  BCRYPT_ROUNDS,
   REFRESH_TOKEN_TTL_DAYS,
   REFRESH_TOKEN_TYPE,
 } from '../auth.constants';
 import { ClientContext } from './client-context';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 import { IpLocationProvider } from './ip-location.provider';
-import { RefreshTokenRecord, RefreshTokenRepository, SessionDetails } from './refresh-token.repository';
+import { hashRefreshToken } from './refresh-token-hash';
+import {
+  RefreshTokenRecord,
+  RefreshTokenRepository,
+  SessionDetails,
+} from './refresh-token.repository';
 
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
+}
+
+/** A new pair, and the session it belongs to (kept on the server, not sent to the app). */
+export interface IssuedTokens extends TokenPair {
+  sessionId: string;
 }
 
 /** Signs a new access/refresh token pair and records the refresh token. */
@@ -24,8 +32,9 @@ export class TokenIssuerService {
   private readonly logger = new Logger(TokenIssuerService.name);
 
   constructor(
-    @Inject(JwtService) private readonly jwt: JwtService,
-    @Inject(RefreshTokenRepository) private readonly refreshTokens: RefreshTokenRepository,
+    @Inject(TokenSigner) private readonly signer: TokenSigner,
+    @Inject(RefreshTokenRepository)
+    private readonly refreshTokens: RefreshTokenRepository,
     @Inject(IpLocationProvider) private readonly locations: IpLocationProvider,
   ) {}
 
@@ -33,27 +42,45 @@ export class TokenIssuerService {
    * A sign-in starts a new session. A refresh passes the token it replaces as
    * `previous`, and the new token continues that token's session.
    */
-  async issue(userId: string, role: string, client: ClientContext, previous?: RefreshTokenRecord): Promise<TokenPair> {
+  async issue(
+    userId: string,
+    role: string,
+    client: ClientContext,
+    previous?: RefreshTokenRecord,
+    adminEmailVerified = false,
+  ): Promise<IssuedTokens> {
     const session = continueOrStartSession(client, previous);
+    const adminMfa = role === 'admin' && adminEmailVerified;
 
     // `sid` names the session: it marks the asking device in the session list,
     // and is what a sign-out cuts off (see `RevokedSessionStore`).
-    const accessToken = this.jwt.sign(
-      { sub: userId, role, typ: ACCESS_TOKEN_TYPE, sid: session.id },
-      { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
+    const accessToken = this.signer.sign(
+      {
+        sub: userId,
+        role,
+        typ: ACCESS_TOKEN_TYPE,
+        sid: session.id,
+        ...(adminMfa && { adminMfa: true }),
+      },
+      ACCESS_TOKEN_TTL_SECONDS,
     );
 
     // The jti ties the signed token to its database row so it can be revoked.
     const jti = randomUUID();
-    const refreshToken = this.jwt.sign(
-      { sub: userId, jti, typ: REFRESH_TOKEN_TYPE },
-      { expiresIn: `${REFRESH_TOKEN_TTL_DAYS}d` },
+    const refreshToken = this.signer.sign(
+      {
+        sub: userId,
+        jti,
+        typ: REFRESH_TOKEN_TYPE,
+        ...(adminMfa && { adminMfa: true }),
+      },
+      `${REFRESH_TOKEN_TTL_DAYS}d`,
     );
 
     await this.refreshTokens.insert({
       id: jti,
       userId,
-      tokenHash: await bcrypt.hash(refreshToken, BCRYPT_ROUNDS),
+      tokenHash: hashRefreshToken(refreshToken),
       expiresAt: this.refreshExpiry(),
       session,
     });
@@ -61,15 +88,21 @@ export class TokenIssuerService {
       this.locateInBackground(jti, session.ipAddress);
     }
 
-    return { accessToken, refreshToken };
+    return { accessToken, refreshToken, sessionId: session.id };
   }
 
   /** The lookup calls another server, so signing in does not wait for it. */
   private locateInBackground(tokenId: string, ipAddress: string): void {
     this.locations
       .locate(ipAddress)
-      .then((location) => (location ? this.refreshTokens.setLocation(tokenId, location) : undefined))
-      .catch((error: Error) => this.logger.warn(`Session location not saved: ${error.message}`));
+      .then((location) =>
+        location
+          ? this.refreshTokens.setLocation(tokenId, location)
+          : undefined,
+      )
+      .catch((error: Error) =>
+        this.logger.warn(`Session location not saved: ${error.message}`),
+      );
   }
 
   private refreshExpiry(): Date {
@@ -83,14 +116,21 @@ export class TokenIssuerService {
  * The session of a new token. What the device says about itself now wins over
  * what the previous token recorded; the place is kept while the address is the same.
  */
-export function continueOrStartSession(client: ClientContext, previous?: RefreshTokenRecord): SessionDetails {
+export function continueOrStartSession(
+  client: ClientContext,
+  previous?: RefreshTokenRecord,
+): SessionDetails {
   const ipAddress = client.ipAddress ?? previous?.ip_address ?? null;
   return {
     id: previous?.session_id ?? randomUUID(),
-    startedAt: previous?.session_started_at ?? previous?.created_at ?? new Date().toISOString(),
+    startedAt:
+      previous?.session_started_at ??
+      previous?.created_at ??
+      new Date().toISOString(),
     deviceName: client.deviceName ?? previous?.device_name ?? null,
     platform: client.platform ?? previous?.platform ?? null,
     ipAddress,
-    location: previous && previous.ip_address === ipAddress ? previous.location : null,
+    location:
+      previous && previous.ip_address === ipAddress ? previous.location : null,
   };
 }

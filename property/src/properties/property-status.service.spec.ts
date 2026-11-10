@@ -12,7 +12,7 @@ describe('PropertyStatusService', () => {
     it('should allow publishing from Draft', () => {
       expect(service.canPublish('Draft')).toBe(true);
     });
-    
+
     it('should allow publishing from Expired', () => {
       expect(service.canPublish('Expired')).toBe(true);
     });

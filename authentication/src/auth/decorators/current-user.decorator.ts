@@ -10,5 +10,6 @@ export interface AuthenticatedUser {
 
 /** Injects the [AuthenticatedUser]. Only for routes behind `JwtAuthGuard`. */
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, context: ExecutionContext): AuthenticatedUser => context.switchToHttp().getRequest().user,
+  (_data: unknown, context: ExecutionContext): AuthenticatedUser =>
+    context.switchToHttp().getRequest<{ user: AuthenticatedUser }>().user,
 );

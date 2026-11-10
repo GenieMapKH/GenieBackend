@@ -1,6 +1,14 @@
-import { Inject, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { INTERNAL_TOKEN_TTL_SECONDS, INTERNAL_TOKEN_TYPE } from '../auth.constants';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import {
+  INTERNAL_TOKEN_TTL_SECONDS,
+  INTERNAL_TOKEN_TYPE,
+} from '../auth.constants';
+import { TokenSigner } from '../signing-keys/token-signer.service';
 
 const ERASE_TIMEOUT_MS = 30_000;
 const NOTICE_TIMEOUT_MS = 5_000;
@@ -17,9 +25,11 @@ const NOTICE_TIMEOUT_MS = 5_000;
 @Injectable()
 export class UserContentClient {
   private readonly logger = new Logger(UserContentClient.name);
-  private readonly baseUrl = (process.env.USER_SERVICE_URL || 'http://localhost:4002').replace(/\/+$/, '');
+  private readonly baseUrl = (
+    process.env.USER_SERVICE_URL || 'http://localhost:4002'
+  ).replace(/\/+$/, '');
 
-  constructor(@Inject(JwtService) private readonly jwt: JwtService) {}
+  constructor(@Inject(TokenSigner) private readonly signer: TokenSigner) {}
 
   /**
    * Removes every file the account uploaded, for good. Throws `503` when the
@@ -30,8 +40,12 @@ export class UserContentClient {
     try {
       await this.call('DELETE', userId, 'files', ERASE_TIMEOUT_MS);
     } catch (error) {
-      this.logger.error(`Files of ${userId} were not erased: ${(error as Error).message}`);
-      throw new ServiceUnavailableException('The account could not be deleted right now. Please try again.');
+      this.logger.error(
+        `Files of ${userId} were not erased: ${(error as Error).message}`,
+      );
+      throw new ServiceUnavailableException(
+        'The account could not be deleted right now. Please try again.',
+      );
     }
   }
 
@@ -43,17 +57,30 @@ export class UserContentClient {
     try {
       await this.call('POST', userId, 'visibility-changed', NOTICE_TIMEOUT_MS);
     } catch (error) {
-      this.logger.warn(`Caches of ${userId} were not cleared: ${(error as Error).message}`);
+      this.logger.warn(
+        `Caches of ${userId} were not cleared: ${(error as Error).message}`,
+      );
     }
   }
 
-  private async call(method: string, userId: string, action: string, timeoutMs: number): Promise<void> {
-    const token = this.jwt.sign({ sub: userId, typ: INTERNAL_TOKEN_TYPE }, { expiresIn: INTERNAL_TOKEN_TTL_SECONDS });
-    const response = await fetch(`${this.baseUrl}/internal/accounts/${userId}/${action}`, {
-      method,
-      headers: { authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+  private async call(
+    method: string,
+    userId: string,
+    action: string,
+    timeoutMs: number,
+  ): Promise<void> {
+    const token = this.signer.sign(
+      { sub: userId, typ: INTERNAL_TOKEN_TYPE },
+      INTERNAL_TOKEN_TTL_SECONDS,
+    );
+    const response = await fetch(
+      `${this.baseUrl}/internal/accounts/${userId}/${action}`,
+      {
+        method,
+        headers: { authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      },
+    );
     if (!response.ok) {
       throw new Error(`the user service answered ${response.status}`);
     }

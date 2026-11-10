@@ -2,7 +2,9 @@ import { FirebaseLoginService } from './firebase-login.service';
 
 // firebase-admin pulls in ESM-only packages Jest cannot load; the real
 // service is replaced by a stub below anyway.
-jest.mock('../../firebase/firebase.service', () => ({ FirebaseService: class {} }));
+jest.mock('../../firebase/firebase.service', () => ({
+  FirebaseService: class {},
+}));
 
 const GOOGLE_PHOTO = 'https://lh3.googleusercontent.com/a/current-photo';
 
@@ -17,7 +19,11 @@ describe('FirebaseLoginService', () => {
   };
   const sessions = { endAllSessions: jest.fn() };
   const signIn = { complete: jest.fn() };
-  const client = { deviceName: 'Pixel 8', platform: 'Android 15', ipAddress: '203.0.113.7' };
+  const client = {
+    deviceName: 'Pixel 8',
+    platform: 'Android 15',
+    ipAddress: '203.0.113.7',
+  };
   let service: FirebaseLoginService;
 
   const existingUser = {
@@ -31,13 +37,42 @@ describe('FirebaseLoginService', () => {
     password_hash: 'hash-of-a-password-someone-chose',
     has_password: true,
   };
-  const linkedUser = { ...existingUser, firebase_uid: 'fb1' };
-  const googleToken = { uid: 'fb1', email: 'a@b.com', email_verified: true };
+  const linkedUser = {
+    ...existingUser,
+    firebase_uid: 'fb1',
+    email_verified: true,
+  };
+  const googleToken = {
+    uid: 'fb1',
+    email: 'a@b.com',
+    email_verified: true,
+    firebase: { sign_in_provider: 'google.com' },
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
     signIn.complete.mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
-    service = new FirebaseLoginService(firebase as never, users as never, sessions as never, signIn as never);
+    service = new FirebaseLoginService(
+      firebase as never,
+      users as never,
+      sessions as never,
+      signIn as never,
+    );
+  });
+
+  it('refuses an SMS confirmation: it only resets a password, never signs in', async () => {
+    firebase.verifyIdToken.mockResolvedValue({
+      uid: 'fb-phone',
+      phone_number: '+85512345678',
+      firebase: { sign_in_provider: 'phone' },
+    });
+
+    await expect(service.login('id-token', client)).rejects.toMatchObject({
+      status: 401,
+    });
+    expect(users.findByPhone).not.toHaveBeenCalled();
+    expect(users.update).not.toHaveBeenCalled();
+    expect(signIn.complete).not.toHaveBeenCalled();
   });
 
   it('signs in a user already linked to the Firebase uid', async () => {
@@ -51,6 +86,16 @@ describe('FirebaseLoginService', () => {
     expect(tokens).toEqual({ accessToken: 'a', refreshToken: 'r' });
   });
 
+  it('requires the admin password and does not modify its credentials through Google', async () => {
+    firebase.verifyIdToken.mockResolvedValue(googleToken);
+    users.findByFirebaseUid.mockResolvedValue({ ...linkedUser, role: 'admin' });
+    await expect(service.login('id-token', client)).rejects.toThrow(
+      'Sign in with your email and password',
+    );
+    expect(signIn.complete).not.toHaveBeenCalled();
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
   it('links a verified email to the existing account', async () => {
     firebase.verifyIdToken.mockResolvedValue(googleToken);
     users.findByFirebaseUid.mockResolvedValue(null);
@@ -58,7 +103,10 @@ describe('FirebaseLoginService', () => {
 
     await service.login('id-token', client);
 
-    expect(users.update).toHaveBeenCalledWith('u1', expect.objectContaining({ firebase_uid: 'fb1' }));
+    expect(users.update).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ firebase_uid: 'fb1' }),
+    );
     expect(users.create).not.toHaveBeenCalled();
   });
 
@@ -74,6 +122,9 @@ describe('FirebaseLoginService', () => {
     expect(patch.password_hash).not.toBe(existingUser.password_hash);
     // The app then offers "Create password" instead of asking for one that no longer works.
     expect(patch.has_password).toBe(false);
+    expect(patch.phone).toBeNull();
+    expect(patch.phone_verified).toBe(false);
+    expect(patch.email_verified).toBe(true);
     expect(sessions.endAllSessions).toHaveBeenCalledWith('u1');
   });
 
@@ -88,11 +139,21 @@ describe('FirebaseLoginService', () => {
   });
 
   it('never links an account through an UNVERIFIED email', async () => {
-    firebase.verifyIdToken.mockResolvedValue({ uid: 'fb9', email: 'victim@b.com', email_verified: false });
+    firebase.verifyIdToken.mockResolvedValue({
+      uid: 'fb9',
+      email: 'victim@b.com',
+      email_verified: false,
+    });
     users.findByFirebaseUid.mockResolvedValue(null);
-    users.create.mockResolvedValue({ ...existingUser, id: 'new', email: 'victim@b.com' });
+    users.create.mockResolvedValue({
+      ...existingUser,
+      id: 'new',
+      email: 'victim@b.com',
+    });
 
-    await service.login('id-token', client);
+    await expect(service.login('id-token', client)).rejects.toMatchObject({
+      status: 401,
+    });
 
     expect(users.findByEmail).not.toHaveBeenCalled();
     expect(users.update).not.toHaveBeenCalledWith('u1', expect.anything());
@@ -103,12 +164,18 @@ describe('FirebaseLoginService', () => {
       uid: 'fb2',
       email: 'new@b.com',
       email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
       name: 'New Person',
       picture: GOOGLE_PHOTO,
     });
     users.findByFirebaseUid.mockResolvedValue(null);
     users.findByEmail.mockResolvedValue(null);
-    users.create.mockResolvedValue({ ...existingUser, id: 'u2', name: 'New Person', avatar_url: GOOGLE_PHOTO });
+    users.create.mockResolvedValue({
+      ...existingUser,
+      id: 'u2',
+      name: 'New Person',
+      avatar_url: GOOGLE_PHOTO,
+    });
 
     await service.login('id-token', client);
 
@@ -129,7 +196,11 @@ describe('FirebaseLoginService', () => {
 
   describe('name and picture from Google', () => {
     const signInWith = async (user: object, picture = GOOGLE_PHOTO) => {
-      firebase.verifyIdToken.mockResolvedValue({ ...googleToken, name: 'Google Name', picture });
+      firebase.verifyIdToken.mockResolvedValue({
+        ...googleToken,
+        name: 'Google Name',
+        picture,
+      });
       users.findByFirebaseUid.mockResolvedValue(user);
       await service.login('id-token', client);
     };
@@ -147,9 +218,14 @@ describe('FirebaseLoginService', () => {
     });
 
     it('follows the Google photo when it changes, while the picture is synced from Google', async () => {
-      await signInWith({ ...linkedUser, avatar_url: 'https://lh3.googleusercontent.com/a/old-photo' });
+      await signInWith({
+        ...linkedUser,
+        avatar_url: 'https://lh3.googleusercontent.com/a/old-photo',
+      });
 
-      expect(users.update).toHaveBeenCalledWith('u1', { avatar_url: GOOGLE_PHOTO });
+      expect(users.update).toHaveBeenCalledWith('u1', {
+        avatar_url: GOOGLE_PHOTO,
+      });
     });
 
     it('never replaces a name the user chose or a picture they uploaded', async () => {

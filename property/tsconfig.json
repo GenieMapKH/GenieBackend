@@ -6,16 +6,19 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
+    // TypeScript 6 (the linter) turns it on by default; the build must agree.
+    "esModuleInterop": true,
     "target": "ES2021",
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "types": ["node", "jest"],
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@genie/prisma-client": ["../node_modules/@genie/prisma-client"]
+      "@tilomnov/prisma-client": ["../node_modules/@tilomnov/prisma-client"]
     }
   }
 }
