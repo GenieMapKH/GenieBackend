@@ -1,5 +1,8 @@
+import { Transform } from 'class-transformer';
+import { E164_PHONE_NUMBER, normalizePhoneNumber } from '@tilomnov/shared';
 import {
   ArrayMaxSize,
+  Matches,
   ArrayUnique,
   IsArray,
   IsBoolean,
@@ -86,7 +89,30 @@ export class CreatePropertyDto {
   @IsString()
   @IsOptional()
   @MaxLength(30)
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' && value.trim()
+      ? (normalizePhoneNumber(value) ?? value)
+      : value,
+  )
+  @Matches(E164_PHONE_NUMBER)
   contactPhone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(4)
+  @ArrayUnique()
+  @Transform(({ value }: { value: unknown }) =>
+    Array.isArray(value)
+      ? value.map((number: unknown) =>
+          typeof number === 'string'
+            ? (normalizePhoneNumber(number) ?? number)
+            : number,
+        )
+      : value,
+  )
+  @IsString({ each: true })
+  @Matches(E164_PHONE_NUMBER, { each: true })
+  additionalContactPhones?: string[];
 
   @IsInt()
   @Min(0)

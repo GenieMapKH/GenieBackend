@@ -7,4 +7,4 @@ export const PaymentStatus = {
 } as const;
 
 /** USD, tax included; matches the displayed one-time publishing fee. */
-export const PUBLISH_FEE = 1;
+export const PUBLISH_FEE = 2;

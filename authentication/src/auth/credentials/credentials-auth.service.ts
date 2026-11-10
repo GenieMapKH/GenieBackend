@@ -15,7 +15,6 @@ import { SignInService } from '../sessions/sign-in.service';
 import { TokenPair } from '../sessions/token-issuer.service';
 import { UserRecord, UserRepository } from '../users/user.repository';
 import { EmailVerificationService } from '../verification/email-verification.service';
-import { PhoneProofService } from '../verification/phone-proof.service';
 
 /** Email/phone + password registration and login. */
 @Injectable()
@@ -24,19 +23,10 @@ export class CredentialsAuthService {
     @Inject(UserRepository) private readonly users: UserRepository,
     @Inject(SignInService) private readonly signIn: SignInService,
     private readonly emails: EmailVerificationService,
-    private readonly phones: PhoneProofService,
     private readonly adminLogin: AdminLoginService,
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
-    // shortcut: SMS proof is optional during the delivery outage, require it when signup SMS returns.
-    if (
-      dto.phoneToken &&
-      (await this.phones.verify(dto.phoneToken)) !== dto.phone
-    )
-      throw new BadRequestException(
-        'The SMS proof belongs to a different phone number',
-      );
     if (dto.email) this.emails.requireProof(dto.email, dto.emailProof);
     // The database refuses an exact repeat; these also catch an older account
     // that holds capitals in its email or another spelling of the number.
@@ -57,7 +47,7 @@ export class CredentialsAuthService {
       password_hash: passwordHash,
       has_password: true,
       role: DEFAULT_USER_ROLE,
-      phone_verified: !!dto.phoneToken,
+      phone_verified: false,
       email_verified: !!dto.email,
     });
   }

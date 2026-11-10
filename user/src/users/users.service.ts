@@ -158,14 +158,26 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    if (dto.phone !== undefined)
-      throw new BadRequestException(
-        'Change or verify your phone number through Account Security.',
-      );
+    if (dto.phone !== undefined) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { phone: true },
+      });
+      if (!user || user.phone !== null)
+        throw new BadRequestException(
+          'Change your existing phone number through Account Security.',
+        );
+    }
     try {
       const profile = await this.prisma.user.update({
-        where: { id: userId },
-        data: dto,
+        where: {
+          id: userId,
+          ...(dto.phone !== undefined && { AND: { phone: null } }),
+        },
+        data: {
+          ...dto,
+          ...(dto.phone !== undefined && { phoneVerified: false }),
+        },
         select: PROFILE_SELECT,
       });
       await this.publicViewChanged(userId);

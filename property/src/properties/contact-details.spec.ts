@@ -14,6 +14,7 @@ const listing = () => ({
   price: new Prisma.Decimal('120000.50'),
   createdAt: new Date('2026-10-01T00:00:00.000Z'),
   contactPhone: '012 345 678',
+  additionalContactPhones: ['+85598765432'],
   user: { id: 'u1', name: 'Dara', email: 'dara@example.com', phone: '099' },
 });
 
@@ -21,6 +22,7 @@ describe('withoutContactDetails', () => {
   it("drops the owner's email and phone and the listing's own phone", () => {
     const result = withoutContactDetails(listing());
     expect(result).not.toHaveProperty('contactPhone');
+    expect(result).not.toHaveProperty('additionalContactPhones');
     expect(result.user).toEqual({ id: 'u1', name: 'Dara' });
   });
 
@@ -56,6 +58,12 @@ describe('withoutContactDetails', () => {
 });
 
 describe('hasContactDetails', () => {
+  it('counts extra contacts only when the array has numbers', () => {
+    expect(hasContactDetails({ additionalContactPhones: [] })).toBe(false);
+    expect(
+      hasContactDetails({ additionalContactPhones: ['+85512345678'] }),
+    ).toBe(true);
+  });
   it('finds a phone or email at any depth', () => {
     expect(hasContactDetails(listing())).toBe(true);
     expect(hasContactDetails({ items: [{ user: { phone: '1' } }] })).toBe(true);

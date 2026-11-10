@@ -46,7 +46,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
       "ALTER ROLE payment_service PASSWORD 'local-payment-test'; ALTER ROLE property_service PASSWORD 'local-payment-test'",
     );
     await owner.query(
-      'INSERT INTO account.users(id, password_hash, email) VALUES ($1, $3, $4), ($2, $3, $5)',
+      "INSERT INTO account.users(id, password_hash, email, phone) VALUES ($1, $3, $4, '+85512345678'), ($2, $3, $5, '+85512999999')",
       [alice, bob, 'test-only', `${alice}@test.invalid`, `${bob}@test.invalid`],
     );
     function client(role: string) {
@@ -77,6 +77,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
       query as never,
       new PropertyStatusService(),
       changes as never,
+      new PublishingAllowanceService(property as never),
     );
     const publishing = {
       begin: (userId: string, id: string) =>
@@ -141,6 +142,46 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     await owner?.end();
   });
 
+  it('persists a full annual purchase and its capacity after verified payment', async () => {
+    const userId = randomUUID();
+    await owner.query(
+      "INSERT INTO account.users(id, password_hash, email, phone) VALUES ($1, 'test-only', $2, '+855887654321')",
+      [userId, `${userId}@test.invalid`],
+    );
+    try {
+      const quote = await subscriptions.quote(userId, 'silver', 'annual');
+      expect(quote.amount).toBe(70);
+      const checkout = await subscriptions.purchase(
+        userId,
+        'silver',
+        randomUUID(),
+        'aba_pay',
+        quote.quote,
+      );
+      await gateway.reconcile(checkout.transactionId);
+      const saved = await subscriptions.current(userId);
+      expect(saved).toMatchObject({
+        tier: 'silver',
+        billingPeriod: 'annual',
+        listingLimit: 10,
+      });
+      expect(Number(saved!.periodAmount)).toBe(70);
+      const expected = new Date(saved!.currentPeriodStart);
+      expected.setUTCFullYear(expected.getUTCFullYear() + 1);
+      expect(saved!.currentPeriodEnd).toEqual(expected);
+      expect((await subscriptions.allowance(userId)).listingLimit).toBe(10);
+    } finally {
+      await owner.query('DELETE FROM payment.subscriptions WHERE user_id=$1', [
+        userId,
+      ]);
+      await owner.query(
+        'DELETE FROM payment.payment_transactions WHERE user_id=$1',
+        [userId],
+      );
+      await owner.query('DELETE FROM account.users WHERE id=$1', [userId]);
+    }
+  });
+
   it('permits only one of two concurrent first free listings', async () => {
     const results = await Promise.allSettled([
       lifecycle.create(alice, input),
@@ -173,6 +214,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   });
 
   it('saves a purchase once under concurrent retries and reads it from a fresh service', async () => {
+    email.send.mockClear();
     const requestId = randomUUID();
     const [first, repeat] = await Promise.all([
       subscriptions.purchase(alice, 'gold', requestId),
@@ -285,7 +327,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
         where: { userId: bob, status: 'Active' },
       }),
     ).toBe(2);
-    expect(await allowance.usage(bob)).toEqual({ used: 1 });
+    expect(await allowance.usage(bob)).toEqual({ used: 1, listingLimit: 1 });
     await lifecycle.unpublish(bob, paid.id);
     await expect(lifecycle.publish(bob, paid.id)).resolves.toMatchObject({
       status: 'Active',
@@ -299,7 +341,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     });
   });
 
-  it('requires payment after individual expiry, allows subscription coverage, and renews the individual month', async () => {
+  it('uses the free slot after individual expiry, allows subscription coverage, and renews for 30 days', async () => {
     const paid = await payment.paymentTransaction.findFirstOrThrow({
       where: { userId: bob, purpose: 'LISTING_PUBLISH', status: 'Success' },
     });
@@ -321,7 +363,8 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     await lifecycle.unpublish(bob, free.id);
     await expect(
       lifecycle.publish(bob, paid.propertyId!),
-    ).rejects.toMatchObject({ status: 402 });
+    ).resolves.toMatchObject({ status: 'Active' });
+    await lifecycle.unpublish(bob, paid.propertyId!);
     await lifecycle.publish(bob, free.id);
     const pending = await payment.paymentTransaction.findFirstOrThrow({
       where: { userId: bob, purpose: 'SUBSCRIPTION', status: 'Pending' },
@@ -355,7 +398,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
         })
       ).listingPeriodEnd!.getTime(),
     ).toBeGreaterThan(Date.now());
-    expect(await allowance.usage(bob)).toEqual({ used: 1 });
+    expect(await allowance.usage(bob)).toEqual({ used: 1, listingLimit: 1 });
   });
 
   it('retains income from tiers and one-time payments after banning and erasing an account', async () => {

@@ -14,7 +14,7 @@ import {
 import { PaymentStatus } from './payment-status';
 import { PropertyPublishingClient } from './property/property-publishing.client';
 import { OrderEmailClient } from './order-email.client';
-import { monthAfter, PaidTier } from './plan-catalog';
+import { listingExpiry, monthAfter, PaidTier } from './plan-catalog';
 
 /** Only a verified provider result may grant a subscription or publish a listing. */
 @Injectable()
@@ -113,10 +113,13 @@ export class PaymentGatewayService {
           }
           const period = {
             tier: current.subscriptionTier,
+            billingPeriod: current.billingPeriod ?? 'monthly',
+            periodAmount: current.subscriptionPlanAmount,
+            listingLimit: current.subscriptionListingLimit,
             currentPeriodStart: isUpgrade ? active.currentPeriodStart : paidAt,
             currentPeriodEnd: isUpgrade
               ? active.currentPeriodEnd
-              : monthAfter(paidAt),
+              : monthAfter(paidAt, current.billingPeriod === 'annual' ? 12 : 1),
             transactionId: current.id,
             cancelAtPeriodEnd: isUpgrade ? active.cancelAtPeriodEnd : false,
             cancelledAt: isUpgrade ? active.cancelledAt : null,
@@ -151,7 +154,7 @@ export class PaymentGatewayService {
               item: 'listing_publish',
               amount: Number(current.amount),
               periodStart: paidAt.toISOString(),
-              periodEnd: monthAfter(paidAt).toISOString(),
+              periodEnd: listingExpiry(paidAt).toISOString(),
             };
         } else if (current.purpose !== 'SUBSCRIPTION') {
           throw new BadRequestException('Unknown payment purpose');
@@ -163,7 +166,7 @@ export class PaymentGatewayService {
             paidAt,
             ...(paidAt &&
               current.purpose === 'LISTING_PUBLISH' && {
-                listingPeriodEnd: monthAfter(paidAt),
+                listingPeriodEnd: listingExpiry(paidAt),
               }),
           },
         });

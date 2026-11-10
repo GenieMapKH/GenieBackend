@@ -10,7 +10,12 @@ import { RateLimiterRes } from 'rate-limiter-flexible';
 import { Observable, from, mergeMap } from 'rxjs';
 
 /** How a listing or a person is reached: only signed-in users see them. */
-const CONTACT_KEYS = new Set(['email', 'phone', 'contactPhone']);
+const CONTACT_KEYS = new Set([
+  'email',
+  'phone',
+  'contactPhone',
+  'additionalContactPhones',
+]);
 
 /**
  * Answers with contact details one account may receive. Far more than anyone
@@ -45,7 +50,9 @@ export function hasContactDetails(body: unknown): boolean {
   if (!isPlainObject(body)) return false;
   return Object.entries(body).some(([key, value]) =>
     CONTACT_KEYS.has(key)
-      ? value !== null && value !== undefined && value !== ''
+      ? Array.isArray(value)
+        ? value.length > 0
+        : value !== null && value !== undefined && value !== ''
       : hasContactDetails(value),
   );
 }

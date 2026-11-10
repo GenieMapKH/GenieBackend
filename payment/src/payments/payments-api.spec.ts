@@ -130,7 +130,11 @@ describe('payment API trust boundaries', () => {
       .get('/v1/payments/subscriptions/quote/diamond')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
-    expect(subscriptions.quote).toHaveBeenCalledWith(alice, 'diamond');
+    expect(subscriptions.quote).toHaveBeenCalledWith(
+      alice,
+      'diamond',
+      undefined,
+    );
   });
 
   it('validates plan, payment method and idempotency reference before purchase', async () => {

@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   UseGuards,
   VERSION_NEUTRAL,
@@ -18,6 +19,7 @@ import {
 import {
   SubscriptionCheckoutDto,
   SubscriptionQuoteParams,
+  SubscriptionQuoteQuery,
 } from './dto/payment.dto';
 import { SubscriptionService } from './subscription.service';
 
@@ -58,8 +60,13 @@ export class SubscriptionsController {
   quote(
     @Req() request: { user: AuthenticatedUser },
     @Param() params: SubscriptionQuoteParams,
+    @Query() query: SubscriptionQuoteQuery,
   ) {
-    return this.subscriptions.quote(request.user.userId, params.tier);
+    return this.subscriptions.quote(
+      request.user.userId,
+      params.tier,
+      query.billingPeriod,
+    );
   }
 
   @Post('cancel')

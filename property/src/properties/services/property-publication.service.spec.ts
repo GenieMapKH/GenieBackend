@@ -26,10 +26,22 @@ describe('PropertyPublicationService', () => {
     propertyTable.updateMany.mockResolvedValue({ count: 1 });
     propertyTable.findUnique.mockResolvedValue(PLACE);
     service = new PropertyPublicationService(
-      { property: propertyTable } as never,
+      {
+        property: propertyTable,
+        user: {
+          findUnique: jest.fn().mockResolvedValue({ phone: '+85512345678' }),
+        },
+      } as never,
       query as never,
       new PropertyStatusService(),
       listingChanges as never,
+      {
+        payToPublish: (
+          _user: string,
+          _id: string,
+          write: (tx: unknown) => unknown,
+        ) => write({ property: propertyTable }),
+      } as never,
     );
   });
 
@@ -52,7 +64,7 @@ describe('PropertyPublicationService', () => {
       expect(query.findOwned).toHaveBeenCalledWith(ME, LISTING);
       expect(propertyTable.updateMany).toHaveBeenCalledWith({
         where: { id: LISTING, userId: ME, status: 'Draft' },
-        data: { status: 'Pending' },
+        data: { contactPhone: '+85512345678', status: 'Pending' },
       });
       expect(result).toEqual({ previousStatus: 'Draft' });
     });
@@ -65,7 +77,11 @@ describe('PropertyPublicationService', () => {
       });
       expect(propertyTable.updateMany).toHaveBeenCalledWith({
         where: { id: LISTING, userId: ME, status: 'Expired' },
-        data: { status: 'Pending', publishedAt: null },
+        data: {
+          contactPhone: '+85512345678',
+          status: 'Pending',
+          publishedAt: null,
+        },
       });
     });
 

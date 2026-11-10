@@ -16,7 +16,6 @@ describe('CredentialsAuthService', () => {
   const signIn = { complete: jest.fn() };
   const adminLogin = { start: jest.fn() };
   const emails = { requireProof: jest.fn() };
-  const phones = { verify: jest.fn() };
   const client = {
     deviceName: 'Pixel 8',
     platform: 'Android 15',
@@ -26,12 +25,10 @@ describe('CredentialsAuthService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    phones.verify.mockResolvedValue('+85512345678');
     service = new CredentialsAuthService(
       users as never,
       signIn as never,
       emails as never,
-      phones as never,
       adminLogin as never,
     );
   });
@@ -43,7 +40,6 @@ describe('CredentialsAuthService', () => {
         password: 'password123',
       });
 
-      expect(phones.verify).not.toHaveBeenCalled();
       expect(users.create).toHaveBeenCalledWith(
         expect.objectContaining({
           phone: '+85512345678',
@@ -67,32 +63,9 @@ describe('CredentialsAuthService', () => {
       expect(users.create).not.toHaveBeenCalled();
     });
 
-    it('cannot create an account with an unproven email or a mismatched SMS proof', async () => {
-      emails.requireProof.mockImplementationOnce(() => {
-        throw new BadRequestException();
-      });
-      await expect(
-        service.register({
-          phone: '+85512345678',
-          phoneToken: 'sms',
-          email: 'victim@example.test',
-          password: 'password123',
-        }),
-      ).rejects.toThrow();
-      phones.verify.mockResolvedValueOnce('+85512999999');
-      await expect(
-        service.register({
-          phone: '+85512345678',
-          phoneToken: 'sms',
-          password: 'password123',
-        }),
-      ).rejects.toThrow();
-      expect(users.create).not.toHaveBeenCalled();
-    });
     it('hashes the password and always creates a plain "user"', async () => {
       await service.register({
         phone: '+85512345678',
-        phoneToken: 'sms-proof',
         password: 'password123',
       });
 
@@ -109,7 +82,7 @@ describe('CredentialsAuthService', () => {
       );
       // Unlike an account made by Google sign-in, this one has a password to prove itself with.
       expect(saved.has_password).toBe(true);
-      expect(saved.phone_verified).toBe(true);
+      expect(saved.phone_verified).toBe(false);
     });
 
     it('refuses an email that an existing account already uses, in any letter case', async () => {
@@ -118,7 +91,6 @@ describe('CredentialsAuthService', () => {
       await expect(
         service.register({
           phone: '+85512345678',
-          phoneToken: 'sms-proof',
           email: 'foo@gmail.com',
           password: 'password123',
         }),
@@ -132,7 +104,6 @@ describe('CredentialsAuthService', () => {
       await expect(
         service.register({
           phone: '+85512345678',
-          phoneToken: 'sms-proof',
           password: 'password123',
         }),
       ).rejects.toThrow('Email or phone already exists');
@@ -143,7 +114,6 @@ describe('CredentialsAuthService', () => {
     it('saves the optional email and name when given', async () => {
       await service.register({
         phone: '+85512345678',
-        phoneToken: 'sms-proof',
         email: 'a@b.com',
         name: 'Dara',
         password: 'password123',
@@ -159,7 +129,6 @@ describe('CredentialsAuthService', () => {
     it('ignores a role sent by the client', async () => {
       await service.register({
         phone: '+85512345678',
-        phoneToken: 'sms-proof',
         password: 'password123',
         role: 'admin',
       } as never);

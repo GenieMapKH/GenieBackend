@@ -1,4 +1,8 @@
-import { HttpException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  ConflictException,
+  HttpException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { ServiceClient } from '@tilomnov/shared';
 import { PublishingAllowanceService } from './publishing-allowance.service';
 
@@ -21,6 +25,26 @@ describe('PublishingAllowanceService', () => {
   });
   afterEach(() => call.mockRestore());
 
+  it('rejects a payment when Free or subscription capacity already covers the listing', async () => {
+    await expect(
+      service.payToPublish('alice', paidId, write),
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(write).not.toHaveBeenCalled();
+    call.mockResolvedValue({
+      listingLimit: 10,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      protectedPropertyIds: [],
+      expiredPropertyIds: [],
+    });
+    await expect(
+      service.payToPublish('alice', paidId, write),
+    ).rejects.toBeInstanceOf(ConflictException);
+    tx.property.count.mockResolvedValue(10);
+    await expect(service.payToPublish('alice', paidId, write)).resolves.toEqual(
+      { status: 'Active' },
+    );
+  });
+
   it('allows the first property under an account lock', async () => {
     await expect(service.publish('alice', write)).resolves.toEqual({
       status: 'Active',
@@ -29,7 +53,7 @@ describe('PublishingAllowanceService', () => {
     expect(tx.property.count).toHaveBeenCalledWith({
       where: {
         userId: 'alice',
-        status: { in: ['Active', 'Pending'] },
+        status: 'Active',
         id: { notIn: [] },
       },
     });
@@ -76,7 +100,7 @@ describe('PublishingAllowanceService', () => {
   const paidId = '33333333-3333-4333-8333-333333333333';
 
   it.each([null, new Date(Date.now() - 1000).toISOString()])(
-    'requires renewal of an expired paid post even with a free slot (plan end %s)',
+    'allows an expired paid post to use the available free slot (plan end %s)',
     async (expiresAt) => {
       call.mockResolvedValue({
         listingLimit: 50,
@@ -84,10 +108,10 @@ describe('PublishingAllowanceService', () => {
         protectedPropertyIds: [],
         expiredPropertyIds: [paidId],
       });
-      await expect(
-        service.publish('alice', write, paidId),
-      ).rejects.toBeInstanceOf(HttpException);
-      expect(write).not.toHaveBeenCalled();
+      await expect(service.publish('alice', write, paidId)).resolves.toEqual({
+        status: 'Active',
+      });
+      expect(write).toHaveBeenCalledWith(tx);
     },
   );
 
@@ -110,14 +134,17 @@ describe('PublishingAllowanceService', () => {
       protectedPropertyIds: [paidId],
       expiredPropertyIds: [],
     });
-    await expect(service.usage('alice')).resolves.toEqual({ used: 0 });
+    await expect(service.usage('alice')).resolves.toEqual({
+      used: 0,
+      listingLimit: 1,
+    });
     await expect(service.publish('alice', write)).resolves.toEqual({
       status: 'Active',
     });
     expect(tx.property.count).toHaveBeenCalledWith({
       where: {
         userId: 'alice',
-        status: { in: ['Active', 'Pending'] },
+        status: 'Active',
         id: { notIn: [paidId] },
       },
     });

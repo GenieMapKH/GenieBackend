@@ -18,7 +18,6 @@ import { LoginDto } from './dto/login.dto';
 import { LogoutDto } from './dto/logout.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
-import { PhoneResetPasswordDto } from './dto/phone-reset-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import {
@@ -27,7 +26,6 @@ import {
 } from './login-protection/device-key';
 import { LoginThrottle } from './login-protection/login-throttle.service';
 import { PasswordResetService } from './password-reset/password-reset.service';
-import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
 import { Client, ClientContext } from './sessions/client-context';
 import { SessionService } from './sessions/session.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
@@ -50,8 +48,6 @@ export class AuthController {
     private readonly passwordReset: PasswordResetService,
     @Inject(AuthAttemptLimits) private readonly limits: AuthAttemptLimits,
     @Inject(LoginThrottle) private readonly loginThrottle: LoginThrottle,
-    @Inject(PhonePasswordResetService)
-    private readonly phonePasswordReset: PhonePasswordResetService,
     private readonly adminLogin: AdminLoginService,
   ) {}
 
@@ -194,22 +190,6 @@ export class AuthController {
       dto.otp,
       dto.newPassword,
     );
-  }
-
-  @Post('reset-password/phone')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary:
-      'Reset the password of the account with this phone number, proven by an SMS code',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'The token is not a fresh SMS confirmation',
-  })
-  @ApiResponse({ status: 404, description: 'No account uses this number' })
-  @ApiResponse({ status: 429, description: '5 resets per number a day' })
-  resetPasswordWithPhone(@Body() dto: PhoneResetPasswordDto) {
-    return this.phonePasswordReset.reset(dto.idToken, dto.newPassword);
   }
 
   /**

@@ -1,8 +1,16 @@
 import { ConflictException, NotImplementedException } from '@nestjs/common';
-import { monthAfter } from './plan-catalog';
+import { listingExpiry, monthAfter, PLANS } from './plan-catalog';
 import { SubscriptionService } from './subscription.service';
 
 describe('subscription periods', () => {
+  it('expires listings in exactly 30 days across short months', () => {
+    expect(listingExpiry(new Date('2026-02-01T12:34:00Z')).toISOString()).toBe(
+      '2026-03-03T12:34:00.000Z',
+    );
+    expect(monthAfter(new Date('2028-02-29T12:34:00Z'), 12).toISOString()).toBe(
+      '2029-02-28T12:34:00.000Z',
+    );
+  });
   it.each([
     ['2026-11-06T14:23:45.678Z', '2026-12-06T14:23:45.678Z'],
     ['2026-01-31T14:23:45.678Z', '2026-02-28T14:23:45.678Z'],
@@ -64,6 +72,52 @@ describe('SubscriptionService', () => {
     }));
   });
   afterEach(() => jest.useRealTimers());
+
+  it.each(['silver', 'gold', 'diamond'] as const)(
+    'quotes twelve months for the price of ten for %s',
+    async (tier) => {
+      const quote = await service.quote('alice', tier, 'annual');
+      expect(quote.amount).toBe(PLANS[tier].amount * 10);
+      expect(quote.periodEnd).toBe('2027-11-16T00:00:00.000Z');
+      await service.purchase(
+        'alice',
+        tier,
+        'annual-request',
+        'aba_pay',
+        quote.quote,
+      );
+      expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          billingPeriod: 'annual',
+          amount: PLANS[tier].amount * 10,
+        }),
+      });
+    },
+  );
+
+  it('prorates annual upgrades and refuses a cycle switch during a paid period', async () => {
+    tx.subscription.findUnique.mockResolvedValue({
+      ...active,
+      billingPeriod: 'annual',
+      currentPeriodStart: new Date('2026-05-17T12:00:00Z'),
+      currentPeriodEnd: new Date('2027-05-17T12:00:00Z'),
+    });
+    const quote = await service.quote('alice', 'diamond', 'annual');
+    expect(quote.amount).toBe(70);
+    await expect(service.quote('alice', 'diamond', 'monthly')).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('preserves legacy purchased capacity and credits the actual old price for an upgrade', async () => {
+    tx.subscription.findUnique.mockResolvedValue({
+      ...active,
+      listingLimit: 50,
+      periodAmount: 8.9,
+    });
+    expect((await service.allowance('alice')).listingLimit).toBe(50);
+    expect((await service.quote('alice', 'diamond')).amount).toBe(10.05);
+  });
 
   it('protects paid listings and in-flight remote fulfillment, without protecting failed payments', async () => {
     tx.paymentTransaction.findMany.mockResolvedValue([
@@ -134,7 +188,7 @@ describe('SubscriptionService', () => {
   it.each(['silver', 'gold', 'diamond'] as const)(
     'quotes and records a full month for a new %s subscriber',
     async (tier) => {
-      const price = { silver: 5.9, gold: 8.9, diamond: 16.9 }[tier];
+      const price = { silver: 7, gold: 15, diamond: 29 }[tier];
       const quote = await service.quote('alice', tier);
       expect(quote).toMatchObject({
         amount: price,
@@ -164,7 +218,7 @@ describe('SubscriptionService', () => {
   it('charges only half of the Gold-to-Diamond difference halfway through the month', async () => {
     tx.subscription.findUnique.mockResolvedValue(active);
     const quote = await service.quote('alice', 'diamond');
-    expect(quote.amount).toBe(4);
+    expect(quote.amount).toBe(7);
     expect(quote.periodEnd).toBe(active.currentPeriodEnd.toISOString());
     await service.purchase(
       'alice',
@@ -175,7 +229,7 @@ describe('SubscriptionService', () => {
     );
     expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        amount: 4,
+        amount: 7,
         subscriptionPeriodStart: active.currentPeriodStart,
         subscriptionPeriodEnd: active.currentPeriodEnd,
       }),
@@ -201,7 +255,7 @@ describe('SubscriptionService', () => {
       ...active,
       currentPeriodEnd: now,
     });
-    expect((await service.quote('alice', 'silver')).amount).toBe(5.9);
+    expect((await service.quote('alice', 'silver')).amount).toBe(7);
     expect(await service.current('alice')).toBeNull();
   });
 
@@ -210,7 +264,7 @@ describe('SubscriptionService', () => {
     process.env.PAYMENT_MODE = 'disabled';
     expect(await service.current('alice')).toEqual(active);
     expect(await service.allowance('alice')).toEqual({
-      listingLimit: 50,
+      listingLimit: 30,
       expiresAt: active.currentPeriodEnd,
     });
     await expect(

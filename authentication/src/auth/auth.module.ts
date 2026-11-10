@@ -19,7 +19,6 @@ import { OrderEmailController } from './mail/order-email.controller';
 import { NotificationClient } from './notifications/notification.client';
 import { PasswordResetOtpRepository } from './password-reset/password-reset-otp.repository';
 import { PasswordResetService } from './password-reset/password-reset.service';
-import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
 import { EstablishedDeviceService } from './sessions/established-device.service';
 import {
   IpLocationProvider,
@@ -40,7 +39,6 @@ import { TokenSigner } from './signing-keys/token-signer.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
 import { UserRepository } from './users/user.repository';
 import { EmailVerificationService } from './verification/email-verification.service';
-import { PhoneProofService } from './verification/phone-proof.service';
 import { VerificationController } from './verification/verification.controller';
 import { AccountPhoneService } from './account/account-phone.service';
 import { AdminAccountsController } from './account/admin-accounts.controller';
@@ -57,7 +55,6 @@ import { AdminAccountsController } from './account/admin-accounts.controller';
   ],
   providers: [
     EmailVerificationService,
-    PhoneProofService,
     AccountPhoneService,
     SigningKeyRepository,
     SigningKeyStore,
@@ -87,7 +84,6 @@ import { AdminAccountsController } from './account/admin-accounts.controller';
     AdminLoginService,
     FirebaseLoginService,
     PasswordResetService,
-    PhonePasswordResetService,
     EmailDeliveryService,
     OtpEmailService,
     NotificationClient,

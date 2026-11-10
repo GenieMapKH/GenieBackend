@@ -27,6 +27,7 @@ import {
   takeoverPrice,
 } from '../takeover';
 import { TAKEOVER_LISTING_TYPE } from '../property-options';
+import { requireListingContact } from '../listing-contact';
 
 /** The keyword codes of a property read with PROPERTY_WITH_RELATIONS. */
 const keywordCodes = (property: { keywords?: { keyword: string }[] }) =>
@@ -55,6 +56,12 @@ export class PropertyLifecycleService {
   ) {}
 
   async create(userId: string, dto: CreatePropertyDto) {
+    if (dto.status === PUBLIC_STATUS)
+      dto.contactPhone = await requireListingContact(
+        this.prisma,
+        userId,
+        dto.contactPhone,
+      );
     if (dto.status === PUBLIC_STATUS) assertTakeoverComplete(dto);
     assertValidDiscount(dto);
     const create = (db: Pick<PrismaService, 'property'>) =>
@@ -76,6 +83,11 @@ export class PropertyLifecycleService {
     const before = await this.query.findOwned(userId, id);
     const after = { ...before, ...dto };
     if (before.status === PUBLIC_STATUS || before.status === 'Pending') {
+      dto.contactPhone = await requireListingContact(
+        this.prisma,
+        userId,
+        dto.contactPhone ?? before.contactPhone,
+      );
       assertTakeoverComplete(after);
     }
     if (after.listingType === TAKEOVER_LISTING_TYPE) {
@@ -195,10 +207,19 @@ export class PropertyLifecycleService {
         id: string;
         userId: string;
         publishedAt: Date | null;
+        contactPhone?: string | null;
       },
     to: string,
   ) {
     if (to === PUBLIC_STATUS) assertTakeoverComplete(before);
+    const contactPhone =
+      to === PUBLIC_STATUS
+        ? await requireListingContact(
+            this.prisma,
+            before.userId,
+            before.contactPhone,
+          )
+        : undefined;
     if (before.status === 'Pending') {
       throw new BadRequestException(
         'This property has a payment in progress. Please wait for confirmation.',
@@ -211,6 +232,7 @@ export class PropertyLifecycleService {
         // back on the market (see publishedAtGoingLive).
         data: {
           status: to,
+          ...(contactPhone && { contactPhone }),
           ...(to === PUBLIC_STATUS && {
             publishedAt: publishedAtGoingLive(
               before.status,

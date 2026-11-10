@@ -108,19 +108,8 @@ export class ExpiredPublishingService implements OnModuleInit, OnModuleDestroy {
           orderBy: [{ publishedAt: 'asc' }, { id: 'asc' }],
         });
         const paid = new Set(entitlement.protectedPropertyIds);
-        const expiredPaid = new Set(entitlement.expiredPropertyIds);
         const candidates = listings.filter((listing) => !paid.has(listing.id));
-        const freePlan =
-          entitlement.expiresAt === null ||
-          Date.parse(entitlement.expiresAt) <= Date.now();
-        const excess = freePlan
-          ? [
-              ...candidates.filter((listing) => expiredPaid.has(listing.id)),
-              ...candidates
-                .filter((listing) => !expiredPaid.has(listing.id))
-                .slice(limit),
-            ]
-          : candidates.slice(limit);
+        const excess = candidates.slice(limit);
         if (excess.length)
           await tx.property.updateMany({
             where: {

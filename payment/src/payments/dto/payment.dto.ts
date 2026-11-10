@@ -10,7 +10,7 @@ import {
   PAYMENT_METHODS,
   type PaymentMethod,
 } from '../payment-provider.interface';
-import { PaidTier } from '../plan-catalog';
+import { BillingPeriod, PaidTier } from '../plan-catalog';
 
 export class CheckoutDto {
   @IsUUID()
@@ -43,6 +43,12 @@ export class SubscriptionCheckoutDto {
 export class SubscriptionQuoteParams {
   @IsIn(['silver', 'gold', 'diamond'])
   tier: PaidTier;
+}
+
+export class SubscriptionQuoteQuery {
+  @IsOptional()
+  @IsIn(['monthly', 'annual'])
+  billingPeriod?: BillingPeriod;
 }
 
 export class PaymentWebhookDto {

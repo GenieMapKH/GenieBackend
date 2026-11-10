@@ -55,7 +55,7 @@ describe('PaymentCheckoutService', () => {
         requestId: 'aba_khqr',
         provider: 'MOCK',
         paymentMethod: 'aba_khqr',
-        amount: 1,
+        amount: 2,
         status: 'Pending',
       },
     });
