@@ -74,7 +74,7 @@ export class PublishingAllowanceService {
     return db.property.count({
       where: {
         userId,
-        status: { in: ['Active', 'Pending'] },
+        status: 'Active',
         id: {
           notIn: [
             ...allowance.protectedPropertyIds,

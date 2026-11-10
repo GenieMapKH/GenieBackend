@@ -29,7 +29,7 @@ describe('PublishingAllowanceService', () => {
     expect(tx.property.count).toHaveBeenCalledWith({
       where: {
         userId: 'alice',
-        status: { in: ['Active', 'Pending'] },
+        status: 'Active',
         id: { notIn: [] },
       },
     });
@@ -117,7 +117,7 @@ describe('PublishingAllowanceService', () => {
     expect(tx.property.count).toHaveBeenCalledWith({
       where: {
         userId: 'alice',
-        status: { in: ['Active', 'Pending'] },
+        status: 'Active',
         id: { notIn: [paidId] },
       },
     });

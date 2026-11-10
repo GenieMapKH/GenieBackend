@@ -402,6 +402,7 @@ model PaymentTransaction {
   propertyId String?  @map("property_id") @db.Uuid
   purpose    String   @default("LISTING_PUBLISH")
   subscriptionTier String? @map("subscription_tier")
+  billingPeriod String @default("monthly") @map("billing_period")
   requestId  String?  @map("request_id") @db.Uuid
   currency   String   @default("USD")
   paidAt     DateTime? @map("paid_at") @db.Timestamptz(6)
@@ -432,6 +433,7 @@ model PaymentTransaction {
 model Subscription {
   userId String @id @map("user_id") @db.Uuid
   tier String
+  billingPeriod String @default("monthly") @map("billing_period")
   currentPeriodStart DateTime @map("current_period_start") @db.Timestamptz(6)
   currentPeriodEnd DateTime @map("current_period_end") @db.Timestamptz(6)
   cancelAtPeriodEnd Boolean @default(false) @map("cancel_at_period_end")

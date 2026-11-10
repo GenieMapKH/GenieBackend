@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { requireMockPayments } from './mock-payment-mode';
-import { monthAfter, PaidTier, PLANS } from './plan-catalog';
+import { BillingPeriod, listingExpiry, monthAfter, PaidTier, planPrice, PLANS } from './plan-catalog';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { PaymentMethod, PaymentProvider } from './payment-provider.interface';
 import * as jwt from 'jsonwebtoken';
@@ -54,7 +54,7 @@ export class SubscriptionService {
       paid
         .filter((row) =>
           row.status === 'Pending'
-            ? monthAfter(row.createdAt) > now
+            ? listingExpiry(row.createdAt) > now
             : row.listingPeriodEnd && row.listingPeriodEnd > now,
         )
         .map((row) => row.propertyId),
@@ -78,16 +78,18 @@ export class SubscriptionService {
     });
   }
 
-  async quote(userId: string, tier: PaidTier) {
+  async quote(userId: string, tier: PaidTier, billingPeriod: BillingPeriod = 'monthly') {
     const active = await this.current(userId);
     const now = new Date();
+    if (active && (active.billingPeriod ?? 'monthly') !== billingPeriod)
+      throw new ConflictException('Keep your current billing cycle when upgrading. You can switch cycles after it expires.');
     if (active && PLANS[tier].amount <= PLANS[active.tier as PaidTier].amount)
       throw new ConflictException(
         'You can only upgrade an active subscription. Choose this plan after your current period ends.',
       );
     const differenceCents = Math.round(
-      (PLANS[tier].amount -
-        (active ? PLANS[active.tier as PaidTier].amount : 0)) *
+      (planPrice(tier, billingPeriod) -
+        (active ? planPrice(active.tier as PaidTier, billingPeriod) : 0)) *
         100,
     );
     const amountCents = active
@@ -104,10 +106,11 @@ export class SubscriptionService {
     const details = {
       userId,
       tier,
+      billingPeriod,
       amountCents,
       sourceTransactionId: active?.transactionId ?? null,
       periodStart: (active?.currentPeriodStart ?? now).toISOString(),
-      periodEnd: (active?.currentPeriodEnd ?? monthAfter(now)).toISOString(),
+      periodEnd: (active?.currentPeriodEnd ?? monthAfter(now, billingPeriod === 'annual' ? 12 : 1)).toISOString(),
     };
     const quote = jwt.sign(details, this.quoteKey(), {
       algorithm: 'HS256',
@@ -120,6 +123,7 @@ export class SubscriptionService {
       currency: 'USD',
       periodEnd: details.periodEnd,
       isUpgrade: active != null,
+      billingPeriod,
     };
   }
 
@@ -189,6 +193,7 @@ export class SubscriptionService {
           requestId,
           purpose: 'SUBSCRIPTION',
           subscriptionTier: tier,
+          billingPeriod: details.billingPeriod ?? 'monthly',
           provider: this.provider.name,
           paymentMethod: method,
           amount: details.amountCents / 100,
@@ -246,6 +251,7 @@ export class SubscriptionService {
 interface SubscriptionQuote {
   userId: string;
   tier: PaidTier;
+  billingPeriod: BillingPeriod;
   amountCents: number;
   sourceTransactionId: string | null;
   periodStart: string;
