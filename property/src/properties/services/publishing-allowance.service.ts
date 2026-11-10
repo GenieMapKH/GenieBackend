@@ -1,6 +1,7 @@
 import {
   HttpException,
   HttpStatus,
+  ConflictException,
   Injectable,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -30,6 +31,7 @@ export class PublishingAllowanceService {
     const allowance = await this.entitlements(userId);
     return {
       used: await this.countUsed(this.prisma, userId, allowance),
+      listingLimit: this.hasPaidPlan(allowance) ? allowance.listingLimit : 1,
     };
   }
 
@@ -47,12 +49,7 @@ export class PublishingAllowanceService {
       const paidPlan = this.hasPaidPlan(allowance);
       const limit = paidPlan ? allowance.listingLimit : 1;
       const used = await this.countUsed(tx, userId, allowance);
-      if (
-        used >= limit ||
-        (propertyId &&
-          allowance.expiredPropertyIds.includes(propertyId) &&
-          !paidPlan)
-      ) {
+      if (used >= limit) {
         throw new HttpException(
           {
             code: 'PUBLISHING_PLAN_REQUIRED',
@@ -62,6 +59,27 @@ export class PublishingAllowanceService {
           HttpStatus.PAYMENT_REQUIRED,
         );
       }
+      return write(tx);
+    });
+  }
+
+  /** A covered listing must use its included capacity instead of paying again. */
+  async payToPublish<T>(
+    userId: string,
+    propertyId: string,
+    write: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const allowance = await this.entitlements(userId);
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${userId}, 2))`;
+      const limit = this.hasPaidPlan(allowance) ? allowance.listingLimit : 1;
+      if (
+        allowance.protectedPropertyIds.includes(propertyId) ||
+        (await this.countUsed(tx, userId, allowance)) < limit
+      )
+        throw new ConflictException(
+          'Your plan covers this listing. Publish it without a payment.',
+        );
       return write(tx);
     });
   }
@@ -76,12 +94,7 @@ export class PublishingAllowanceService {
         userId,
         status: 'Active',
         id: {
-          notIn: [
-            ...allowance.protectedPropertyIds,
-            ...(this.hasPaidPlan(allowance)
-              ? []
-              : allowance.expiredPropertyIds),
-          ],
+          notIn: allowance.protectedPropertyIds,
         },
       },
     });

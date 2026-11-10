@@ -66,7 +66,7 @@ export class FirebaseLoginService {
   private async readProfile(idToken: string): Promise<FirebaseProfile> {
     const token = await this.firebase.verifyIdToken(idToken);
     // An SMS code proves a phone number for a password reset
-    // (`PhonePasswordResetService`); it is not a way to sign in.
+    // Phone contacts are unverified and cannot authenticate an account.
     if (
       token.firebase?.sign_in_provider !== 'google.com' ||
       token.email_verified !== true ||

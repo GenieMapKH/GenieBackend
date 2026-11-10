@@ -109,9 +109,9 @@ export class AccountController {
     @Body() dto: ChangePhoneDto,
   ) {
     await this.withLimitedTries(user.userId, () =>
-      this.accountPhone.change(user, dto.phoneToken, dto),
+      this.accountPhone.change(user, dto.phone, dto),
     );
-    return { message: 'Phone number verified' };
+    return { message: 'Phone number saved' };
   }
 
   @Post('account/password-proof')

@@ -180,6 +180,23 @@ describe('UsersService', () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
+  it('lets an OAuth account add its first contact with an atomic empty-phone check', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: ME, phone: null });
+    prisma.user.update.mockResolvedValue({
+      id: ME,
+      phone: '+85512345678',
+      hasPassword: false,
+      firebaseUid: 'google-id',
+    });
+    await service.updateProfile(ME, { phone: '+85512345678' });
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: ME, AND: { phone: null } },
+        data: { phone: '+85512345678', phoneVerified: false },
+      }),
+    );
+  });
+
   describe('what the profile says about signing in', () => {
     const row = {
       id: ME,

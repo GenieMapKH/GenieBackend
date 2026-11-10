@@ -87,6 +87,7 @@ describe('public property cache', () => {
   };
   const viewTable = { findMany: jest.fn() };
   const prisma = {
+    user: { findUnique: jest.fn() },
     property: propertyTable,
     propertyView: viewTable,
     $queryRaw: jest.fn(),
@@ -107,6 +108,7 @@ describe('public property cache', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.user.findUnique.mockResolvedValue({ phone: '+85512345678' });
     redis = new FakeRedis();
     publicCache = new PublicPropertyCache(fakeCache(redis));
     const counts = new PropertyEngagementCounts(prisma as never);

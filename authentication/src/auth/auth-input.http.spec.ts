@@ -1,4 +1,3 @@
-import { PhonePasswordResetService } from './password-reset/phone-password-reset.service';
 import { KnownLoginDevices } from './login-protection/known-login-devices.store';
 import { LoginThrottle } from './login-protection/login-throttle.service';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -30,7 +29,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
     register: jest.fn(),
     login: jest.fn(),
   };
-  const phoneReset = { reset: jest.fn() };
   let app: INestApplication;
 
   beforeAll(async () => {
@@ -42,7 +40,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
         { provide: SessionService, useValue: {} },
         { provide: AdminLoginService, useValue: { complete: jest.fn() } },
         { provide: PasswordResetService, useValue: {} },
-        { provide: PhonePasswordResetService, useValue: phoneReset },
         AuthAttemptLimits,
         LoginThrottle,
         {
@@ -85,7 +82,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
     await register({
       phone: '012 345 678',
       password: 'password123',
-      phoneToken: 'sms-proof',
       role: 'admin',
       email: '',
     }).expect(201);
@@ -93,7 +89,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
     expect(credentials.register).toHaveBeenCalledWith({
       phone: '+85512345678',
       password: 'password123',
-      phoneToken: 'sms-proof',
     });
   });
 
@@ -114,7 +109,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
       email: ' Dara@Gmail.com ',
       name: ' Dara ',
       password: 'password123',
-      phoneToken: 'sms-proof',
     }).expect(201);
 
     expect(credentials.register).toHaveBeenCalledWith({
@@ -122,7 +116,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
       email: 'dara@gmail.com',
       name: 'Dara',
       password: 'password123',
-      phoneToken: 'sms-proof',
     });
   });
 
@@ -132,7 +125,6 @@ describe('sign-up and sign-in input (HTTP)', () => {
     { phone: { $ne: null }, password: 'password123' },
     { phone: '012345678', name: '<script>x</script>', password: 'password123' },
     { phone: '012345678', password: 'short' },
-    { phone: '012345678', password: 'password123', phoneToken: 123 },
     { phone: '012345678', password: 'password\u0000123' },
   ])('refuses %j before it reaches the service', async (body) => {
     await register(body).expect(400);
@@ -164,30 +156,10 @@ describe('sign-up and sign-in input (HTTP)', () => {
     expect(credentials.login).not.toHaveBeenCalled();
   });
 
-  describe('phone password reset', () => {
-    const resetByPhone = (body: object) =>
-      request(app.getHttpServer())
-        .post('/auth/reset-password/phone')
-        .send(body);
-
-    it('passes the token and the new password on', async () => {
-      phoneReset.reset.mockResolvedValue({ message: 'ok' });
-
-      await resetByPhone({
-        idToken: 'id-token',
-        newPassword: 'new-password',
-      }).expect(200);
-      expect(phoneReset.reset).toHaveBeenCalledWith('id-token', 'new-password');
-    });
-
-    it.each([
-      { newPassword: 'new-password' },
-      { idToken: 'id-token', newPassword: 'short' },
-      { idToken: 'x'.repeat(5000), newPassword: 'new-password' },
-      { idToken: ['id-token'], newPassword: 'new-password' },
-    ])('refuses %j before it reaches the service', async (body) => {
-      await resetByPhone(body).expect(400);
-      expect(phoneReset.reset).not.toHaveBeenCalled();
-    });
+  it('does not expose SMS password recovery', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/reset-password/phone')
+      .send({ idToken: 'old-sms-token', newPassword: 'new-password' })
+      .expect(404);
   });
 });

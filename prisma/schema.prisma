@@ -171,6 +171,7 @@ model Property {
   /// Sale, Rent, To Let or Takeover Payments (see property-options.ts).
   listingType      String?              @map("listing_type")
   titleType        String?              @map("title_type")
+  additionalContactPhones String[] @default([]) @map("additional_contact_phones")
   contactPhone     String?              @map("contact_phone")
   /// Floors of a house or building; total floors of the tower for a condo.
   floors           Int?
@@ -402,6 +403,8 @@ model PaymentTransaction {
   propertyId String?  @map("property_id") @db.Uuid
   purpose    String   @default("LISTING_PUBLISH")
   subscriptionTier String? @map("subscription_tier")
+  subscriptionPlanAmount Decimal? @map("subscription_plan_amount") @db.Decimal(10, 2)
+  subscriptionListingLimit Int? @map("subscription_listing_limit")
   billingPeriod String @default("monthly") @map("billing_period")
   requestId  String?  @map("request_id") @db.Uuid
   currency   String   @default("USD")
@@ -433,6 +436,8 @@ model PaymentTransaction {
 model Subscription {
   userId String @id @map("user_id") @db.Uuid
   tier String
+  periodAmount Decimal? @map("period_amount") @db.Decimal(10, 2)
+  listingLimit Int? @map("listing_limit")
   billingPeriod String @default("monthly") @map("billing_period")
   currentPeriodStart DateTime @map("current_period_start") @db.Timestamptz(6)
   currentPeriodEnd DateTime @map("current_period_end") @db.Timestamptz(6)

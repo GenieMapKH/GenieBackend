@@ -62,7 +62,11 @@ export class SubscriptionsController {
     @Param() params: SubscriptionQuoteParams,
     @Query() query: SubscriptionQuoteQuery,
   ) {
-    return this.subscriptions.quote(request.user.userId, params.tier, query.billingPeriod);
+    return this.subscriptions.quote(
+      request.user.userId,
+      params.tier,
+      query.billingPeriod,
+    );
   }
 
   @Post('cancel')

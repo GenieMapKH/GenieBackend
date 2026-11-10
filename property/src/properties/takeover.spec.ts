@@ -174,7 +174,12 @@ describe('takeover publication paths', () => {
       write({ property: table }),
   };
   const service = new PropertyLifecycleService(
-    { property: table } as never,
+    {
+      property: table,
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ phone: '+85512345678' }),
+      },
+    } as never,
     query as never,
     new PropertyStatusService(),
     changes as never,

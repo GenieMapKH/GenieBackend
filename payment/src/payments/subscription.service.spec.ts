@@ -4,8 +4,12 @@ import { SubscriptionService } from './subscription.service';
 
 describe('subscription periods', () => {
   it('expires listings in exactly 30 days across short months', () => {
-    expect(listingExpiry(new Date('2026-02-01T12:34:00Z')).toISOString()).toBe('2026-03-03T12:34:00.000Z');
-    expect(monthAfter(new Date('2028-02-29T12:34:00Z'), 12).toISOString()).toBe('2029-02-28T12:34:00.000Z');
+    expect(listingExpiry(new Date('2026-02-01T12:34:00Z')).toISOString()).toBe(
+      '2026-03-03T12:34:00.000Z',
+    );
+    expect(monthAfter(new Date('2028-02-29T12:34:00Z'), 12).toISOString()).toBe(
+      '2029-02-28T12:34:00.000Z',
+    );
   });
   it.each([
     ['2026-11-06T14:23:45.678Z', '2026-12-06T14:23:45.678Z'],
@@ -69,19 +73,50 @@ describe('SubscriptionService', () => {
   });
   afterEach(() => jest.useRealTimers());
 
-  it.each(['silver', 'gold', 'diamond'] as const)('quotes twelve months for the price of ten for %s', async (tier) => {
-    const quote = await service.quote('alice', tier, 'annual');
-    expect(quote.amount).toBe(PLANS[tier].amount * 10);
-    expect(quote.periodEnd).toBe('2027-11-16T00:00:00.000Z');
-    await service.purchase('alice', tier, 'annual-request', 'aba_pay', quote.quote);
-    expect(tx.paymentTransaction.create).toHaveBeenCalledWith({data: expect.objectContaining({billingPeriod: 'annual', amount: PLANS[tier].amount * 10})});
-  });
+  it.each(['silver', 'gold', 'diamond'] as const)(
+    'quotes twelve months for the price of ten for %s',
+    async (tier) => {
+      const quote = await service.quote('alice', tier, 'annual');
+      expect(quote.amount).toBe(PLANS[tier].amount * 10);
+      expect(quote.periodEnd).toBe('2027-11-16T00:00:00.000Z');
+      await service.purchase(
+        'alice',
+        tier,
+        'annual-request',
+        'aba_pay',
+        quote.quote,
+      );
+      expect(tx.paymentTransaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          billingPeriod: 'annual',
+          amount: PLANS[tier].amount * 10,
+        }),
+      });
+    },
+  );
 
   it('prorates annual upgrades and refuses a cycle switch during a paid period', async () => {
-    tx.subscription.findUnique.mockResolvedValue({...active, billingPeriod: 'annual', currentPeriodStart: new Date('2026-05-17T12:00:00Z'), currentPeriodEnd: new Date('2027-05-17T12:00:00Z')});
+    tx.subscription.findUnique.mockResolvedValue({
+      ...active,
+      billingPeriod: 'annual',
+      currentPeriodStart: new Date('2026-05-17T12:00:00Z'),
+      currentPeriodEnd: new Date('2027-05-17T12:00:00Z'),
+    });
     const quote = await service.quote('alice', 'diamond', 'annual');
     expect(quote.amount).toBe(70);
-    await expect(service.quote('alice', 'diamond', 'monthly')).rejects.toThrow(ConflictException);
+    await expect(service.quote('alice', 'diamond', 'monthly')).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('preserves legacy purchased capacity and credits the actual old price for an upgrade', async () => {
+    tx.subscription.findUnique.mockResolvedValue({
+      ...active,
+      listingLimit: 50,
+      periodAmount: 8.9,
+    });
+    expect((await service.allowance('alice')).listingLimit).toBe(50);
+    expect((await service.quote('alice', 'diamond')).amount).toBe(10.05);
   });
 
   it('protects paid listings and in-flight remote fulfillment, without protecting failed payments', async () => {

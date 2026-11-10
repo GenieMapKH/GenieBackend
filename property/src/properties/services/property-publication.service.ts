@@ -6,6 +6,8 @@ import { PropertyQueryService } from './property-query.service';
 import { ListingChanges } from './listing-changes.service';
 import { CACHED_LISTING_SELECT } from './public-property-cache.service';
 import { assertTakeoverComplete } from '../takeover';
+import { requireListingContact } from '../listing-contact';
+import { PublishingAllowanceService } from './publishing-allowance.service';
 
 /** How a payment ended, as far as the listing is concerned. */
 export type PublishOutcome = 'Active' | 'Draft';
@@ -22,6 +24,7 @@ export class PropertyPublicationService {
     private readonly query: PropertyQueryService,
     private readonly status: PropertyStatusService,
     private readonly listingChanges: ListingChanges,
+    private readonly allowance: PublishingAllowanceService,
   ) {}
 
   /**
@@ -36,16 +39,27 @@ export class PropertyPublicationService {
     const property = await this.query.findOwned(userId, propertyId);
     this.status.canPublish(property.status);
     assertTakeoverComplete(property);
+    const contactPhone = await requireListingContact(
+      this.prisma,
+      userId,
+      property.contactPhone,
+    );
 
-    const changed = await this.prisma.property.updateMany({
-      where: { id: propertyId, userId, status: property.status },
-      // Paying to put a sold or expired listing back on the market dates it
-      // anew once paid (see settlePublish); a draft keeps its first date.
-      data: {
-        status: 'Pending',
-        ...(datesAnew(property.status) && { publishedAt: null }),
-      },
-    });
+    const changed = await this.allowance.payToPublish(
+      userId,
+      propertyId,
+      (tx) =>
+        tx.property.updateMany({
+          where: { id: propertyId, userId, status: property.status },
+          // Paying to put a sold or expired listing back on the market dates it
+          // anew once paid (see settlePublish); a draft keeps its first date.
+          data: {
+            status: 'Pending',
+            contactPhone,
+            ...(datesAnew(property.status) && { publishedAt: null }),
+          },
+        }),
+    );
     if (changed.count === 0)
       throw new ConflictException(
         'A payment is already in progress for this property.',
@@ -89,7 +103,14 @@ export class PropertyPublicationService {
       where: { id: propertyId },
       include: { takeover: { include: { additionalPayments: true } } },
     });
-    if (property?.status === 'Pending') assertTakeoverComplete(property);
+    if (property?.status === 'Pending') {
+      assertTakeoverComplete(property);
+      await requireListingContact(
+        this.prisma,
+        property.userId,
+        property.contactPhone,
+      );
+    }
     const dated = await this.prisma.property.updateMany({
       where: { id: propertyId, status: 'Pending', publishedAt: null },
       data: { status: 'Active', publishedAt: new Date() },

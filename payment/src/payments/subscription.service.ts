@@ -1,7 +1,14 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { requireMockPayments } from './mock-payment-mode';
-import { BillingPeriod, listingExpiry, monthAfter, PaidTier, planPrice, PLANS } from './plan-catalog';
+import {
+  BillingPeriod,
+  listingExpiry,
+  monthAfter,
+  PaidTier,
+  planPrice,
+  PLANS,
+} from './plan-catalog';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { PaymentMethod, PaymentProvider } from './payment-provider.interface';
 import * as jwt from 'jsonwebtoken';
@@ -27,6 +34,7 @@ export class SubscriptionService {
     const subscription = await this.current(userId);
     return {
       listingLimit:
+        subscription?.listingLimit ??
         PLANS[(subscription?.tier as PaidTier) ?? 'free'].listingLimit,
       expiresAt: subscription?.currentPeriodEnd ?? null,
     };
@@ -78,18 +86,29 @@ export class SubscriptionService {
     });
   }
 
-  async quote(userId: string, tier: PaidTier, billingPeriod: BillingPeriod = 'monthly') {
+  async quote(
+    userId: string,
+    tier: PaidTier,
+    billingPeriod: BillingPeriod = 'monthly',
+  ) {
     const active = await this.current(userId);
     const now = new Date();
     if (active && (active.billingPeriod ?? 'monthly') !== billingPeriod)
-      throw new ConflictException('Keep your current billing cycle when upgrading. You can switch cycles after it expires.');
+      throw new ConflictException(
+        'Keep your current billing cycle when upgrading. You can switch cycles after it expires.',
+      );
     if (active && PLANS[tier].amount <= PLANS[active.tier as PaidTier].amount)
       throw new ConflictException(
         'You can only upgrade an active subscription. Choose this plan after your current period ends.',
       );
     const differenceCents = Math.round(
       (planPrice(tier, billingPeriod) -
-        (active ? planPrice(active.tier as PaidTier, billingPeriod) : 0)) *
+        (active
+          ? Number(
+              active.periodAmount ??
+                planPrice(active.tier as PaidTier, billingPeriod),
+            )
+          : 0)) *
         100,
     );
     const amountCents = active
@@ -107,10 +126,15 @@ export class SubscriptionService {
       userId,
       tier,
       billingPeriod,
+      planAmount: planPrice(tier, billingPeriod),
+      listingLimit: PLANS[tier].listingLimit,
       amountCents,
       sourceTransactionId: active?.transactionId ?? null,
       periodStart: (active?.currentPeriodStart ?? now).toISOString(),
-      periodEnd: (active?.currentPeriodEnd ?? monthAfter(now, billingPeriod === 'annual' ? 12 : 1)).toISOString(),
+      periodEnd: (
+        active?.currentPeriodEnd ??
+        monthAfter(now, billingPeriod === 'annual' ? 12 : 1)
+      ).toISOString(),
     };
     const quote = jwt.sign(details, this.quoteKey(), {
       algorithm: 'HS256',
@@ -155,7 +179,12 @@ export class SubscriptionService {
         'Your price quote expired. Please review the price again.',
       );
     }
-    if (details.userId !== userId || details.tier !== tier)
+    if (
+      details.userId !== userId ||
+      details.tier !== tier ||
+      !Number.isFinite(details.planAmount) ||
+      !Number.isInteger(details.listingLimit)
+    )
       throw new ConflictException(
         'This price quote belongs to a different checkout.',
       );
@@ -194,6 +223,8 @@ export class SubscriptionService {
           purpose: 'SUBSCRIPTION',
           subscriptionTier: tier,
           billingPeriod: details.billingPeriod ?? 'monthly',
+          subscriptionPlanAmount: details.planAmount,
+          subscriptionListingLimit: details.listingLimit,
           provider: this.provider.name,
           paymentMethod: method,
           amount: details.amountCents / 100,
@@ -252,6 +283,8 @@ interface SubscriptionQuote {
   userId: string;
   tier: PaidTier;
   billingPeriod: BillingPeriod;
+  planAmount: number;
+  listingLimit: number;
   amountCents: number;
   sourceTransactionId: string | null;
   periodStart: string;

@@ -114,6 +114,8 @@ export class PaymentGatewayService {
           const period = {
             tier: current.subscriptionTier,
             billingPeriod: current.billingPeriod ?? 'monthly',
+            periodAmount: current.subscriptionPlanAmount,
+            listingLimit: current.subscriptionListingLimit,
             currentPeriodStart: isUpgrade ? active.currentPeriodStart : paidAt,
             currentPeriodEnd: isUpgrade
               ? active.currentPeriodEnd
