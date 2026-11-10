@@ -37,6 +37,18 @@ test('bootstrap gives both logins a password and switches the service to the fir
   assert.ok(db.logsIn(urlFor(HOST, 'payment_service_2', second)));
 });
 
+test('bootstrap replaces a postgres pooler URL and preserves its tenant and connection settings', async () => {
+  const { db, secrets, run } = setUp();
+  const base = urlFor(`${HOST}?sslmode=require`, 'postgres', 'admin-password');
+  await secrets.set('/payment', 'DATABASE_URL', base);
+
+  assert.strictEqual(await run(), 'switched to payment_service_1');
+  const url = secrets.value('/payment', 'DATABASE_URL');
+  assert.strictEqual(decodeURIComponent(new URL(url).username), 'payment_service_1.abcref');
+  assert.strictEqual(new URL(url).search, '?sslmode=require');
+  assert.ok(db.logsIn(url));
+});
+
 test('bootstrap leaves a service that already rotates alone, unless forced', async () => {
   const { secrets, run } = setUp();
   await run();
