@@ -141,6 +141,7 @@ export class EmailDeliveryService {
         method: 'POST',
         headers: { 'content-type': 'application/json', ...headers },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(10000),
       });
       if (response.ok) return true;
       // The provider's own reason (bad key, unauthorised IP, unverified sender) is what tells an operator what to fix.

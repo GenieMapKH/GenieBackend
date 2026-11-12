@@ -159,6 +159,8 @@ export class PaymentGatewayService {
         } else if (current.purpose !== 'SUBSCRIPTION') {
           throw new BadRequestException('Unknown payment purpose');
         }
+        if (confirmation && this.email.queued)
+          await this.email.send(confirmation, tx);
         return tx.paymentTransaction.update({
           where: { id: current.id },
           data: {
@@ -173,8 +175,7 @@ export class PaymentGatewayService {
       },
       { timeout: 15_000 },
     );
-    // shortcut: delivery is best effort; add a durable mail outbox before live billing.
-    if (confirmation) await this.email.send(confirmation);
+    if (confirmation && !this.email.queued) await this.email.send(confirmation);
     return this.result(saved);
   }
 

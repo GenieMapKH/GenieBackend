@@ -1,3 +1,4 @@
+import { MessagingModule } from '@tilomnov/shared';
 import { Module } from '@nestjs/common';
 import {
   HealthController,
@@ -18,6 +19,7 @@ import { SentryErrorsModule } from '@tilomnov/shared/sentry';
  */
 @Module({
   imports: [
+    MessagingModule.forService('property'),
     AdvertisementsModule,
     SentryErrorsModule,
     RedisModule,

@@ -51,6 +51,16 @@ export {
 
 export { RejectNullBytesPipe } from './validation/reject-null-bytes.pipe';
 
+export { MessageBus, EnqueueOptions } from './messaging/message-bus';
+export { ExpiryReminderDto } from './messaging/expiry-reminder.dto';
+export { currentServiceMessage } from './messaging/message-context';
+export { MessagingModule } from './messaging/messaging.module';
+export {
+  InvalidMessageError,
+  MessageType,
+  ServiceMessage,
+} from './messaging/message-contracts';
+
 export {
   E164_PHONE_NUMBER,
   normalizePhoneNumber,

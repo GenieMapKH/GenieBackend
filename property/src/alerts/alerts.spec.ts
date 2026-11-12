@@ -31,6 +31,32 @@ function setup() {
 }
 
 describe('FollowerAlerts', () => {
+  it('claims the alert and writes all queued notices in the same transaction', async () => {
+    const { prisma, changes, followers, notifications } = setup();
+    Object.assign(notifications, { queued: true });
+    const transaction = jest.fn((run) => run(prisma));
+    Object.assign(prisma, { $transaction: transaction });
+    const alerts = new FollowerAlerts(
+      prisma as never,
+      changes as never,
+      followers as never,
+      notifications as never,
+    );
+    await alerts.listingWentLive('p1');
+    expect(transaction).toHaveBeenCalled();
+    expect(notifications.followedListing).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p1' }),
+      'dara',
+      ['fan1', 'fan2'],
+      prisma,
+    );
+    notifications.followedListing.mockRejectedValueOnce(
+      new Error('outbox unavailable'),
+    );
+    await expect(alerts.listingWentLive('p1')).rejects.toThrow(
+      'outbox unavailable',
+    );
+  });
   it("tells the owner's followers once, naming the owner", async () => {
     const { prisma, changes, followers, notifications } = setup();
     const alerts = new FollowerAlerts(
@@ -76,6 +102,28 @@ describe('FollowerAlerts', () => {
 });
 
 describe('SavedListingAlerts', () => {
+  it('keeps a claimed price alert retryable if queue persistence fails', async () => {
+    const { prisma, changes, notifications } = setup();
+    Object.assign(notifications, { queued: true });
+    Object.assign(prisma, { $transaction: jest.fn((run) => run(prisma)) });
+    notifications.savedListingUpdate.mockRejectedValueOnce(
+      new Error('outbox unavailable'),
+    );
+    const alerts = new SavedListingAlerts(
+      prisma as never,
+      changes as never,
+      notifications as never,
+    );
+    await expect(
+      alerts.listingPriceDropped('p1', { from: 100, to: 90 }),
+    ).rejects.toThrow('outbox unavailable');
+    expect(notifications.savedListingUpdate).toHaveBeenCalledWith(
+      LISTING,
+      { kind: 'price_drop', from: 100, to: 90 },
+      ['saver1', 'saver2'],
+      prisma,
+    );
+  });
   it('tells the people who saved it of a drop, at most once a day', async () => {
     const { prisma, changes, notifications } = setup();
     const alerts = new SavedListingAlerts(

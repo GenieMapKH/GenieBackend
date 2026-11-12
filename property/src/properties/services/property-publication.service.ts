@@ -1,3 +1,4 @@
+import { Prisma } from '@tilomnov/prisma-client';
 import { ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { PropertyStatusService } from '../property-status.service';
@@ -89,7 +90,8 @@ export class PropertyPublicationService {
         select: CACHED_LISTING_SELECT,
       });
       if (listing) await this.listingChanges.changed(listing);
-      void this.listingChanges.wentLive(propertyId);
+      if (!this.listingChanges.queued)
+        void this.listingChanges.wentLive(propertyId);
     }
   }
 
@@ -111,15 +113,25 @@ export class PropertyPublicationService {
         property.contactPhone,
       );
     }
-    const dated = await this.prisma.property.updateMany({
-      where: { id: propertyId, status: 'Pending', publishedAt: null },
-      data: { status: 'Active', publishedAt: new Date() },
-    });
-    if (dated.count > 0) return dated;
-    return this.prisma.property.updateMany({
-      where: { id: propertyId, status: 'Pending' },
-      data: { status: 'Active' },
-    });
+    const write = async (tx: Prisma.TransactionClient) => {
+      const dated = await tx.property.updateMany({
+        where: { id: propertyId, status: 'Pending', publishedAt: null },
+        data: { status: 'Active', publishedAt: new Date() },
+      });
+      const changed =
+        dated.count > 0
+          ? dated
+          : await tx.property.updateMany({
+              where: { id: propertyId, status: 'Pending' },
+              data: { status: 'Active' },
+            });
+      if (changed.count > 0 && this.listingChanges.queued)
+        await this.listingChanges.wentLive(propertyId, tx);
+      return changed;
+    };
+    return this.listingChanges.queued
+      ? this.prisma.$transaction(write)
+      : write(this.prisma);
   }
 
   /** The payment could not be started: the listing returns to the status it had. */

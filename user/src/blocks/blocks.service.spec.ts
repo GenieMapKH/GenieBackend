@@ -49,6 +49,25 @@ describe('BlocksService', () => {
   });
 
   describe('block', () => {
+    it('queues its presence update in the block transaction and propagates persistence failures', async () => {
+      const queued = {
+        queued: true,
+        blocked: jest.fn().mockResolvedValue(undefined),
+      };
+      const db = { ...prisma, $transaction: jest.fn((run) => run(db)) };
+      const blocking = new BlocksService(
+        db as never,
+        cache as never,
+        queued as never,
+      );
+      await blocking.block(ME, THEM);
+      expect(queued.blocked).toHaveBeenCalledWith(ME, THEM, db);
+      expect(queued.blocked).toHaveBeenCalledTimes(1);
+      queued.blocked.mockRejectedValueOnce(new Error('outbox unavailable'));
+      await expect(blocking.block(ME, THEM)).rejects.toThrow(
+        'outbox unavailable',
+      );
+    });
     it('blocks, unfollows both ways and forgets both accounts’ cached ids', async () => {
       blockRows([{ blockerId: ME, blockedId: THEM }]);
 

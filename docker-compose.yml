@@ -12,11 +12,13 @@
 #
 # `restart: unless-stopped` brings each service back by itself, on its own.
 # Only the gateway publishes a port; the rest are reachable by name inside the
-# compose network. Service-to-service calls are signed with INTERNAL_SERVICE_SECRET.
+# compose network. Background work uses RabbitMQ; immediate internal HTTP calls
+# are signed with INTERNAL_SERVICE_SECRET. RabbitMQ management is localhost only.
 # Local builds omit provenance so cached rebuilds keep stable image IDs.
 
 x-service: &service
   restart: unless-stopped
+  stop_grace_period: 130s
   environment: &shared-environment
     NODE_ENV: production
     APP_ENV: ${APP_ENV:-development}
@@ -27,6 +29,7 @@ x-service: &service
     SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
     SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     REDIS_URL: redis://redis:6379
+    RABBITMQ_URL: amqp://${RABBITMQ_USER:-tilomnov}:${RABBITMQ_PASSWORD:?set a URL-safe RABBITMQ_PASSWORD}@rabbitmq:5672/tilomnov
     AUTH_SERVICE_URL: http://authentication:4001
     USER_SERVICE_URL: http://user:4002
     PROPERTY_SERVICE_URL: http://property:4003
@@ -36,6 +39,24 @@ x-service: &service
     GATEWAY_SERVICE_URL: http://api-gateway:4000
 
 services:
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-tilomnov}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set a URL-safe RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: tilomnov
+    ports:
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -150,3 +171,7 @@ services:
       PORT: "4000"
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
+      RABBITMQ_URL: ""
+
+volumes:
+  rabbitmq-data:

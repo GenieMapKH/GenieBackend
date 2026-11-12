@@ -5,9 +5,11 @@ import {
   ServiceUnavailableException,
   UseGuards,
   VERSION_NEUTRAL,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { PrismaService, serviceCallGuard } from '@tilomnov/shared';
+import { MessageBus, PrismaService, serviceCallGuard } from '@tilomnov/shared';
 import {
   IsIn,
   IsISO8601,
@@ -43,11 +45,20 @@ export class OrderEmailDto {
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('payment'))
 @Controller({ path: 'internal/mail/order', version: VERSION_NEUTRAL })
-export class OrderEmailController {
+export class OrderEmailController implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: EmailDeliveryService,
+    @Optional() private readonly messages?: MessageBus,
   ) {}
+
+  onModuleInit(): void {
+    this.messages?.handleValidated(
+      'authentication.order-email.v1',
+      OrderEmailDto,
+      (event) => this.send(event),
+    );
+  }
 
   @Post()
   async send(@Body() dto: OrderEmailDto) {

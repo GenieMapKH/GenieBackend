@@ -219,6 +219,7 @@ export class AdminDeploymentsService {
       'INTERNAL_SERVICE_SECRET',
       'INTERNAL_SERVICE_SECRET_PREVIOUS',
       'JWT_KEY_ENCRYPTION_KEY',
+      'RABBITMQ_URL',
     ];
     if (
       !current ||

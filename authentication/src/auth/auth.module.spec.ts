@@ -6,7 +6,7 @@ import { AuthController } from './auth.controller';
 import { AuthModule } from './auth.module';
 import { SessionsController } from './sessions/sessions.controller';
 import { JwksController } from './signing-keys/jwks.controller';
-import { PrismaService } from '@tilomnov/shared';
+import { MessageBus, PrismaService } from '@tilomnov/shared';
 import { FirebaseService } from '../firebase/firebase.service';
 
 // firebase-admin pulls in ESM-only packages Jest cannot load.
@@ -18,9 +18,13 @@ jest.mock('../firebase/firebase.service', () => ({
 @Module({
   providers: [
     { provide: PrismaService, useValue: {} },
+    {
+      provide: MessageBus,
+      useValue: { enabled: false, handleValidated: jest.fn() },
+    },
     { provide: FirebaseService, useValue: {} },
   ],
-  exports: [PrismaService, FirebaseService],
+  exports: [PrismaService, FirebaseService, MessageBus],
 })
 class FakeInfrastructureModule {}
 

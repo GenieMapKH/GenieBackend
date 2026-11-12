@@ -7,10 +7,18 @@ import {
   Post,
   UseGuards,
   VERSION_NEUTRAL,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { serviceCallGuard } from '@tilomnov/shared';
+import { MessageBus, serviceCallGuard } from '@tilomnov/shared';
+import { IsUUID } from 'class-validator';
 import { ChatGateway } from './chat.gateway';
+
+export class UserBlockedEvent {
+  @IsUUID() blockerId: string;
+  @IsUUID() blockedId: string;
+}
 
 /**
  * Told by the user service, which owns blocking, the moment someone blocks
@@ -21,8 +29,22 @@ import { ChatGateway } from './chat.gateway';
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
 @Controller({ path: 'internal/blocks', version: VERSION_NEUTRAL })
-export class InternalBlocksController {
-  constructor(private readonly gateway: ChatGateway) {}
+export class InternalBlocksController implements OnModuleInit {
+  constructor(
+    private readonly gateway: ChatGateway,
+    @Optional() private readonly messages?: MessageBus,
+  ) {}
+
+  onModuleInit(): void {
+    this.messages?.handleValidated(
+      'chat.user-blocked.v1',
+      UserBlockedEvent,
+      (event) => {
+        this.blocked(event.blockerId, event.blockedId);
+        return Promise.resolve();
+      },
+    );
+  }
 
   @Post(':blockerId/:blockedId')
   @HttpCode(HttpStatus.NO_CONTENT)

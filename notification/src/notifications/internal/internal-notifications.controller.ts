@@ -6,9 +6,11 @@ import {
   Post,
   UseGuards,
   VERSION_NEUTRAL,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { serviceCallGuard } from '@tilomnov/shared';
+import { MessageBus, serviceCallGuard } from '@tilomnov/shared';
 import { CallNotifier } from '../calls/call-notifier';
 import { ChatMessageNotifier } from '../chat/chat-message-notifier';
 import { DeliveryReport } from '../delivery/push-delivery.service';
@@ -42,14 +44,57 @@ import {
  */
 @ApiExcludeController()
 @Controller({ path: 'internal/notifications', version: VERSION_NEUTRAL })
-export class InternalNotificationsController {
+export class InternalNotificationsController implements OnModuleInit {
   constructor(
     private readonly chatMessages: ChatMessageNotifier,
     private readonly signIns: SignInAlertNotifier,
     private readonly calls: CallNotifier,
     private readonly listingAlerts: ListingAlertNotifier,
     private readonly expiryReminders: ExpiryReminderNotifier,
+    @Optional() private readonly messages?: MessageBus,
   ) {}
+
+  onModuleInit(): void {
+    if (!this.messages) return;
+    const requireDelivered = async (report: Promise<DeliveryReport>) => {
+      const result = await report;
+      if (result.failed > result.removed)
+        throw new Error('Push delivery incomplete');
+    };
+    this.messages.handleValidated(
+      'notification.chat-message.v1',
+      ChatMessageEventDto,
+      (event) => requireDelivered(this.chatMessage(event)),
+    );
+    this.messages.handleValidated(
+      'notification.sign-in.v1',
+      SignInEventDto,
+      (event) => requireDelivered(this.signIn(event)),
+    );
+    this.messages.handleValidated(
+      'notification.saved-search-match.v1',
+      SavedSearchMatchEventDto,
+      (event) => requireDelivered(this.savedSearchMatch(event)),
+    );
+    this.messages.handleValidated(
+      'notification.followed-listing.v1',
+      FollowedListingEventDto,
+      (event) => requireDelivered(this.followedListing(event)),
+    );
+    this.messages.handleValidated(
+      'notification.saved-listing-update.v1',
+      SavedListingUpdateEventDto,
+      (event) => requireDelivered(this.savedListingUpdate(event)),
+    );
+    this.messages.handleValidated(
+      'notification.publishing-expiry.v1',
+      ExpiryReminderDto,
+      async (event) => {
+        if (new Date(event.expiresAt).getTime() > Date.now())
+          await requireDelivered(this.publishingExpiry(event));
+      },
+    );
+  }
 
   @UseGuards(serviceCallGuard('payment'))
   @Post('publishing-expiry')

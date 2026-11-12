@@ -2,7 +2,9 @@ import { randomUUID } from 'crypto';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@tilomnov/prisma-client';
-import { ServiceClient } from '@tilomnov/shared';
+import { MessageBus, ServiceClient } from '@tilomnov/shared';
+import { OrderEmailClient } from './order-email.client';
+import { ListingChanges } from '../../../property/src/properties/services/listing-changes.service';
 import { SubscriptionService } from './subscription.service';
 import { PaymentGatewayService } from './payment-gateway.service';
 import { MockPaymentProvider } from './mock-payment.provider';
@@ -16,7 +18,12 @@ import { AdminIncomeService } from './admin-income.service';
 
 // Opt in only against a disposable local DB with baseline + all later migrations.
 const databaseTests = process.env.TEST_DATABASE_URL ? describe : describe.skip;
-databaseTests('persisted subscriptions and publishing (Postgres)', () => {
+databaseTests.each([false, true])(
+  'persisted subscriptions and publishing (Postgres, queued=%s)',
+  persistedServiceFlows,
+);
+
+function persistedServiceFlows(queued: boolean) {
   const alice = randomUUID();
   const bob = randomUUID();
   let owner: Pool;
@@ -26,6 +33,7 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   let gateway: PaymentGatewayService;
   const provider = new MockPaymentProvider();
   const email = { send: jest.fn().mockResolvedValue(undefined) };
+  const originalRabbitUrl = process.env.RABBITMQ_URL;
   let lifecycle: PropertyLifecycleService;
   let allowance: PublishingAllowanceService;
   let checkout: PaymentCheckoutService;
@@ -67,11 +75,26 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     process.env.APP_ENV = 'test';
     process.env.INTERNAL_SERVICE_SECRET =
       'integration-test-payment-secret-32-characters';
+    if (queued)
+      process.env.RABBITMQ_URL =
+        'amqp://messaging_test:messaging_test@127.0.0.1:5679/tilomnov-test';
     const query = {
       findOwned: (userId: string, id: string) =>
         property.property.findFirstOrThrow({ where: { id, userId } }),
     };
-    const changes = { changed: async () => {}, wentLive: async () => {} };
+    const changes = queued
+      ? new ListingChanges(
+          { changed: async () => {} } as never,
+          new MessageBus(property as never, 'property'),
+        )
+      : { changed: async () => {}, wentLive: async () => {} };
+    if (queued) {
+      const client = new OrderEmailClient(
+        new MessageBus(payment as never, 'payment'),
+      );
+      Object.assign(email, { queued: true });
+      email.send.mockImplementation((details, tx) => client.send(details, tx));
+    }
     const publication = new PropertyPublicationService(
       property as never,
       query as never,
@@ -125,6 +148,8 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   });
 
   afterAll(async () => {
+    if (originalRabbitUrl === undefined) delete process.env.RABBITMQ_URL;
+    else process.env.RABBITMQ_URL = originalRabbitUrl;
     call?.mockRestore();
     await owner?.query(
       'DELETE FROM payment.subscriptions WHERE user_id IN ($1, $2)',
@@ -141,6 +166,67 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     await Promise.all([payment?.$disconnect(), property?.$disconnect()]);
     await owner?.end();
   });
+
+  if (queued)
+    it('rolls back paid publication when its outbox fails and recovers on reconciliation', async () => {
+      const userId = randomUUID();
+      await owner.query(
+        "INSERT INTO account.users(id,password_hash,email,phone) VALUES($1,'test-only',$2,'+855887650001')",
+        [userId, `${userId}@test.invalid`],
+      );
+      let transactionId: string | undefined;
+      try {
+        await lifecycle.create(userId, input);
+        const target = await lifecycle.create(userId, {
+          ...input,
+          status: 'Draft',
+        });
+        await owner.query(
+          "CREATE FUNCTION listing.reject_test_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test outbox failure'; END $$; CREATE TRIGGER reject_test_outbox BEFORE INSERT ON listing.service_outbox FOR EACH ROW EXECUTE FUNCTION listing.reject_test_outbox()",
+        );
+        await expect(
+          checkout.initiate(userId, target.id, randomUUID()),
+        ).rejects.toThrow();
+        const pending = await payment.paymentTransaction.findFirstOrThrow({
+          where: { userId, propertyId: target.id },
+        });
+        transactionId = pending.id;
+        expect(pending.status).toBe('Pending');
+        expect(
+          (
+            await property.property.findUniqueOrThrow({
+              where: { id: target.id },
+            })
+          ).status,
+        ).toBe('Pending');
+        await owner.query(
+          'DROP TRIGGER reject_test_outbox ON listing.service_outbox; DROP FUNCTION listing.reject_test_outbox()',
+        );
+        await expect(gateway.reconcile(pending.id)).resolves.toMatchObject({
+          status: 'Success',
+        });
+        expect(
+          (
+            await property.property.findUniqueOrThrow({
+              where: { id: target.id },
+            })
+          ).status,
+        ).toBe('Active');
+        const mail = await payment.$queryRaw<
+          { count: bigint }[]
+        >`SELECT count(*) AS count FROM payment.service_outbox WHERE dedup_key = ${`order:${pending.id}`}`;
+        expect(Number(mail[0].count)).toBe(1);
+      } finally {
+        await owner.query(
+          'DROP TRIGGER IF EXISTS reject_test_outbox ON listing.service_outbox; DROP FUNCTION IF EXISTS listing.reject_test_outbox()',
+        );
+        if (transactionId)
+          await payment.paymentTransaction.deleteMany({
+            where: { id: transactionId },
+          });
+        await owner.query('DELETE FROM account.users WHERE id=$1', [userId]);
+      }
+    });
 
   it('persists a full annual purchase and its capacity after verified payment', async () => {
     const userId = randomUUID();
@@ -200,7 +286,10 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
   });
 
   it('cannot bypass the limit by publishing or relisting a saved listing', async () => {
-    const draft = await lifecycle.create(alice, { ...input, status: 'Draft' });
+    const draft = await lifecycle.create(alice, {
+      ...input,
+      status: 'Draft',
+    });
     await expect(lifecycle.publish(alice, draft.id)).rejects.toMatchObject({
       status: 402,
     });
@@ -256,7 +345,9 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
 
   it('keeps paid benefits when checkout is disabled and revokes them at expiry', async () => {
     process.env.PAYMENT_MODE = 'disabled';
-    expect(await subscriptions.current(alice)).toMatchObject({ tier: 'gold' });
+    expect(await subscriptions.current(alice)).toMatchObject({
+      tier: 'gold',
+    });
     process.env.PAYMENT_MODE = 'mock';
     const expired = new Date(Date.now() - 1000);
     await payment.subscription.update({
@@ -291,9 +382,9 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
 
   it('keeps a recoverable pending payment if saving the subscription fails', async () => {
     await owner.query(`CREATE FUNCTION payment.reject_test_subscription() RETURNS trigger LANGUAGE plpgsql AS $$
-      BEGIN RAISE EXCEPTION 'write failed'; END $$;
-      CREATE TRIGGER reject_test_subscription BEFORE INSERT ON payment.subscriptions
-      FOR EACH ROW EXECUTE FUNCTION payment.reject_test_subscription()`);
+    BEGIN RAISE EXCEPTION 'write failed'; END $$;
+    CREATE TRIGGER reject_test_subscription BEFORE INSERT ON payment.subscriptions
+    FOR EACH ROW EXECUTE FUNCTION payment.reject_test_subscription()`);
     try {
       await expect(
         subscriptions.purchase(bob, 'silver', randomUUID()),
@@ -302,7 +393,9 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
         await payment.paymentTransaction.count({ where: { userId: bob } }),
       ).toBe(1);
       expect(
-        await payment.paymentTransaction.findFirst({ where: { userId: bob } }),
+        await payment.paymentTransaction.findFirst({
+          where: { userId: bob },
+        }),
       ).toMatchObject({ status: 'Pending', paidAt: null });
     } finally {
       await owner.query(
@@ -440,6 +533,8 @@ databaseTests('persisted subscriptions and publishing (Postgres)', () => {
     expect(
       await payment.subscription.findUnique({ where: { userId: alice } }),
     ).toBeNull();
-    await payment.paymentTransaction.deleteMany({ where: { id: { in: ids } } });
+    await payment.paymentTransaction.deleteMany({
+      where: { id: { in: ids } },
+    });
   });
-});
+}
