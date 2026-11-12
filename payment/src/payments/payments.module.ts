@@ -17,9 +17,11 @@ import { InternalAdminDashboardController } from './internal-admin-dashboard.con
 import { AdminPaymentRecordsService } from './admin-payment-records.service';
 import { AdminIncomeService } from './admin-income.service';
 import { ExpiryRemindersService } from './expiry-reminders.service';
+import { PublishingReminderController } from './publishing-reminder.controller';
 
 @Module({
   controllers: [
+    PublishingReminderController,
     PaymentsController,
     SubscriptionsController,
     InternalSubscriptionsController,

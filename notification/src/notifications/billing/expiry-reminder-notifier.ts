@@ -1,16 +1,32 @@
 import { Injectable } from '@nestjs/common';
+import { currentServiceMessage, ServiceClient } from '@tilomnov/shared';
 import { PushDeliveryService } from '../delivery/push-delivery.service';
 import { PushDevicesService } from '../devices/push-devices.service';
 import { ExpiryReminderDto } from '../internal/dto/expiry-reminder.dto';
 
 @Injectable()
 export class ExpiryReminderNotifier {
+  private readonly payment = new ServiceClient(
+    'payment',
+    process.env.PAYMENT_SERVICE_URL || 'http://localhost:4005',
+    'notification',
+  );
   constructor(
     private readonly devices: PushDevicesService,
     private readonly delivery: PushDeliveryService,
   ) {}
 
   async notify(event: ExpiryReminderDto) {
+    if (currentServiceMessage()) {
+      const result = await this.payment.call<{ current: boolean }>(
+        'POST',
+        '/internal/publishing-reminders/current',
+        { body: event, timeoutMs: 5000 },
+      );
+      if (typeof result?.current !== 'boolean')
+        throw new Error('Invalid reminder state');
+      if (!result.current) return { sent: 0, failed: 0, removed: 0 };
+    }
     const targets = await this.devices.targetsOf(event.userId);
     return this.delivery.deliver(targets, (target) => {
       const listing = event.kind === 'listing';

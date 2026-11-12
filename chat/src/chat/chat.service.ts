@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
+import { Prisma } from '@tilomnov/prisma-client';
 import { BlockChecker } from './block-checker';
 import { ConversationStateService } from './conversation-state.service';
 import { DISPLAY_FIELDS, displayName } from './display-name';
@@ -106,8 +107,8 @@ export class ChatService {
     );
     const { sender, ...stored } = toMessageView(saved);
     const senderName = displayName(sender);
-    if (created) {
-      this.notifications.chatMessage({
+    if (created && !this.notifications.queued) {
+      await this.notifications.chatMessage({
         recipientId: stored.recipientId,
         senderId,
         senderName,
@@ -133,20 +134,40 @@ export class ChatService {
       ...withReplyTo(senderId),
     };
     try {
-      const saved = await this.prisma.message.create({
-        data: {
-          id: message.id,
-          senderId,
-          recipientId: message.recipientId,
-          ...this.protection.seal(message, {
-            id: message.id ?? '',
+      const create = async (tx: Prisma.TransactionClient) => {
+        const saved = await tx.message.create({
+          data: {
+            id: message.id,
             senderId,
             recipientId: message.recipientId,
-          }),
-          replyToId,
-        },
-        include,
-      });
+            ...this.protection.seal(message, {
+              id: message.id ?? '',
+              senderId,
+              recipientId: message.recipientId,
+            }),
+            replyToId,
+          },
+          include,
+        });
+        if (this.notifications.queued) {
+          const { sender, ...stored } = toMessageView(saved);
+          await this.notifications.chatMessage(
+            {
+              recipientId: stored.recipientId,
+              senderId,
+              senderName: displayName(sender),
+              messageId: stored.id,
+              ciphertext: stored.ciphertext,
+              nonce: stored.nonce,
+            },
+            tx,
+          );
+        }
+        return saved;
+      };
+      const saved = this.notifications.queued
+        ? await this.prisma.$transaction(create)
+        : await create(this.prisma);
       return { saved, created: true };
     } catch (error) {
       if (

@@ -3,7 +3,9 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
+  Optional,
 } from '@nestjs/common';
+import { MessageBus } from '@tilomnov/shared';
 import { AccountService } from '../account/account.service';
 import { EmailDeliveryService } from '../mail/email-delivery.service';
 import {
@@ -34,6 +36,7 @@ export class SignInService {
     @Inject(EmailDeliveryService) private readonly mail: EmailDeliveryService,
     @Inject(NotificationClient)
     private readonly notifications: NotificationClient,
+    @Optional() private readonly messages?: MessageBus,
   ) {}
 
   async complete(
@@ -57,7 +60,8 @@ export class SignInService {
       undefined,
       adminEmailVerified,
     );
-    if (alreadySignedInElsewhere) this.alertOwner(user, client, sessionId);
+    if (alreadySignedInElsewhere)
+      await this.alertOwner(user, client, sessionId);
     return tokens;
   }
 
@@ -66,18 +70,35 @@ export class SignInService {
    * the owner wherever they are. Signing in waits for neither, and never
    * fails because of them.
    */
-  private alertOwner(
+  private async alertOwner(
     user: UserRecord,
     client: ClientContext,
     sessionId: string,
-  ): void {
-    this.notifications.signIn({
+  ): Promise<void> {
+    await this.notifications.signIn({
       userId: user.id,
       sessionId,
       deviceName: client.deviceName,
       platform: client.platform,
     });
     if (!user.email) return;
+
+    if (this.messages?.enabled) {
+      try {
+        await this.messages.enqueue(
+          'authentication.sign-in-email.v1',
+          {
+            userId: user.id,
+            ...client,
+            signedInAt: new Date().toISOString(),
+          },
+          { key: `sign-in-email:${sessionId}` },
+        );
+      } catch {
+        this.logger.error('Sign-in email could not be recorded');
+      }
+      return;
+    }
 
     this.mail
       .deliver({

@@ -1,5 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ServiceClient } from '@tilomnov/shared';
+import {
+  currentServiceMessage,
+  MessageBus,
+  MessageType,
+  ServiceClient,
+} from '@tilomnov/shared';
+import { Prisma } from '@tilomnov/prisma-client';
 
 /** A push is a courtesy: never wait long for one. */
 const NOTIFY_TIMEOUT_MS = 5_000;
@@ -25,17 +31,28 @@ export class ListingNotificationsClient {
     'property',
   );
 
+  constructor(private readonly messages: MessageBus) {}
+  get queued(): boolean {
+    return this.messages.enabled;
+  }
+
   /** Each recipient's saved search [searchName] matches the listing. */
   async savedSearchMatch(
     listing: { id: string; title: string },
     recipients: { userId: string; searchName: string }[],
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.inChunks(recipients, (chunk) =>
-      this.post('saved-search-match', {
-        propertyId: listing.id,
-        title: listing.title.slice(0, MAX_TITLE_LENGTH),
-        recipients: chunk,
-      }),
+    await this.inChunks(recipients, (chunk, index) =>
+      this.post(
+        'saved-search-match',
+        {
+          propertyId: listing.id,
+          title: listing.title.slice(0, MAX_TITLE_LENGTH),
+          recipients: chunk,
+        },
+        index,
+        tx,
+      ),
     );
   }
 
@@ -44,14 +61,20 @@ export class ListingNotificationsClient {
     listing: { id: string; title: string },
     ownerName: string,
     userIds: string[],
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.inChunks(userIds, (chunk) =>
-      this.post('followed-listing', {
-        propertyId: listing.id,
-        title: listing.title.slice(0, MAX_TITLE_LENGTH),
-        ownerName: ownerName.slice(0, MAX_NAME_LENGTH),
-        recipients: chunk,
-      }),
+    await this.inChunks(userIds, (chunk, index) =>
+      this.post(
+        'followed-listing',
+        {
+          propertyId: listing.id,
+          title: listing.title.slice(0, MAX_TITLE_LENGTH),
+          ownerName: ownerName.slice(0, MAX_NAME_LENGTH),
+          recipients: chunk,
+        },
+        index,
+        tx,
+      ),
     );
   }
 
@@ -60,27 +83,50 @@ export class ListingNotificationsClient {
     listing: { id: string; title: string },
     update: { kind: 'price_drop'; from: number; to: number } | { kind: 'sold' },
     userIds: string[],
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.inChunks(userIds, (chunk) =>
-      this.post('saved-listing-update', {
-        propertyId: listing.id,
-        title: listing.title.slice(0, MAX_TITLE_LENGTH),
-        ...update,
-        recipients: chunk,
-      }),
+    await this.inChunks(userIds, (chunk, index) =>
+      this.post(
+        'saved-listing-update',
+        {
+          propertyId: listing.id,
+          title: listing.title.slice(0, MAX_TITLE_LENGTH),
+          ...update,
+          recipients: chunk,
+        },
+        index,
+        tx,
+      ),
     );
   }
 
   private async inChunks<T>(
     items: T[],
-    send: (chunk: T[]) => Promise<void>,
+    send: (chunk: T[], index: number) => Promise<void>,
   ): Promise<void> {
     for (let start = 0; start < items.length; start += RECIPIENTS_PER_CALL) {
-      await send(items.slice(start, start + RECIPIENTS_PER_CALL));
+      await send(items.slice(start, start + RECIPIENTS_PER_CALL), start);
     }
   }
 
-  private async post(event: string, body: object): Promise<void> {
+  private async post(
+    event: string,
+    body: object,
+    index: number,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (this.queued) {
+      const origin = currentServiceMessage();
+      await this.messages.enqueue(
+        `notification.${event}.v1` as MessageType,
+        body,
+        {
+          tx,
+          ...(origin && { key: `${origin.id}:${event}:${index}` }),
+        },
+      );
+      return;
+    }
     try {
       await this.client.call('POST', `/internal/notifications/${event}`, {
         body,

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ServiceClient } from '@tilomnov/shared';
+import { MessageBus, ServiceClient } from '@tilomnov/shared';
+import { Prisma } from '@tilomnov/prisma-client';
 import { PaidTier } from './plan-catalog';
 
 @Injectable()
@@ -11,14 +12,29 @@ export class OrderEmailClient {
     'payment',
   );
 
-  async send(details: {
-    userId: string;
-    transactionId: string;
-    item: PaidTier | 'listing_publish';
-    amount: number;
-    periodStart: string;
-    periodEnd?: string;
-  }): Promise<void> {
+  constructor(private readonly messages: MessageBus) {}
+  get queued(): boolean {
+    return this.messages.enabled;
+  }
+
+  async send(
+    details: {
+      userId: string;
+      transactionId: string;
+      item: PaidTier | 'listing_publish';
+      amount: number;
+      periodStart: string;
+      periodEnd?: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (this.queued) {
+      await this.messages.enqueue('authentication.order-email.v1', details, {
+        key: `order:${details.transactionId}`,
+        tx,
+      });
+      return;
+    }
     try {
       await this.client.call('POST', '/internal/mail/order', {
         body: details,

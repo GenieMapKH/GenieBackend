@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { ServiceClient } from '@tilomnov/shared';
+import { MessageBus, ServiceClient } from '@tilomnov/shared';
 
 const ERASE_TIMEOUT_MS = 30_000;
 const NOTICE_TIMEOUT_MS = 5_000;
@@ -20,6 +20,7 @@ export class RemoteAccountContent {
   constructor(
     private readonly name: string,
     baseUrl: string,
+    private readonly messages?: MessageBus,
   ) {
     this.client = new ServiceClient(name, baseUrl, 'user');
   }
@@ -38,6 +39,12 @@ export class RemoteAccountContent {
    */
   async notifyVisibilityChanged(userId: string): Promise<void> {
     try {
+      if (this.name === 'property' && this.messages?.enabled) {
+        await this.messages.enqueue('property.account-visibility.v1', {
+          userId,
+        });
+        return;
+      }
       await this.client.call(
         'POST',
         `/internal/accounts/${userId}/visibility-changed`,

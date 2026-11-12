@@ -56,12 +56,12 @@ export class BlocksService {
     }
     await this.requireExists(targetId);
 
-    await this.prisma.$transaction([
-      this.prisma.userBlock.createMany({
+    const operations = (db: Pick<PrismaService, 'userBlock' | 'follow'>) => [
+      db.userBlock.createMany({
         data: [{ blockerId: viewerId, blockedId: targetId }],
         skipDuplicates: true,
       }),
-      this.prisma.follow.deleteMany({
+      db.follow.deleteMany({
         where: {
           OR: [
             { followerId: viewerId, followingId: targetId },
@@ -69,9 +69,15 @@ export class BlocksService {
           ],
         },
       }),
-    ]);
+    ];
+    if (this.chat.queued) {
+      await this.prisma.$transaction(async (tx) => {
+        for (const operation of operations(tx)) await operation;
+        await this.chat.blocked(viewerId, targetId, tx);
+      });
+    } else await this.prisma.$transaction(operations(this.prisma));
     await this.forget(viewerId, targetId);
-    await this.chat.blocked(viewerId, targetId);
+    if (!this.chat.queued) await this.chat.blocked(viewerId, targetId);
     return this.status(viewerId, targetId);
   }
 

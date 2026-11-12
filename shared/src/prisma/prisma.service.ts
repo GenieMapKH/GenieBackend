@@ -1,7 +1,7 @@
 import {
   Injectable,
   Logger,
-  OnModuleDestroy,
+  OnApplicationShutdown,
   OnModuleInit,
 } from '@nestjs/common';
 import { PrismaClient } from '@tilomnov/prisma-client';
@@ -12,7 +12,7 @@ import { poolOptions } from './pool-options';
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy
+  implements OnModuleInit, OnApplicationShutdown
 {
   private readonly logger = new Logger(PrismaService.name);
   private readonly keepsConnectionsOpen: boolean;
@@ -36,7 +36,8 @@ export class PrismaService
     if (this.keepsConnectionsOpen) await this.warmUp();
   }
 
-  async onModuleDestroy() {
+  // Workers drain in onModuleDestroy, while their database pool is still usable.
+  async onApplicationShutdown() {
     await this.$disconnect();
   }
 

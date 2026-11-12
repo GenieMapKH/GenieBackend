@@ -48,6 +48,7 @@ describe('provider-independent payment settlement', () => {
   let row = { ...initial };
   beforeEach(() => {
     jest.clearAllMocks();
+    delete (email as { queued?: boolean }).queued;
     jest.useFakeTimers().setSystemTime(now);
     row = { ...initial };
     table.findUnique.mockImplementation(async () => row);
@@ -70,6 +71,29 @@ describe('provider-independent payment settlement', () => {
     });
   });
   afterEach(() => jest.useRealTimers());
+
+  it('saves the queued order email before committing a successful payment', async () => {
+    Object.assign(email, { queued: true });
+    email.send.mockImplementationOnce(async (_details, client) => {
+      expect(client).toBe(tx);
+      expect(table.update).not.toHaveBeenCalled();
+    });
+    await expect(gateway.reconcile('tx-1')).resolves.toMatchObject({
+      status: 'Success',
+    });
+    expect(email.send).toHaveBeenCalledTimes(1);
+    await gateway.reconcile('tx-1');
+    expect(email.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps payment settlement retryable if its outbox write fails', async () => {
+    Object.assign(email, { queued: true });
+    email.send.mockRejectedValueOnce(new Error('outbox unavailable'));
+    await expect(gateway.reconcile('tx-1')).rejects.toThrow(
+      'outbox unavailable',
+    );
+    expect(table.update).not.toHaveBeenCalled();
+  });
 
   it('keeps the existing plan until the provider verifies payment', async () => {
     provider.checkTransaction.mockResolvedValue({ state: 'PENDING' });

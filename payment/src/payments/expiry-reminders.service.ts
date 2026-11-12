@@ -4,7 +4,12 @@ import {
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
-import { PrismaService, ServiceClient } from '@tilomnov/shared';
+import {
+  ExpiryReminderDto,
+  MessageBus,
+  PrismaService,
+  ServiceClient,
+} from '@tilomnov/shared';
 import type { PaymentTransaction, Subscription } from '@tilomnov/prisma-client';
 
 /** One reminder per purchased period, starting three days before expiry. */
@@ -19,10 +24,48 @@ export class ExpiryRemindersService implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setTimeout>;
   private stopped = false;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly messages: MessageBus,
+  ) {}
 
   onModuleInit() {
     void this.run();
+  }
+
+  /** A queued reminder can arrive after renewal, so delivery checks the current ledger. */
+  async isCurrent(event: ExpiryReminderDto): Promise<boolean> {
+    const end = new Date(event.expiresAt);
+    if (end <= new Date()) return false;
+    if (event.kind === 'subscription') {
+      return !!(await this.prisma.subscription.findFirst({
+        where: { userId: event.userId, currentPeriodEnd: end },
+      }));
+    }
+    const [paid, covered, renewed] = await Promise.all([
+      this.prisma.paymentTransaction.findFirst({
+        where: {
+          userId: event.userId,
+          propertyId: event.propertyId,
+          purpose: 'LISTING_PUBLISH',
+          status: 'Success',
+          listingPeriodEnd: end,
+        },
+      }),
+      this.prisma.subscription.findFirst({
+        where: { userId: event.userId, currentPeriodEnd: { gt: end } },
+      }),
+      this.prisma.paymentTransaction.findFirst({
+        where: {
+          userId: event.userId,
+          propertyId: event.propertyId,
+          purpose: 'LISTING_PUBLISH',
+          status: 'Success',
+          listingPeriodEnd: { gt: end },
+        },
+      }),
+    ]);
+    return !!paid && !covered && !renewed;
   }
   onModuleDestroy() {
     this.stopped = true;
@@ -161,18 +204,31 @@ export class ExpiryRemindersService implements OnModuleInit, OnModuleDestroy {
                   return;
                 }
               }
-              // shortcut: a crash after delivery may repeat a reminder; add provider deduplication if replacement tags are insufficient.
+              const body = {
+                userId: row.userId,
+                kind: row.kind,
+                expiresAt: row.expiresAt.toISOString(),
+                ...(row.propertyId && { propertyId: row.propertyId }),
+                ...(row.tier && { tier: row.tier }),
+              };
+              if (this.messages.enabled) {
+                await this.messages.enqueue(
+                  'notification.publishing-expiry.v1',
+                  body,
+                  {
+                    key: `expiry:${row.kind}:${row.id}:${row.expiresAt.toISOString()}`,
+                    expiresAt: row.expiresAt,
+                    tx,
+                  },
+                );
+                await markSent();
+                return;
+              }
               const report = await this.notification.call<{
                 failed: number;
                 removed: number;
               }>('POST', '/internal/notifications/publishing-expiry', {
-                body: {
-                  userId: row.userId,
-                  kind: row.kind,
-                  expiresAt: row.expiresAt.toISOString(),
-                  ...(row.propertyId && { propertyId: row.propertyId }),
-                  ...(row.tier && { tier: row.tier }),
-                },
+                body,
                 timeoutMs: 5000,
               });
               if (report.failed > report.removed)

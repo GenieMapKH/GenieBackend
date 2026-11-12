@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
 import { ListingNotificationsClient } from '../notifications/listing-notifications.client';
+import { Prisma } from '@tilomnov/prisma-client';
 import {
   ListingChanges,
   ListingEventListener,
@@ -35,23 +36,27 @@ export class SavedListingAlerts implements ListingEventListener, OnModuleInit {
     drop: { from: number; to: number },
   ): Promise<void> {
     const now = new Date();
-    const { count } = await this.prisma.property.updateMany({
-      where: {
-        id: propertyId,
-        status: 'Active',
-        OR: [
-          { priceDropNotifiedAt: null },
-          {
-            priceDropNotifiedAt: {
-              lt: new Date(now.getTime() - PRICE_DROP_PUSH_GAP_MS),
+    const notify = async (tx: Prisma.TransactionClient) => {
+      const { count } = await tx.property.updateMany({
+        where: {
+          id: propertyId,
+          status: 'Active',
+          OR: [
+            { priceDropNotifiedAt: null },
+            {
+              priceDropNotifiedAt: {
+                lt: new Date(now.getTime() - PRICE_DROP_PUSH_GAP_MS),
+              },
             },
-          },
-        ],
-      },
-      data: { priceDropNotifiedAt: now },
-    });
-    if (count === 0) return;
-    await this.tellSavers(propertyId, { kind: 'price_drop', ...drop });
+          ],
+        },
+        data: { priceDropNotifiedAt: now },
+      });
+      if (count === 0) return;
+      await this.tellSavers(propertyId, { kind: 'price_drop', ...drop }, tx);
+    };
+    if (this.notifications.queued) await this.prisma.$transaction(notify);
+    else await notify(this.prisma);
   }
 
   async listingSold(propertyId: string): Promise<void> {
@@ -61,13 +66,14 @@ export class SavedListingAlerts implements ListingEventListener, OnModuleInit {
   private async tellSavers(
     propertyId: string,
     update: { kind: 'price_drop'; from: number; to: number } | { kind: 'sold' },
+    tx: Prisma.TransactionClient = this.prisma,
   ): Promise<void> {
-    const listing = await this.prisma.property.findUnique({
+    const listing = await tx.property.findUnique({
       where: { id: propertyId },
       select: { id: true, title: true, userId: true },
     });
     if (!listing) return;
-    const savers = await this.prisma.propertyFavorite.findMany({
+    const savers = await tx.propertyFavorite.findMany({
       where: { propertyId, userId: { not: listing.userId } },
       select: { userId: true },
     });
@@ -76,6 +82,7 @@ export class SavedListingAlerts implements ListingEventListener, OnModuleInit {
       listing,
       update,
       savers.map((saver) => saver.userId),
+      ...(this.notifications.queued ? ([tx] as const) : []),
     );
   }
 }

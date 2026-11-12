@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ServiceClient } from '@tilomnov/shared';
+import { MessageBus, ServiceClient } from '@tilomnov/shared';
 
 /** Signing in never waits long for a push. */
 const NOTIFY_TIMEOUT_MS = 5_000;
@@ -25,19 +25,26 @@ export class NotificationClient {
     'authentication',
   );
 
-  signIn(notice: SignInNotice): void {
-    this.client
-      .call('POST', '/internal/notifications/sign-in', {
-        body: {
-          userId: notice.userId,
-          sessionId: notice.sessionId,
-          ...(notice.deviceName && { deviceName: notice.deviceName }),
-          ...(notice.platform && { platform: notice.platform }),
-        },
-        timeoutMs: NOTIFY_TIMEOUT_MS,
-      })
-      .catch((error: Error) =>
-        this.logger.warn(`Sign-in push not sent: ${error.message}`),
-      );
+  constructor(private readonly messages: MessageBus) {}
+
+  async signIn(notice: SignInNotice): Promise<void> {
+    const body = {
+      userId: notice.userId,
+      sessionId: notice.sessionId,
+      ...(notice.deviceName && { deviceName: notice.deviceName }),
+      ...(notice.platform && { platform: notice.platform }),
+    };
+    const delivery = this.messages.enabled
+      ? this.messages.enqueue('notification.sign-in.v1', body, {
+          key: `sign-in:${notice.sessionId}`,
+        })
+      : this.client.call('POST', '/internal/notifications/sign-in', {
+          body,
+          timeoutMs: NOTIFY_TIMEOUT_MS,
+        });
+    const handled = delivery.catch((error: Error) =>
+      this.logger.warn(`Sign-in push not sent: ${error.message}`),
+    );
+    if (this.messages.enabled) await handled;
   }
 }

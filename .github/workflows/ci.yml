@@ -30,6 +30,16 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Test RabbitMQ delivery and recovery with isolated databases
+        run: |
+          docker compose -f qa/messaging/docker-compose.yml up -d --wait
+          npm run test:messaging:integration
+          npm run test:messaging:flows
+
+      - name: Remove messaging test containers
+        if: always()
+        run: docker compose -f qa/messaging/docker-compose.yml down --volumes
+
       # Stop releases containing known high or critical production vulnerabilities.
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high

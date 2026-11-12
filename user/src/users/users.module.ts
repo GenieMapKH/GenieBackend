@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { SupabaseModule } from '@tilomnov/shared';
+import { MessageBus, SupabaseModule } from '@tilomnov/shared';
 import { AccountContentService } from './account-content.service';
 import { AvatarService } from './avatar.service';
 import { InternalAccountsController } from './internal-accounts.controller';
@@ -26,10 +26,12 @@ import { UsersService } from './users.service';
     AccountContentService,
     {
       provide: PROPERTY_CONTENT,
-      useFactory: () =>
+      inject: [MessageBus],
+      useFactory: (messages: MessageBus) =>
         new RemoteAccountContent(
           'property',
           process.env.PROPERTY_SERVICE_URL || 'http://localhost:4003',
+          messages,
         ),
     },
     {

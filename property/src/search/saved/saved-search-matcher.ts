@@ -61,18 +61,23 @@ export class SavedSearchMatcher implements ListingEventListener, OnModuleInit {
 
     const hits = await this.matchingSearches(listing);
     if (hits.length === 0) return;
-    const fresh = await this.claimNew(propertyId, hits);
+    const notify = async (tx: Prisma.TransactionClient) => {
+      const fresh = await this.claimNew(propertyId, hits, tx);
 
-    // One push per person: the first of their searches names it.
-    const byUser = new Map<string, string>();
-    for (const hit of fresh) {
-      if (!byUser.has(hit.userId)) byUser.set(hit.userId, hit.name);
-    }
-    if (byUser.size === 0) return;
-    await this.notifications.savedSearchMatch(
-      { id: listing.id, title: listing.title },
-      [...byUser].map(([userId, searchName]) => ({ userId, searchName })),
-    );
+      // One push per person: the first of their searches names it.
+      const byUser = new Map<string, string>();
+      for (const hit of fresh) {
+        if (!byUser.has(hit.userId)) byUser.set(hit.userId, hit.name);
+      }
+      if (byUser.size === 0) return;
+      await this.notifications.savedSearchMatch(
+        { id: listing.id, title: listing.title },
+        [...byUser].map(([userId, searchName]) => ({ userId, searchName })),
+        ...(this.notifications.queued ? ([tx] as const) : []),
+      );
+    };
+    if (this.notifications.queued) await this.prisma.$transaction(notify);
+    else await notify(this.prisma);
   }
 
   /** The alerting searches of other people that [listing] passes. */
@@ -101,8 +106,9 @@ export class SavedSearchMatcher implements ListingEventListener, OnModuleInit {
   private async claimNew(
     propertyId: string,
     hits: SearchHit[],
+    tx: Prisma.TransactionClient,
   ): Promise<SearchHit[]> {
-    const claimed = await this.prisma.$queryRaw<{ id: string }[]>`
+    const claimed = await tx.$queryRaw<{ id: string }[]>`
       INSERT INTO listing.saved_search_matches (saved_search_id, property_id)
       SELECT unnest(${hits.map((hit) => hit.id)}::uuid[]), ${propertyId}::uuid
       ON CONFLICT DO NOTHING

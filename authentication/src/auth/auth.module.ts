@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SignInEmailConsumer } from './mail/sign-in-email.consumer';
 import { RedisConnection } from '../redis/redis-connection';
 import { AccountController } from './account/account.controller';
 import { AccountEmailService } from './account/account-email.service';
@@ -54,6 +55,7 @@ import { AdminAccountsController } from './account/admin-accounts.controller';
     VerificationController,
   ],
   providers: [
+    SignInEmailConsumer,
     EmailVerificationService,
     AccountPhoneService,
     SigningKeyRepository,

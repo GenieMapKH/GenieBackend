@@ -44,7 +44,7 @@ export function scrubLogText(text: string): string {
     if (
       value &&
       value.length >= 8 &&
-      /PASSWORD|SECRET|TOKEN|KEY|DATABASE.*URL|REDIS_URL|FIREBASE.*JSON/i.test(
+      /PASSWORD|SECRET|TOKEN|KEY|DATABASE.*URL|REDIS_URL|RABBITMQ_URL|FIREBASE.*JSON/i.test(
         name,
       )
     ) {

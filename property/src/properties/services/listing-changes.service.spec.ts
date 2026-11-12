@@ -1,4 +1,10 @@
 import { ListingChanges } from './listing-changes.service';
+import { currentServiceMessage } from '@tilomnov/shared';
+
+jest.mock('@tilomnov/shared', () => ({
+  ...jest.requireActual('@tilomnov/shared'),
+  currentServiceMessage: jest.fn(),
+}));
 
 const LISTING = { id: 'p-1', userId: 'u-1', lat: 11.5, lng: 104.9 };
 
@@ -7,6 +13,7 @@ describe('ListingChanges', () => {
   let changes: ListingChanges;
 
   beforeEach(() => {
+    (currentServiceMessage as jest.Mock).mockReturnValue(undefined);
     publicCache = { changed: jest.fn().mockResolvedValue(undefined) };
     changes = new ListingChanges(publicCache as never);
   });
@@ -40,6 +47,20 @@ describe('ListingChanges', () => {
 
     await expect(changes.changed(LISTING)).resolves.toBeUndefined();
     expect(other.listingChanged).toHaveBeenCalled();
+  });
+
+  it('retries queued visibility changes when an index listener is unavailable', async () => {
+    (currentServiceMessage as jest.Mock).mockReturnValue({
+      type: 'property.account-visibility.v1',
+    });
+    changes.listen({
+      listingChanged: jest
+        .fn()
+        .mockRejectedValue(new Error('search unavailable')),
+    });
+    await expect(changes.changed(LISTING)).rejects.toThrow(
+      'search unavailable',
+    );
   });
 
   describe('wentLive', () => {

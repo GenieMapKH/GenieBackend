@@ -18,6 +18,12 @@ test('containers receive only their own credentials, never the complete env file
     if (name === 'api-gateway') {
       assert.equal(env.DATABASE_URL, undefined);
       assert.equal(env.INTERNAL_SERVICE_SECRET, undefined);
+      assert.equal(env.RABBITMQ_URL, '');
+    } else if (name === 'rabbitmq') {
+      assert.equal(env.DATABASE_URL, undefined);
+      assert.equal(env.INTERNAL_SERVICE_SECRET, undefined);
+      assert.match(env.RABBITMQ_DEFAULT_PASS, /RABBITMQ_PASSWORD:\?/);
+      assert.deepEqual(service.ports, ['127.0.0.1:15672:15672']);
     } else if (name !== 'redis') {
       assert.match(env.DATABASE_URL, /DATABASE_URL:\?/);
       assert.ok(!env.DATABASE_URL.includes('${DATABASE_URL}'), `${name} falls back to admin credentials`);

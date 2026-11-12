@@ -19,6 +19,8 @@
     "start:gateway": "npm run start:prod --workspace=api-gateway",
     "test": "npm test --workspaces --if-present && npm run test:scripts",
     "test:scripts": "node --test \"scripts/test/*.test.js\" \"scripts/secret-rotation/test/*.test.js\"",
+    "test:messaging:integration": "npm run build --workspace=shared && npm run build --workspace=notification && npm run build --workspace=authentication && node --test --test-concurrency=1 qa/messaging/*.test.js",
+    "test:messaging:flows": "node qa/messaging/service-flows.js",
     "lint": "npm run lint:check --workspaces --if-present",
     "db:migrate:deploy": "npx prisma migrate deploy",
     "keys:generate": "node scripts/generate-secrets.js",

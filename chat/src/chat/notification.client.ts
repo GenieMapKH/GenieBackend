@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ServiceClient } from '@tilomnov/shared';
+import { MessageBus, ServiceClient } from '@tilomnov/shared';
+import { Prisma } from '@tilomnov/prisma-client';
 
 /** A push is a courtesy: never wait long for one. */
 const NOTIFY_TIMEOUT_MS = 5_000;
@@ -40,7 +41,26 @@ export class NotificationClient {
     'chat',
   );
 
-  chatMessage(notice: ChatMessageNotice): void {
+  constructor(private readonly messages: MessageBus) {}
+  get queued(): boolean {
+    return this.messages.enabled;
+  }
+
+  async chatMessage(
+    notice: ChatMessageNotice,
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
+    if (this.queued) {
+      await this.messages.enqueue(
+        'notification.chat-message.v1',
+        {
+          ...notice,
+          senderName: shortened(notice.senderName),
+        },
+        { key: `chat:${notice.messageId}`, tx },
+      );
+      return;
+    }
     this.post('chat-message', {
       ...notice,
       senderName: shortened(notice.senderName),

@@ -16,7 +16,10 @@ describe('publishing expiry reminders', () => {
   };
   const tx = { subscription, paymentTransaction, $queryRaw: jest.fn() };
   const prisma = { ...tx, $transaction: jest.fn((run) => run(tx)) };
-  const service = new ExpiryRemindersService(prisma as never);
+  const service = new ExpiryRemindersService(
+    prisma as never,
+    { enabled: false } as never,
+  );
   let call: jest.SpyInstance;
 
   beforeEach(() => {
@@ -48,6 +51,98 @@ describe('publishing expiry reminders', () => {
   afterEach(() => {
     call.mockRestore();
     jest.useRealTimers();
+  });
+
+  it('checks the current subscription period again after a queued delay', async () => {
+    expect(
+      await service.isCurrent({
+        userId: 'alice',
+        kind: 'subscription',
+        expiresAt: ends.toISOString(),
+      }),
+    ).toBe(true);
+    subscription.findFirst.mockResolvedValueOnce(null);
+    expect(
+      await service.isCurrent({
+        userId: 'alice',
+        kind: 'subscription',
+        expiresAt: ends.toISOString(),
+      }),
+    ).toBe(false);
+  });
+
+  it('drops a queued listing reminder after a renewal or a covering subscription', async () => {
+    const event = {
+      userId: 'bob',
+      kind: 'listing' as const,
+      propertyId: 'property',
+      expiresAt: ends.toISOString(),
+    };
+    subscription.findFirst.mockResolvedValue(null);
+    paymentTransaction.findFirst.mockImplementation(async ({ where }) =>
+      where.listingPeriodEnd instanceof Date ? { id: 'paid' } : null,
+    );
+    expect(await service.isCurrent(event)).toBe(true);
+    paymentTransaction.findFirst.mockResolvedValue({ id: 'renewed' });
+    expect(await service.isCurrent(event)).toBe(false);
+    paymentTransaction.findFirst.mockImplementation(async ({ where }) =>
+      where.listingPeriodEnd instanceof Date ? { id: 'paid' } : null,
+    );
+    subscription.findFirst.mockResolvedValue({ tier: 'gold' });
+    expect(await service.isCurrent(event)).toBe(false);
+  });
+
+  it('drops expired or erased payment periods before notification delivery', async () => {
+    expect(
+      await service.isCurrent({
+        userId: 'alice',
+        kind: 'subscription',
+        expiresAt: now.toISOString(),
+      }),
+    ).toBe(false);
+    paymentTransaction.findFirst.mockResolvedValue(null);
+    subscription.findFirst.mockResolvedValue(null);
+    expect(
+      await service.isCurrent({
+        userId: 'bob',
+        kind: 'listing',
+        propertyId: 'property',
+        expiresAt: ends.toISOString(),
+      }),
+    ).toBe(false);
+  });
+
+  it('records the queue job and reminder marker in one transaction without waiting for notification', async () => {
+    const messages = {
+      enabled: true,
+      enqueue: jest.fn().mockResolvedValue(undefined),
+    };
+    const queued = new ExpiryRemindersService(
+      prisma as never,
+      messages as never,
+    );
+    await queued.scan(now);
+    expect(call).not.toHaveBeenCalled();
+    expect(messages.enqueue).toHaveBeenCalledTimes(2);
+    expect(messages.enqueue).toHaveBeenCalledWith(
+      'notification.publishing-expiry.v1',
+      expect.objectContaining({ userId: 'alice' }),
+      expect.objectContaining({ tx, expiresAt: ends }),
+    );
+    expect(subscription.update).toHaveBeenCalledTimes(1);
+    expect(paymentTransaction.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not mark a reminder queued when its outbox insert failed', async () => {
+    const messages = {
+      enabled: true,
+      enqueue: jest.fn().mockRejectedValue(new Error('outbox unavailable')),
+    };
+    await new ExpiryRemindersService(prisma as never, messages as never).scan(
+      now,
+    );
+    expect(subscription.update).not.toHaveBeenCalled();
+    expect(paymentTransaction.update).not.toHaveBeenCalled();
   });
 
   it('finds both kinds in the next three days and marks each delivered period once', async () => {

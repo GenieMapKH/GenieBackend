@@ -56,6 +56,7 @@ describe('ChatService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete (notifications as { queued?: boolean }).queued;
     userTable.findUnique.mockResolvedValue({
       id: 'bob',
       backupBlob: null,
@@ -77,6 +78,30 @@ describe('ChatService', () => {
       } as never,
     );
     blocks.requireNotBlocked.mockResolvedValue(undefined);
+  });
+
+  it('commits a queued push in the same transaction as its new message', async () => {
+    Object.assign(notifications, { queued: true });
+    const transaction = jest.fn((run) => run(prisma));
+    Object.assign(prisma, { $transaction: transaction });
+    await service.sendMessage('alice', newMessage);
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(notifications.chatMessage).toHaveBeenCalledTimes(1);
+    expect(notifications.chatMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ messageId: stored.id }),
+      prisma,
+    );
+  });
+
+  it('rejects a new message when its transactional outbox write fails', async () => {
+    Object.assign(notifications, { queued: true });
+    Object.assign(prisma, { $transaction: jest.fn((run) => run(prisma)) });
+    notifications.chatMessage.mockRejectedValueOnce(
+      new Error('outbox unavailable'),
+    );
+    await expect(service.sendMessage('alice', newMessage)).rejects.toThrow(
+      'outbox unavailable',
+    );
   });
 
   it('stores a managed message encrypted and returns it only after opening it', async () => {

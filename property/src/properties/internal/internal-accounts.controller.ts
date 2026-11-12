@@ -8,12 +8,19 @@ import {
   Post,
   UseGuards,
   VERSION_NEUTRAL,
+  OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { PrismaService, serviceCallGuard } from '@tilomnov/shared';
+import { MessageBus, PrismaService, serviceCallGuard } from '@tilomnov/shared';
+import { IsUUID } from 'class-validator';
 import { PropertyImageService } from '../services/property-image.service';
 import { ListingChanges } from '../services/listing-changes.service';
 import { CACHED_LISTING_SELECT } from '../services/public-property-cache.service';
+
+export class AccountVisibilityEvent {
+  @IsUUID() userId: string;
+}
 
 /**
  * What the property service keeps for an account, acted on when the user
@@ -23,12 +30,21 @@ import { CACHED_LISTING_SELECT } from '../services/public-property-cache.service
 @ApiExcludeController()
 @UseGuards(serviceCallGuard('user'))
 @Controller({ path: 'internal/accounts/:userId', version: VERSION_NEUTRAL })
-export class InternalAccountsController {
+export class InternalAccountsController implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly images: PropertyImageService,
     private readonly listingChanges: ListingChanges,
+    @Optional() private readonly messages?: MessageBus,
   ) {}
+
+  onModuleInit(): void {
+    this.messages?.handleValidated(
+      'property.account-visibility.v1',
+      AccountVisibilityEvent,
+      (event) => this.visibilityChanged(event.userId),
+    );
+  }
 
   /** The account is being deleted: remove the photos of its listings. */
   @Delete('files')

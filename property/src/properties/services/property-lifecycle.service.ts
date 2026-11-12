@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '@tilomnov/shared';
+import { Prisma } from '@tilomnov/prisma-client';
 import { boundaryCentroid } from '../boundary-centroid';
 import { BoundaryDto } from '../dto/boundary.dto';
 import { PropertyNearbyService } from '../nearby/property-nearby.service';
@@ -64,17 +65,22 @@ export class PropertyLifecycleService {
       );
     if (dto.status === PUBLIC_STATUS) assertTakeoverComplete(dto);
     assertValidDiscount(dto);
-    const create = (db: Pick<PrismaService, 'property'>) =>
-      db.property.create({
+    const create = async (db: Prisma.TransactionClient) => {
+      const created = await db.property.create({
         data: toCreateData(userId, dto),
         include: PROPERTY_WITH_RELATIONS,
       });
+      if (this.listingChanges.queued)
+        await this.announceIfNowOnMap(null, created, db);
+      return created;
+    };
     const property =
       dto.status === PUBLIC_STATUS
         ? await this.allowance.publish(userId, create)
         : await create(this.prisma);
     await this.refreshPublicView(property, [property.status]);
-    this.announceIfNowOnMap(null, property);
+    if (!this.listingChanges.queued)
+      void this.announceIfNowOnMap(null, property);
     // Nobody can have saved, opened or messaged about it yet.
     return { ...property, _count: NO_ENGAGEMENT };
   }
@@ -114,9 +120,8 @@ export class PropertyLifecycleService {
       before.status === PUBLIC_STATUS
         ? priceDrop(pricedBefore, pricedAfter)
         : null;
-    // An edit does not change the counts: read alongside it.
-    const [property, counts] = await Promise.all([
-      this.prisma.property.update({
+    const write = async (tx: Prisma.TransactionClient) => {
+      const updated = await tx.property.update({
         where: { id },
         data: {
           ...toUpdateData(
@@ -128,11 +133,21 @@ export class PropertyLifecycleService {
           ...priceDropColumns(before, pricedAfter, drop),
         },
         include: PROPERTY_WITH_RELATIONS,
-      }),
+      });
+      if (drop && this.listingChanges.queued)
+        await this.listingChanges.priceDropped(id, drop, tx);
+      return updated;
+    };
+    // An edit does not change the counts: read alongside it.
+    const [property, counts] = await Promise.all([
+      this.listingChanges.queued
+        ? this.prisma.$transaction(write)
+        : write(this.prisma),
       this.counts.of([id]),
     ]);
     await this.refreshPublicView(property, [before.status]);
-    if (drop) void this.listingChanges.priceDropped(id, drop);
+    if (drop && !this.listingChanges.queued)
+      void this.listingChanges.priceDropped(id, drop);
     if (dto.keywords) {
       this.nearby.keywordsChanged(id, keywordCodes(before), dto.keywords);
     }
@@ -141,12 +156,21 @@ export class PropertyLifecycleService {
 
   async updatePin(userId: string, id: string, pin: PinDto) {
     const before = await this.query.findOwned(userId, id);
-    const property = await this.prisma.property.update({
-      where: { id },
-      data: { lat: pin.lat, lng: pin.lng },
-    });
+    const write = async (tx: Prisma.TransactionClient) => {
+      const updated = await tx.property.update({
+        where: { id },
+        data: { lat: pin.lat, lng: pin.lng },
+      });
+      if (this.listingChanges.queued)
+        await this.announceIfNowOnMap(before, updated, tx);
+      return updated;
+    };
+    const property = this.listingChanges.queued
+      ? await this.prisma.$transaction(write)
+      : await write(this.prisma);
     await this.refreshPublicView(property, [before.status], before);
-    this.announceIfNowOnMap(before, property);
+    if (!this.listingChanges.queued)
+      void this.announceIfNowOnMap(before, property);
     this.nearby.locationChanged(id);
     return property;
   }
@@ -160,15 +184,24 @@ export class PropertyLifecycleService {
     }));
     const center = boundaryCentroid(boundaryPoints);
 
-    const property = await this.prisma.property.update({
-      where: { id },
-      data: {
-        boundaryPoints,
-        ...(center && { lat: center.lat, lng: center.lng }),
-      },
-    });
+    const write = async (tx: Prisma.TransactionClient) => {
+      const updated = await tx.property.update({
+        where: { id },
+        data: {
+          boundaryPoints,
+          ...(center && { lat: center.lat, lng: center.lng }),
+        },
+      });
+      if (this.listingChanges.queued)
+        await this.announceIfNowOnMap(before, updated, tx);
+      return updated;
+    };
+    const property = this.listingChanges.queued
+      ? await this.prisma.$transaction(write)
+      : await write(this.prisma);
     await this.refreshPublicView(property, [before.status], before);
-    this.announceIfNowOnMap(before, property);
+    if (!this.listingChanges.queued)
+      void this.announceIfNowOnMap(before, property);
     if (center) this.nearby.locationChanged(id);
     return property;
   }
@@ -225,8 +258,8 @@ export class PropertyLifecycleService {
         'This property has a payment in progress. Please wait for confirmation.',
       );
     }
-    const update = (db: Pick<PrismaService, 'property'>) =>
-      db.property.update({
+    const update = async (db: Prisma.TransactionClient) => {
+      const updated = await db.property.update({
         where: { id: before.id, status: before.status },
         // Going live dates it in the feed only the first time, or when it is
         // back on the market (see publishedAtGoingLive).
@@ -241,13 +274,27 @@ export class PropertyLifecycleService {
           }),
         },
       });
+      if (this.listingChanges.queued) {
+        await this.announceIfNowOnMap(before, updated, db);
+        if (to === 'Sold' && before.status === PUBLIC_STATUS)
+          await this.listingChanges.sold(updated.id, db);
+      }
+      return updated;
+    };
     const property =
       to === PUBLIC_STATUS
         ? await this.allowance.publish(before.userId, update, before.id)
-        : await update(this.prisma);
+        : this.listingChanges.queued
+          ? await this.prisma.$transaction(update)
+          : await update(this.prisma);
     await this.refreshPublicView(property, [before.status, to]);
-    this.announceIfNowOnMap(before, property);
-    if (to === 'Sold' && before.status === PUBLIC_STATUS) {
+    if (!this.listingChanges.queued)
+      void this.announceIfNowOnMap(before, property);
+    if (
+      !this.listingChanges.queued &&
+      to === 'Sold' &&
+      before.status === PUBLIC_STATUS
+    ) {
       void this.listingChanges.sold(property.id);
     }
     return property;
@@ -259,12 +306,16 @@ export class PropertyLifecycleService {
    * its boundary right after, so either step can be the one. Alerts and
    * pushes follow (`ListingChanges.wentLive`), behind the answer.
    */
-  private announceIfNowOnMap(
+  private async announceIfNowOnMap(
     before: OnMapState | null,
     after: OnMapState & { id: string },
-  ): void {
+    tx?: Prisma.TransactionClient,
+  ): Promise<void> {
     if (isOnMap(after) && !(before && isOnMap(before))) {
-      void this.listingChanges.wentLive(after.id);
+      await this.listingChanges.wentLive(
+        after.id,
+        ...(tx ? ([tx] as const) : []),
+      );
     }
   }
 

@@ -443,3 +443,8 @@ The app compresses every picture before upload (see its README), so the limits a
 for a client that does not. Changing a limit means changing the constant next to the code that
 owns the bucket and restarting that service. The server cannot compress chat files: they are
 encrypted on the sender's device and the server never sees them readable.
+
+## Service messaging
+
+See [MESSAGING.md](docs/MESSAGING.md) for broker architecture, delivery guarantees,
+local configuration, migration order, and recovery tests.
