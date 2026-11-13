@@ -1,6 +1,11 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { tokenKeyId } from '@tilomnov/shared';
 import { KeyObject } from 'crypto';
 import { ACCESS_TOKEN_TYPE } from './auth.constants';
@@ -41,12 +46,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     role: string;
     typ?: string;
     sid?: string;
+    adminMfa?: boolean;
   }): Promise<AuthenticatedUser> {
     if (payload.typ !== ACCESS_TOKEN_TYPE) {
       throw new UnauthorizedException('Not an access token');
     }
+    if (payload.role === 'admin' && payload.adminMfa !== true)
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
     // The gateway does not check tokens on `/auth` routes, so a signed-out device is refused here.
-    if (payload.sid && (await this.revoked.has(payload.sid))) {
+    if (!payload.sid || !payload.sub)
+      throw new UnauthorizedException('Sign in again');
+    const revoked = await this.revoked
+      .has(payload.sid, payload.sub)
+      .catch(() => {
+        throw new ServiceUnavailableException('Could not verify session');
+      });
+    if (revoked) {
       throw new UnauthorizedException('This device was signed out');
     }
     return {

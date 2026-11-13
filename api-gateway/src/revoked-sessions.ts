@@ -6,8 +6,8 @@ const KEY_PREFIX = 'sessions:revoked:';
 
 /**
  * The sessions that were signed out while their access token had not expired.
- * A token is valid on its signature alone, so asking here on every request is
- * what makes a sign-out immediate instead of taking up to 15 minutes.
+ * These markers are a fast negative signal only; verifySignedToken separately
+ * checks durable validity, even when this cache is empty.
  */
 @Injectable()
 export class RevokedSessions {
@@ -17,8 +17,7 @@ export class RevokedSessions {
     try {
       return (await this.redis.client.exists(KEY_PREFIX + sessionId)) === 1;
     } catch {
-      // Without Redis the question cannot be answered. Refusing everyone would
-      // be an outage of our own making; the token still expires on its own.
+      // The independent durable check still decides whether the session is active.
       return false;
     }
   }

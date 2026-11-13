@@ -69,46 +69,57 @@ export class SessionService {
   ): Promise<TokenPair> {
     const { sub, jti, adminMfa } = this.verifyRefreshToken(refreshToken);
 
-    const record = await this.refreshTokens.findById(jti);
-    if (!record) {
-      throw new UnauthorizedException('Refresh token not found');
-    }
+    const result = await this.refreshTokens.withUserLock(sub, async (tx) => {
+      const record = await this.refreshTokens.findById(jti, tx);
+      if (!record) {
+        throw new UnauthorizedException('Refresh token not found');
+      }
+      if (record.user_id !== sub)
+        throw new UnauthorizedException('Invalid refresh token owner');
 
-    if (record.revoked) {
-      await this.rejectRevokedToken(record, sub);
-    }
+      if (record.revoked) {
+        return { revoked: record };
+      }
 
-    if (!(await refreshTokenMatches(refreshToken, record.token_hash))) {
-      throw new UnauthorizedException('Invalid refresh token signature');
-    }
+      if (!(await refreshTokenMatches(refreshToken, record.token_hash))) {
+        throw new UnauthorizedException('Invalid refresh token signature');
+      }
 
-    // Atomic: only one concurrent request can win the revoke.
-    const won = await this.refreshTokens.revokeIfActive(jti);
-    if (!won) {
+      // Atomic: only one concurrent request can win the revoke.
+      const won = await this.refreshTokens.revokeIfActive(jti, tx);
+      if (!won) {
+        return { theft: true };
+      }
+
+      const user = await this.users.findById(sub, tx);
+      if (!user || user.banned_at || user.deactivated_at) {
+        throw new UnauthorizedException('User no longer exists');
+      }
+      if (user.role === 'admin' && !adminMfa) {
+        throw new UnauthorizedException(
+          'Administrator email verification required',
+        );
+      }
+
+      const { sessionId: _sessionId, ...tokens } = await this.issuer.issue(
+        sub,
+        user.role,
+        client,
+        record,
+        adminMfa,
+        tx,
+      );
+      return { tokens };
+    });
+    // Outside the transaction: theft revocation must commit, not roll back with a thrown 401.
+    if (result.theft) {
       await this.revocations.endAllSessions(sub);
       throw new UnauthorizedException(
         'Token theft detected (Concurrent). All sessions revoked.',
       );
     }
-
-    const user = await this.users.findById(sub);
-    if (!user || user.banned_at) {
-      throw new UnauthorizedException('User no longer exists');
-    }
-    if (user.role === 'admin' && !adminMfa) {
-      throw new UnauthorizedException(
-        'Administrator email verification required',
-      );
-    }
-
-    const { sessionId: _sessionId, ...tokens } = await this.issuer.issue(
-      sub,
-      user.role,
-      client,
-      record,
-      adminMfa,
-    );
-    return tokens;
+    if (result.revoked) return this.rejectRevokedToken(result.revoked, sub);
+    return result.tokens!;
   }
 
   /** Signs out the device that holds this refresh token. Expired tokens are accepted. */

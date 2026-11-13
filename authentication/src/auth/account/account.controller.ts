@@ -77,7 +77,7 @@ export class AccountController {
     @Body() dto: CreatePasswordDto,
   ) {
     await this.withLimitedTries(user.userId, () =>
-      this.account.createPassword(user.userId, dto.idToken, dto.newPassword),
+      this.account.createPassword(user, dto.idToken, dto.newPassword),
     );
     return { message: 'Password created' };
   }

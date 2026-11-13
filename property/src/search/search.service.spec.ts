@@ -114,6 +114,42 @@ describe('SearchService', () => {
   });
 
   describe('placeArea', () => {
+    it('uses real bounds and filters the shape before limiting the results', async () => {
+      places.area.mockResolvedValue({
+        ...VENG_SRENG,
+        boundary: {
+          type: 'MultiPolygon',
+          coordinates: [
+            [
+              [
+                [104.85, 11.5],
+                [104.89, 11.5],
+                [104.85, 11.54],
+                [104.85, 11.5],
+              ],
+            ],
+          ],
+        },
+      });
+      propertyQuery.searchMap.mockResolvedValue([
+        ...Array.from({ length: 150 }, (_, i) => ({
+          id: `outside-${i}`,
+          lat: 11.539,
+          lng: 104.888,
+        })),
+        { id: 'inside', lat: 11.51, lng: 104.86 },
+      ]);
+      const result = await service.placeArea(VENG_SRENG.placeId, {});
+      expect(result.properties.map((property) => property.id)).toEqual([
+        'inside',
+      ]);
+      expect(propertyQuery.searchMap).toHaveBeenCalledWith(
+        { minLat: 11.5, maxLat: 11.54, minLng: 104.85, maxLng: 104.89 },
+        undefined,
+      );
+      expect(result.place.boundary).toBeDefined();
+    });
+
     it('returns the place and the listings inside its area, nearest first', async () => {
       propertyQuery.searchMap.mockResolvedValue([
         { id: 'edge', lat: 11.539, lng: 104.888 },

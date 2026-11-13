@@ -11,6 +11,35 @@ datasource db {
   schemas  = ["account", "listing", "chat", "payment", "notification"]
 }
 
+/// Durable issuance counters; restarting Redis cannot reset storage spending limits.
+model UploadBudget {
+  userId String @map("user_id") @db.Uuid
+  kind String
+  day DateTime @db.Date
+  issuedBytes Int @map("issued_bytes")
+  issuedCount Int @map("issued_count")
+  @@id([userId, kind, day])
+  @@index([day])
+  @@map("upload_budgets")
+  @@schema("account")
+}
+
+/// Retained after account/listing deletion until the upload capability expires.
+model PropertyUploadReservation {
+  path String @id
+  userId String @map("user_id") @db.Uuid
+  propertyId String @map("property_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  confirmedAt DateTime? @map("confirmed_at") @db.Timestamptz(6)
+  cleanedAt DateTime? @map("cleaned_at") @db.Timestamptz(6)
+  @@index([userId, confirmedAt, cleanedAt])
+  @@index([propertyId, confirmedAt, cleanedAt])
+  @@index([expiresAt, cleanedAt])
+  @@map("property_upload_reservations")
+  @@schema("listing")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model RefreshToken {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

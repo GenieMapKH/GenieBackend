@@ -1,0 +1,37 @@
+{
+  "checkedAt": "2026-11-13T06:43:18.914127+00:00",
+  "localRemediation": true,
+  "productionDeployed": false,
+  "providerChecksReadOnly": true,
+  "backend": {
+    "unitTests": 1541,
+    "unitSuites": 151,
+    "scriptTests": 38,
+    "securityIntegrationTests": 12,
+    "messagingIntegrationTests": 17,
+    "persistedFlowTests": 32,
+    "buildExit": 0,
+    "lintExit": 0,
+    "schemaExit": 0,
+    "bootstrapDockerBuildExit": 0,
+    "productionDependencyAdvisories": 0
+  },
+  "flutter": {
+    "fullSuitePassed": 1502,
+    "failed": 0,
+    "skipped": 0,
+    "analysisIssues": 0,
+    "sourceTestFormatExit": 0
+  },
+  "cleanup": {
+    "checkedAt": "2026-11-13T06:38:21.972Z",
+    "target": "loopback messaging fixtures only",
+    "securityDatabasesRemaining": 0,
+    "securityVhostsRemaining": 0,
+    "securityUsersRemaining": 0,
+    "productionMutations": false,
+    "fixtureContainersRestoredToStopped": true,
+    "existingVolumesPreserved": true
+  },
+  "report": "../SECURITY_REMEDIATION_2026-11-13.md"
+}

@@ -43,13 +43,13 @@ describe('IceServersService', () => {
       'turn:turn.example:3478',
       'turns:turn.example:5349',
     ]);
-    expect(turn.username).toBe(`${1_000_000_000 + 6 * 60 * 60}:u1`);
+    expect(turn.username).toBe(`${1_000_000_000 + 30 * 60}:u1`);
     expect(turn.credential).toBe(
       createHmac('sha1', 's3cret').update(turn.username!).digest('base64'),
     );
   });
 
-  it('asks Cloudflare for 6-hour credentials and passes on its servers', async () => {
+  it('asks Cloudflare for 30-minute credentials and passes on its servers', async () => {
     const fetchFn = answering(201, {
       iceServers: [
         { urls: 'stun:stun.cloudflare.com:3478' },
@@ -87,7 +87,7 @@ describe('IceServersService', () => {
     expect((init?.headers as Record<string, string>).Authorization).toBe(
       'Bearer token-1',
     );
-    expect(JSON.parse(init?.body as string)).toEqual({ ttl: 6 * 60 * 60 });
+    expect(JSON.parse(init?.body as string)).toEqual({ ttl: 30 * 60 });
   });
 
   it('falls back to STUN (and coturn) when Cloudflare refuses', async () => {

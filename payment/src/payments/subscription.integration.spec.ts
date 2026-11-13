@@ -215,7 +215,7 @@ function persistedServiceFlows(queued: boolean) {
         const mail = await payment.$queryRaw<
           { count: bigint }[]
         >`SELECT count(*) AS count FROM payment.service_outbox WHERE dedup_key = ${`order:${pending.id}`}`;
-        expect(Number(mail[0].count)).toBe(1);
+        expect(Number(mail[0].count)).toBe(0); // Simulations never emit real receipts.
       } finally {
         await owner.query(
           'DROP TRIGGER IF EXISTS reject_test_outbox ON listing.service_outbox; DROP FUNCTION IF EXISTS listing.reject_test_outbox()',
@@ -310,7 +310,8 @@ function persistedServiceFlows(queued: boolean) {
       subscriptions.purchase(alice, 'gold', requestId),
     ]);
     expect(first.transactionId).toBe(repeat.transactionId);
-    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(email.send).not.toHaveBeenCalled();
+    expect(first.isSimulation).toBe(true);
     const fresh = new SubscriptionService(payment as never, gateway, provider);
     const saved = await fresh.current(alice);
     expect(saved?.tier).toBe('gold');

@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-11-13T06:38:21.972Z",
+  "target": "loopback messaging fixtures only",
+  "securityDatabasesRemaining": 0,
+  "securityVhostsRemaining": 0,
+  "securityUsersRemaining": 0,
+  "productionMutations": false,
+  "fixtureContainersRestoredToStopped": true,
+  "existingVolumesPreserved": true
+}

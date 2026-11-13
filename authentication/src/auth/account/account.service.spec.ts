@@ -64,6 +64,8 @@ describe('IdentityProofService', () => {
     firebase.verifyIdToken.mockResolvedValue({
       uid: 'fb1',
       auth_time: NOW_SECONDS - 60,
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
     });
 
     await expect(
@@ -72,13 +74,30 @@ describe('IdentityProofService', () => {
   });
 
   it.each([
+    ['a future Google sign-in', { uid: 'fb1', auth_time: NOW_SECONDS + 60 }],
+    [
+      'an unverified email',
+      { uid: 'fb1', auth_time: NOW_SECONDS, email_verified: false },
+    ],
+    [
+      'a different provider',
+      {
+        uid: 'fb1',
+        auth_time: NOW_SECONDS,
+        firebase: { sign_in_provider: 'password' },
+      },
+    ],
     ['an old Google sign-in', { uid: 'fb1', auth_time: NOW_SECONDS - 3600 }],
     [
       "someone else's Google account",
       { uid: 'fb-other', auth_time: NOW_SECONDS - 60 },
     ],
   ])('refuses %s', async (_case, token) => {
-    firebase.verifyIdToken.mockResolvedValue(token);
+    firebase.verifyIdToken.mockResolvedValue({
+      email_verified: true,
+      firebase: { sign_in_provider: 'google.com' },
+      ...token,
+    });
 
     await expect(proofs.verify('u1', { idToken: 'token' })).rejects.toThrow(
       ForbiddenException,
@@ -147,7 +166,12 @@ describe('PasswordProofService', () => {
 });
 
 describe('AccountService', () => {
-  const users = { findById: jest.fn(), update: jest.fn(), delete: jest.fn() };
+  const users = {
+    findById: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    createInitialPassword: jest.fn(),
+  };
   const sessions = { endAllSessions: jest.fn() };
   /** The one-day rule: `require` rejects for a device that signed in less than a day ago. */
   const devices = { require: jest.fn() };
@@ -252,27 +276,35 @@ describe('AccountService', () => {
       firebase.verifyIdToken.mockResolvedValue({
         uid: 'fb1',
         auth_time: NOW_SECONDS - 30,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
       });
 
-      await service.createPassword('u1', 'fresh-id-token', 'my-first-password');
+      await service.createPassword(
+        caller,
+        'fresh-id-token',
+        'my-first-password',
+      );
 
-      const patch = users.update.mock.calls[0][1];
-      expect(
-        await bcrypt.compare('my-first-password', patch.password_hash),
-      ).toBe(true);
-      expect(patch.has_password).toBe(true);
-      // Nobody else knew a password to this account: its devices stay signed in.
-      expect(sessions.endAllSessions).not.toHaveBeenCalled();
+      const [id, uid, hash] = users.createInitialPassword.mock.calls[0];
+      expect([id, uid]).toEqual(['u1', 'fb1']);
+      expect(await bcrypt.compare('my-first-password', hash)).toBe(true);
+      expect(sessions.endAllSessions).toHaveBeenCalledWith(
+        'u1',
+        'this-session',
+      );
     });
 
     it('sets nothing when Google does not confirm the owner', async () => {
       firebase.verifyIdToken.mockResolvedValue({
         uid: 'fb-other',
         auth_time: NOW_SECONDS - 30,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
       });
 
       await expect(
-        service.createPassword('u1', 'id-token', 'my-first-password'),
+        service.createPassword(caller, 'id-token', 'my-first-password'),
       ).rejects.toThrow(ForbiddenException);
       expect(users.update).not.toHaveBeenCalled();
     });
@@ -384,10 +416,12 @@ describe('AccountService', () => {
       firebase.verifyIdToken.mockResolvedValue({
         uid: 'fb1',
         auth_time: NOW_SECONDS - 30,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
       });
 
       await expect(
-        service.createPassword('u1', 'fresh-id-token', 'my-first-password'),
+        service.createPassword(caller, 'fresh-id-token', 'my-first-password'),
       ).resolves.toBeUndefined();
     });
   });

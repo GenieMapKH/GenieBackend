@@ -1,0 +1,17 @@
+[Nest] 30104  - 13/11/2026, 13:27:25    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 30104  - 13/11/2026, 13:27:27    WARN [OptionalJwtAuthGuard] Token rejected: This device was signed out
+[Nest] 30104  - 13/11/2026, 13:27:27     LOG [SupabaseService] Bucket avatars not found, creating it...
+[Nest] 30104  - 13/11/2026, 13:27:27     LOG [SupabaseService] Bucket avatars created successfully.
+[Nest] 30104  - 13/11/2026, 13:27:27     LOG [SupabaseService] Bucket avatars already exists; limits applied.
+
+[Nest] 30104  - 13/11/2026, 13:27:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (retry-exhausted)
+[Nest] 30104  - 13/11/2026, 13:27:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (invalid-message)
+[Nest] 30104  - 13/11/2026, 13:27:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (invalid-message)
+[Nest] 30104  - 13/11/2026, 13:27:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (invalid-message)
+
+Test Suites: 15 passed, 15 total
+Tests:       157 passed, 157 total
+Snapshots:   0 total
+Time:        13.058 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\shared-tests.json

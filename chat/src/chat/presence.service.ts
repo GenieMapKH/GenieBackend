@@ -21,6 +21,7 @@ export class PresenceService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { lastSeenAt },
+      select: { id: true },
     });
     return lastSeenAt;
   }

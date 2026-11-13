@@ -54,7 +54,7 @@ describe('AdminGuard', () => {
     });
     await expect(guard.canActivate(context)).resolves.toBe(true);
     expect(userTable.findFirst).toHaveBeenCalledWith({
-      where: { id: 'user-1', deactivatedAt: null },
+      where: { id: 'user-1', deactivatedAt: null, bannedAt: null },
       select: { role: true },
     });
     expect(redis.client.exists).toHaveBeenCalledWith(
@@ -92,7 +92,9 @@ describe('AdminGuard', () => {
           'x-admin-mfa': 'true',
         }).context,
       ),
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toThrow(
+      claims.role === 'user' ? ForbiddenException : UnauthorizedException,
+    );
     expect(userTable.findFirst).not.toHaveBeenCalled();
   });
 

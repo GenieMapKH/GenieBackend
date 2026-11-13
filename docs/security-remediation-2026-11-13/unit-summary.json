@@ -1,0 +1,66 @@
+[
+  {
+    "workspace": "shared",
+    "exitCode": 0,
+    "passed": 157,
+    "failed": 0,
+    "suites": 15,
+    "success": true
+  },
+  {
+    "workspace": "authentication",
+    "exitCode": 0,
+    "passed": 260,
+    "failed": 0,
+    "suites": 21,
+    "success": true
+  },
+  {
+    "workspace": "user",
+    "exitCode": 0,
+    "passed": 263,
+    "failed": 0,
+    "suites": 19,
+    "success": true
+  },
+  {
+    "workspace": "property",
+    "exitCode": 0,
+    "passed": 441,
+    "failed": 0,
+    "suites": 48,
+    "success": true
+  },
+  {
+    "workspace": "chat",
+    "exitCode": 0,
+    "passed": 154,
+    "failed": 0,
+    "suites": 15,
+    "success": true
+  },
+  {
+    "workspace": "payment",
+    "exitCode": 0,
+    "passed": 109,
+    "failed": 0,
+    "suites": 13,
+    "success": true
+  },
+  {
+    "workspace": "notification",
+    "exitCode": 0,
+    "passed": 50,
+    "failed": 0,
+    "suites": 10,
+    "success": true
+  },
+  {
+    "workspace": "api-gateway",
+    "exitCode": 0,
+    "passed": 107,
+    "failed": 0,
+    "suites": 10,
+    "success": true
+  }
+]

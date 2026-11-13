@@ -1,4 +1,58 @@
 import { MapBounds } from '../properties/services/public-property-cache.service';
+import type { PlaceBoundary } from './places/place-provider';
+
+/** Includes the outer border and excludes holes, across every island. */
+export function boundaryContains(
+  boundary: PlaceBoundary,
+  point: { lat: number | null; lng: number | null },
+): boolean {
+  if (point.lat === null || point.lng === null) return false;
+  const { lat, lng } = point;
+  const inRing = (ring: number[][]) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [x, y] = ring[i],
+        [previousX, previousY] = ring[j];
+      const cross = (lng - x) * (previousY - y) - (lat - y) * (previousX - x);
+      if (
+        Math.abs(cross) < 1e-12 &&
+        lng >= Math.min(x, previousX) &&
+        lng <= Math.max(x, previousX) &&
+        lat >= Math.min(y, previousY) &&
+        lat <= Math.max(y, previousY)
+      )
+        return true;
+      if (
+        y > lat !== previousY > lat &&
+        lng < ((previousX - x) * (lat - y)) / (previousY - y) + x
+      )
+        inside = !inside;
+    }
+    return inside;
+  };
+  return boundary.coordinates.some(
+    ([outer, ...holes]) => inRing(outer) && !holes.some(inRing),
+  );
+}
+
+/** The camera/query bounds cover every polygon, including disconnected parts. */
+export function boundaryBounds(boundary: PlaceBoundary): MapBounds {
+  const bounds = {
+    minLat: Infinity,
+    maxLat: -Infinity,
+    minLng: Infinity,
+    maxLng: -Infinity,
+  };
+  for (const polygon of boundary.coordinates) {
+    for (const [lng, lat] of polygon[0]) {
+      bounds.minLat = Math.min(bounds.minLat, lat);
+      bounds.maxLat = Math.max(bounds.maxLat, lat);
+      bounds.minLng = Math.min(bounds.minLng, lng);
+      bounds.maxLng = Math.max(bounds.maxLng, lng);
+    }
+  }
+  return bounds;
+}
 
 /**
  * About 500 m. A place that is a single address or a short lane has a tiny

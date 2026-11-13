@@ -1,0 +1,36 @@
+
+> tilomnov-backend@1.0.0 lint
+> npm run lint:check --workspaces --if-present
+
+
+> @tilomnov/shared@0.0.1 lint:check
+> eslint "src/**/*.ts"
+
+
+> lint:check
+> eslint "src/**/*.ts"
+
+
+> user@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+> property@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+> chat@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+> payment@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+> notification@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+
+
+> api-gateway@0.0.1 lint:check
+> eslint "{src,apps,libs,test}/**/*.ts"
+

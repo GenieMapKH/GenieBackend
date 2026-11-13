@@ -38,6 +38,7 @@ export class AdminGuard implements CanActivate {
       throw new UnauthorizedException('Administrator sign-in required');
     const claims = await verifySignedToken(token, ACCESS_TOKEN).catch(
       (error: unknown) => {
+        if (error instanceof ServiceUnavailableException) throw error;
         if (error instanceof KeySetUnavailableError)
           throw new ServiceUnavailableException('Please try again in a moment');
         throw new UnauthorizedException('Invalid or expired token');
@@ -60,7 +61,7 @@ export class AdminGuard implements CanActivate {
     if (revoked) throw new UnauthorizedException('This device was signed out');
     const account = userId
       ? await this.prisma.user.findFirst({
-          where: { id: userId, deactivatedAt: null },
+          where: { id: userId, deactivatedAt: null, bannedAt: null },
           select: { role: true },
         })
       : null;

@@ -1,0 +1,55 @@
+
+> tilomnov-backend@1.0.0 build
+> npx prisma generate && npm run build --workspace=shared && npm run build --workspaces --if-present
+
+node.exe : Loaded Prisma config from prisma.config.ts.
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Loaded Prisma c...isma.config.ts.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Prisma schema loaded from prisma\schema.prisma.
+
+✔ Generated Prisma Client (v7.10.1) to .\node_modules\@tilomnov\prisma-client in 373ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+
+
+> @tilomnov/shared@0.0.1 build
+> tsc -p tsconfig.build.json
+
+
+> @tilomnov/shared@0.0.1 build
+> tsc -p tsconfig.build.json
+
+
+> build
+> tsc -p tsconfig.build.json
+
+
+> user@0.0.1 build
+> nest build
+
+
+> property@0.0.1 build
+> nest build
+
+
+> chat@0.0.1 build
+> nest build
+
+
+> payment@0.0.1 build
+> nest build
+
+
+> notification@0.0.1 build
+> nest build
+
+
+> api-gateway@0.0.1 build
+> nest build
+

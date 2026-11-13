@@ -1,0 +1,12 @@
+The schema at prisma\schema.prisma is valid 🚀
+
+node : Loaded Prisma config from prisma.config.ts.
+At line:4 char:1
++ node -e "const {spawnSync}=require('child_process');const r=spawnSync ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Loaded Prisma c...isma.config.ts.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Prisma schema loaded from prisma\schema.prisma.
+

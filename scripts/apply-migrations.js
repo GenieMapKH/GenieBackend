@@ -1,3 +1,4 @@
+const { databaseConnectionOptions } = require('../shared/dist/prisma/database-connection-options');
 // Applies migrations using .env (staging/default) or .env.prod-db (--prod).
 //
 //   node scripts/apply-migrations.js 7_user_profile_fields 8_refresh_token_sessions
@@ -51,7 +52,7 @@ async function main() {
   }));
 
   console.log(`Applying migrations to ${prod ? 'production' : 'staging/default'} using ${envFile}`);
-  const client = new Client({ connectionString: env.DATABASE_URL });
+  const client = new Client(databaseConnectionOptions(env.DATABASE_URL));
   await client.connect();
   try {
     await client.query('BEGIN');

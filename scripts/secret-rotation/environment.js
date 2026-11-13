@@ -1,5 +1,6 @@
 // What run.js and bootstrap.js take from the environment.
 const { Client } = require('pg');
+const { databaseConnectionOptions } = require('../../shared/dist/prisma/database-connection-options');
 const { InfisicalSecrets } = require('./infisical');
 
 function required(name) {
@@ -19,9 +20,9 @@ async function infisicalFromEnv() {
   return secrets;
 }
 
-/** A connected client. The URL's own settings (sslmode...) apply, as in the services. */
+/** A connected client with the same verified TLS policy as the services. */
 async function connectTo(url) {
-  const client = new Client({ connectionString: url, connectionTimeoutMillis: 10_000 });
+  const client = new Client({ ...databaseConnectionOptions(url), connectionTimeoutMillis: 10_000 });
   try {
     await client.connect();
   } catch (error) {

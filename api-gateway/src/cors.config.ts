@@ -32,12 +32,31 @@ export function buildCorsOptions(
     .map((origin) => origin.trim())
     .filter(Boolean);
 
+  for (const origin of allowedOrigins) {
+    let url: URL;
+    try {
+      url = new URL(origin);
+    } catch {
+      throw new Error('CORS_ORIGINS must contain exact HTTP(S) origins');
+    }
+    if (
+      url.origin !== origin ||
+      url.hostname.includes('*') ||
+      !['https:', 'http:'].includes(url.protocol) ||
+      (env.NODE_ENV === 'production' && url.protocol !== 'https:')
+    )
+      throw new Error(
+        'CORS_ORIGINS must contain exact origins (HTTPS in production), without paths or wildcards',
+      );
+  }
+
   const origin =
     allowedOrigins.length > 0 ? allowedOrigins : env.NODE_ENV !== 'production';
 
   return {
     origin,
-    credentials: true,
+    // Authentication uses explicit bearer headers, never ambient browser cookies.
+    credentials: false,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: ALLOWED_REQUEST_HEADERS.join(','),
     // The app keeps answers by ETag; a browser hides it unless exposed.

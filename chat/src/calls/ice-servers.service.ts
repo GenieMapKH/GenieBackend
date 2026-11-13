@@ -13,8 +13,8 @@ export interface IceServer {
 const DEFAULT_STUN =
   'stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302';
 
-/** TURN credentials last this long: longer than any call. */
-const TURN_CREDENTIAL_SECONDS = 6 * 60 * 60;
+/** Limits the usefulness of a copied relay credential. Long calls need a fresh ICE configuration. */
+const TURN_CREDENTIAL_SECONDS = 30 * 60;
 
 /**
  * The servers that help two phones find each other. STUN finds a phone's

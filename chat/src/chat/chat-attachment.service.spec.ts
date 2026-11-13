@@ -34,6 +34,7 @@ describe('ChatAttachmentService', () => {
     service = new ChatAttachmentService(
       { user: userTable, message: messageTable } as never,
       storage as never,
+      { take: jest.fn() } as never,
     );
   });
 
@@ -46,10 +47,10 @@ describe('ChatAttachmentService', () => {
     });
   });
 
-  it('starts even if the bucket cannot be prepared', async () => {
+  it('fails readiness when private storage cannot be verified', async () => {
     storage.ensureBucket.mockRejectedValue(new Error('storage down'));
 
-    await expect(service.onModuleInit()).resolves.toBeUndefined();
+    await expect(service.onModuleInit()).rejects.toThrow('privacy and limits');
   });
 
   describe('createUpload', () => {

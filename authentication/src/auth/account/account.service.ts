@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -67,13 +68,22 @@ export class AccountService {
    * the same way such an account proves itself everywhere else.
    */
   async createPassword(
-    userId: string,
+    caller: SessionCaller,
     idToken: string,
     newPassword: string,
   ): Promise<void> {
-    await this.proofs.verify(userId, { idToken });
-
-    await this.users.update(userId, await this.passwordPatch(newPassword));
+    const user = await this.proofs.verify(caller.userId, { idToken });
+    if (user.has_password)
+      throw new ConflictException(
+        'Use change password or password reset for an existing password',
+      );
+    const patch = await this.passwordPatch(newPassword);
+    await this.users.createInitialPassword(
+      caller.userId,
+      user.firebase_uid!,
+      patch.password_hash!,
+    );
+    await this.sessions.endAllSessions(caller.userId, caller.sessionId);
   }
 
   /**

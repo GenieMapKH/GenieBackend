@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SessionVerificationController } from './sessions/session-verification.controller';
 import { SignInEmailConsumer } from './mail/sign-in-email.consumer';
 import { RedisConnection } from '../redis/redis-connection';
 import { AccountController } from './account/account.controller';
@@ -46,6 +47,7 @@ import { AdminAccountsController } from './account/admin-accounts.controller';
 
 @Module({
   controllers: [
+    SessionVerificationController,
     AdminAccountsController,
     AuthController,
     SessionsController,

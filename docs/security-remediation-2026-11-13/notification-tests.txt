@@ -1,0 +1,14 @@
+[Nest] 31768  - 13/11/2026, 13:29:06     LOG [PromotionSender] Promotion p1: 1 sent, 2 failed
+[Nest] 31768  - 13/11/2026, 13:29:06     LOG [ChatMessageNotifier] Chat push for bob: 1 device(s), sent 1, failed 0, removed 0
+[Nest] 31768  - 13/11/2026, 13:29:06     LOG [ChatMessageNotifier] Chat push for bob skipped: chat notifications are turned off
+[Nest] 31768  - 13/11/2026, 13:29:06     LOG [ListingAlertNotifier] Saved search push: 3 people, 3 device(s), sent 3, failed 0, removed 0
+
+[Nest] 31768  - 13/11/2026, 13:29:07   ERROR [PushDeliveryService] A batch of 2 pushes failed: Incomplete push provider response
+[Nest] 31768  - 13/11/2026, 13:29:07   ERROR [PushDeliveryService] A batch of 2 pushes failed: FCM down
+
+Test Suites: 10 passed, 10 total
+Tests:       50 passed, 50 total
+Snapshots:   0 total
+Time:        4.51 s, estimated 13 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\notification-tests.json

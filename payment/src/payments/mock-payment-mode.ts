@@ -1,8 +1,11 @@
 import { NotImplementedException } from '@nestjs/common';
 
 export function mockPaymentsEnabled(): boolean {
-  // shortcut: mock checkout is the default until verified bank payments are integrated.
-  return (process.env.PAYMENT_MODE ?? 'mock') === 'mock';
+  // Production builds may simulate only in an explicitly isolated staging environment.
+  return (
+    process.env.PAYMENT_MODE === 'mock' &&
+    (process.env.NODE_ENV !== 'production' || process.env.APP_ENV === 'staging')
+  );
 }
 
 export function requireMockPayments(): void {

@@ -9,6 +9,7 @@ import {
   PrismaService,
   PUBLIC_IMAGE_TYPES,
   SupabaseService,
+  UploadBudgets,
 } from '@tilomnov/shared';
 import { isGooglePhotoUrl } from './avatar-url';
 import { UsersService } from './users.service';
@@ -35,6 +36,7 @@ export class AvatarService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly storage: SupabaseService,
     private readonly users: UsersService,
+    private readonly budgets: UploadBudgets,
   ) {}
 
   async onModuleInit() {
@@ -48,11 +50,13 @@ export class AvatarService implements OnModuleInit {
       this.logger.error(
         `Could not prepare the ${BUCKET} bucket: ${(error as Error).message}`,
       );
+      throw new Error('Avatar storage limits could not be verified');
     }
   }
 
   /** One place to upload one picture to. It is not shown until `useUpload` confirms it. */
   async createUpload(userId: string) {
+    await this.budgets.take(userId, 'avatar');
     const path = `${userId}/${randomUUID()}`;
     return {
       path,
@@ -108,6 +112,7 @@ export class AvatarService implements OnModuleInit {
     await this.prisma.user.update({
       where: { id: userId },
       data: { avatarUrl },
+      select: { id: true },
     });
     await this.users.publicViewChanged(userId);
 

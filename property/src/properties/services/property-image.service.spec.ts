@@ -82,6 +82,7 @@ describe('PropertyImageService', () => {
       photos,
       listingChanges as never,
       thumbnails as never,
+      { reserve: jest.fn(), confirm: jest.fn() } as never,
     );
   });
 

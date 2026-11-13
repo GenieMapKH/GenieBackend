@@ -19,6 +19,8 @@
 x-service: &service
   restart: unless-stopped
   stop_grace_period: 130s
+  depends_on:
+    rabbitmq-init: { condition: service_completed_successfully }
   environment: &shared-environment
     NODE_ENV: production
     APP_ENV: ${APP_ENV:-development}
@@ -29,7 +31,7 @@ x-service: &service
     SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-development}
     SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
     REDIS_URL: redis://redis:6379
-    RABBITMQ_URL: amqp://${RABBITMQ_USER:-tilomnov}:${RABBITMQ_PASSWORD:?set a URL-safe RABBITMQ_PASSWORD}@rabbitmq:5672/tilomnov
+    RABBITMQ_MANAGED_TOPOLOGY: "true"
     AUTH_SERVICE_URL: http://authentication:4001
     USER_SERVICE_URL: http://user:4002
     PROPERTY_SERVICE_URL: http://property:4003
@@ -57,6 +59,23 @@ services:
       timeout: 5s
       retries: 10
 
+  rabbitmq-init:
+    build: { context: ., target: broker-bootstrap, provenance: false }
+    restart: "no"
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+    environment:
+      RABBITMQ_MANAGEMENT_URL: http://rabbitmq:15672
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_ADMIN_USER: ${RABBITMQ_USER:-tilomnov}
+      RABBITMQ_ADMIN_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}
+      RABBITMQ_AUTHENTICATION_PASSWORD: ${RABBITMQ_AUTHENTICATION_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_AUTHENTICATION_PASSWORD}
+      RABBITMQ_USER_PASSWORD: ${RABBITMQ_USER_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_USER_PASSWORD}
+      RABBITMQ_PROPERTY_PASSWORD: ${RABBITMQ_PROPERTY_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_PROPERTY_PASSWORD}
+      RABBITMQ_CHAT_PASSWORD: ${RABBITMQ_CHAT_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_CHAT_PASSWORD}
+      RABBITMQ_PAYMENT_PASSWORD: ${RABBITMQ_PAYMENT_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_PAYMENT_PASSWORD}
+      RABBITMQ_NOTIFICATION_PASSWORD: ${RABBITMQ_NOTIFICATION_PASSWORD:?set a unique URL-safe 32+ character RABBITMQ_NOTIFICATION_PASSWORD}
+
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -73,6 +92,7 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: authentication } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_authentication:${RABBITMQ_AUTHENTICATION_PASSWORD:?set RABBITMQ_AUTHENTICATION_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4001"
@@ -95,6 +115,7 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: user } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_user:${RABBITMQ_USER_PASSWORD:?set RABBITMQ_USER_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4002"
@@ -107,6 +128,7 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: property } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_property:${RABBITMQ_PROPERTY_PASSWORD:?set RABBITMQ_PROPERTY_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4003"
@@ -125,6 +147,7 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: chat } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_chat:${RABBITMQ_CHAT_PASSWORD:?set RABBITMQ_CHAT_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4004"
@@ -143,11 +166,12 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: payment } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_payment:${RABBITMQ_PAYMENT_PASSWORD:?set RABBITMQ_PAYMENT_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4005"
       DATABASE_URL: ${PAYMENT_DATABASE_URL:?set the payment service database login}
-      PAYMENT_MODE: ${PAYMENT_MODE:-mock}
+      PAYMENT_MODE: ${PAYMENT_MODE:-disabled}
       PAYMENT_WEBHOOK_SECRET: ${PAYMENT_WEBHOOK_SECRET:-}
 
   notification:
@@ -155,6 +179,7 @@ services:
     build: { context: ., provenance: false, args: { SERVICE: notification } }
     environment:
       <<: *shared-environment
+      RABBITMQ_URL: amqp://tilomnov_notification:${RABBITMQ_NOTIFICATION_PASSWORD:?set RABBITMQ_NOTIFICATION_PASSWORD}@rabbitmq:5672/tilomnov
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?set INTERNAL_SERVICE_SECRET}
       INTERNAL_SERVICE_SECRET_PREVIOUS: ${INTERNAL_SERVICE_SECRET_PREVIOUS:-}
       PORT: "4006"

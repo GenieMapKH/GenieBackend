@@ -1,0 +1,10 @@
+docker :  Container tilomnov-messaging-test-postgres-1 Stopping 
+At line:23 char:1
++ docker compose -f qa/messaging/docker-compose.yml stop postgres rabbi ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ( Container tilo...res-1 Stopping :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Container tilomnov-messaging-test-rabbitmq-1 Stopping 
+ Container tilomnov-messaging-test-postgres-1 Stopped 
+ Container tilomnov-messaging-test-rabbitmq-1 Stopped 

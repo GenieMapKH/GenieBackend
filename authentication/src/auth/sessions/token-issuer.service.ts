@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Prisma } from '@tilomnov/prisma-client';
 import {
   ACCESS_TOKEN_TTL_SECONDS,
   ACCESS_TOKEN_TYPE,
@@ -48,7 +49,10 @@ export class TokenIssuerService {
     client: ClientContext,
     previous?: RefreshTokenRecord,
     adminEmailVerified = false,
+    tx?: Prisma.TransactionClient,
   ): Promise<IssuedTokens> {
+    if (previous && !tx)
+      throw new Error('Refresh issuance requires the account transaction');
     const session = continueOrStartSession(client, previous);
     const adminMfa = role === 'admin' && adminEmailVerified;
 
@@ -77,13 +81,16 @@ export class TokenIssuerService {
       `${REFRESH_TOKEN_TTL_DAYS}d`,
     );
 
-    await this.refreshTokens.insert({
-      id: jti,
-      userId,
-      tokenHash: hashRefreshToken(refreshToken),
-      expiresAt: this.refreshExpiry(),
-      session,
-    });
+    await this.refreshTokens.insert(
+      {
+        id: jti,
+        userId,
+        tokenHash: hashRefreshToken(refreshToken),
+        expiresAt: this.refreshExpiry(),
+        session,
+      },
+      tx,
+    );
     if (session.ipAddress && !session.location) {
       this.locateInBackground(jti, session.ipAddress);
     }

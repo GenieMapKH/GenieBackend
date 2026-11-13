@@ -1,0 +1,321 @@
+{
+  "checkedAt": "2026-11-13T06:30:30.512Z",
+  "project": "6c31c542-9708-4453-854b-3bc730744229",
+  "environment": "f3ab82d3-a543-4852-8df6-681c8e73678c",
+  "changesMade": false,
+  "ingress": [
+    {
+      "service": "Authentication",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "1814b442-37d9-42c1-946f-453a60e06891",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    },
+    {
+      "service": "payment",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "8529979d-4a5d-487e-9a93-bf89516ef714",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    },
+    {
+      "service": "Chat",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "c59bf4d3-fe74-4243-9d06-0426f8ea5619",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    },
+    {
+      "service": "Notification",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "949792d5-56c5-4a05-b959-67cf82948c09",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    },
+    {
+      "service": "Redis",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "26c7834c-439b-4d50-8211-79dac3578ea9",
+          "commit": null
+        }
+      ]
+    },
+    {
+      "service": "property",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "4259de1e-05ea-453f-93c9-4f55b51d66e1",
+          "commit": null
+        }
+      ]
+    },
+    {
+      "service": "rabbitmq",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "813a3a34-db65-42f9-b622-1b28752b0f3e",
+          "commit": null
+        }
+      ]
+    },
+    {
+      "service": "Gateway",
+      "domains": [
+        "tilomnovgateway.sparkbytekh.com"
+      ],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "84a71c36-f5ee-4cc9-9b41-0e9de8bf677a",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    },
+    {
+      "service": "Users",
+      "domains": [],
+      "tcpProxies": [],
+      "deployedCommit": [
+        {
+          "id": "a59e943a-56b9-4473-afd1-99b9ca0adfd4",
+          "commit": "218aafe347e6c0b878b556b88152fe52dd916b61"
+        }
+      ]
+    }
+  ],
+  "gateway": {
+    "NODE_ENV": null,
+    "APP_ENV": null,
+    "CORS_ORIGINS": null,
+    "TRUSTED_PROXIES": null,
+    "AUTH_SERVICE_URL": "http://authentication.railway.internal:8080"
+  },
+  "payments": {
+    "NODE_ENV": null,
+    "APP_ENV": null,
+    "PAYMENT_MODE": null
+  },
+  "corsProbes": [
+    {
+      "requestPath": "/health",
+      "origin": "https://untrusted.invalid",
+      "status": 404,
+      "allowOrigin": null,
+      "allowCredentials": null
+    },
+    {
+      "requestPath": "/health",
+      "origin": "null",
+      "status": 404,
+      "allowOrigin": null,
+      "allowCredentials": null
+    },
+    {
+      "requestPath": "/v1/public/properties/map",
+      "origin": "https://untrusted.invalid",
+      "status": 404,
+      "allowOrigin": null,
+      "allowCredentials": null
+    },
+    {
+      "requestPath": "/v1/public/properties/map",
+      "origin": "null",
+      "status": 404,
+      "allowOrigin": null,
+      "allowCredentials": null
+    }
+  ],
+  "buckets": [
+    {
+      "name": "chat-attachments",
+      "public": false,
+      "fileSizeLimit": 12582912,
+      "allowedMimeTypes": null
+    },
+    {
+      "name": "avatars",
+      "public": true,
+      "fileSizeLimit": 2097152,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    {
+      "name": "advertisement-uploads",
+      "public": false,
+      "fileSizeLimit": 5242880,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    },
+    {
+      "name": "advertisements",
+      "public": true,
+      "fileSizeLimit": 5242880,
+      "allowedMimeTypes": [
+        "image/jpeg"
+      ]
+    },
+    {
+      "name": "property-images",
+      "public": true,
+      "fileSizeLimit": 8388608,
+      "allowedMimeTypes": [
+        "image/jpeg",
+        "image/png",
+        "image/webp"
+      ]
+    }
+  ],
+  "database": {
+    "authentication": {
+      "target": {
+        "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+        "port": "5432",
+        "database": "/postgres"
+      },
+      "clientTLS": {
+        "encrypted": true,
+        "authorized": true
+      },
+      "connection": [
+        {
+          "role": "authentication_service_1",
+          "database": "postgres",
+          "ssl": false
+        }
+      ],
+      "grants": [
+        {
+          "role": "user_service",
+          "reads_password_hash": true,
+          "updates_role": true,
+          "updates_password": true
+        },
+        {
+          "role": "property_service",
+          "reads_password_hash": true,
+          "updates_role": false,
+          "updates_password": false
+        },
+        {
+          "role": "chat_service",
+          "reads_password_hash": true,
+          "updates_role": false,
+          "updates_password": false
+        },
+        {
+          "role": "notification_service",
+          "reads_password_hash": true,
+          "updates_role": false,
+          "updates_password": false
+        },
+        {
+          "role": "payment_service",
+          "reads_password_hash": false,
+          "updates_role": false,
+          "updates_password": false
+        }
+      ],
+      "apiRolePrivileges": [
+        {
+          "role": "anon",
+          "table": "account.refresh_tokens",
+          "reads_any_column": false,
+          "writes_rows": false
+        },
+        {
+          "role": "anon",
+          "table": "account.users",
+          "reads_any_column": false,
+          "writes_rows": false
+        },
+        {
+          "role": "anon",
+          "table": "payment.payment_transactions",
+          "reads_any_column": false,
+          "writes_rows": false
+        },
+        {
+          "role": "authenticated",
+          "table": "account.refresh_tokens",
+          "reads_any_column": false,
+          "writes_rows": false
+        },
+        {
+          "role": "authenticated",
+          "table": "account.users",
+          "reads_any_column": false,
+          "writes_rows": false
+        },
+        {
+          "role": "authenticated",
+          "table": "payment.payment_transactions",
+          "reads_any_column": false,
+          "writes_rows": false
+        }
+      ],
+      "storagePolicies": []
+    },
+    "payment": {
+      "target": {
+        "host": "aws-0-ap-southeast-1.pooler.supabase.com",
+        "port": "5432",
+        "database": "/postgres"
+      },
+      "clientTLS": {
+        "encrypted": true,
+        "authorized": true
+      },
+      "connection": [
+        {
+          "role": "payment_service_1",
+          "ssl": false
+        }
+      ],
+      "counts": [
+        {
+          "provider": "MOCK",
+          "status": "Success",
+          "count": 5
+        }
+      ]
+    }
+  },
+  "signingKeys": {
+    "status": 200,
+    "algorithms": [
+      {
+        "kty": "RSA",
+        "alg": "RS256"
+      }
+    ]
+  }
+}

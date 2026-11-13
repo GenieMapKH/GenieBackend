@@ -1,0 +1,300 @@
+{
+  "audit_date": "2026-11-12",
+  "timezone": "Asia/Phnom_Penh",
+  "runtime_run_id": "run-f3cf80eef36248655d2fa92e895b04f1",
+  "repositories": {
+    "genie-backend": {
+      "head": "c52812abaca3c7023da3aefad8c7485f141b71d0",
+      "tracked_files": 808,
+      "source_config_files": 736,
+      "source_config_tree_sha256": "3446bee612754bc6e099d7f0bf0fee066588f87654e0539755117ae627a64b0b"
+    },
+    "genie": {
+      "head": "bb7c8d516de9ce065503ac28c7320c700555254f",
+      "tracked_files": 1080,
+      "source_config_files": 842,
+      "source_config_tree_sha256": "95084820b9831f49ceab6d2574f107e7af5c591028d5740db389c9971fed7a63"
+    }
+  },
+  "backend_unit_suites": [
+    {
+      "workspace": "shared",
+      "exit_code": 0,
+      "numTotalTestSuites": 12,
+      "numPassedTestSuites": 12,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 134,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "authentication",
+      "exit_code": 0,
+      "numTotalTestSuites": 21,
+      "numPassedTestSuites": 21,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 256,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "api-gateway",
+      "exit_code": 0,
+      "numTotalTestSuites": 9,
+      "numPassedTestSuites": 9,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 93,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "user",
+      "exit_code": 0,
+      "numTotalTestSuites": 19,
+      "numPassedTestSuites": 19,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 263,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "property",
+      "exit_code": 0,
+      "numTotalTestSuites": 48,
+      "numPassedTestSuites": 48,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 441,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "chat",
+      "exit_code": 0,
+      "numTotalTestSuites": 14,
+      "numPassedTestSuites": 14,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 152,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "payment",
+      "exit_code": 0,
+      "numTotalTestSuites": 12,
+      "numPassedTestSuites": 12,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 102,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    },
+    {
+      "workspace": "notification",
+      "exit_code": 0,
+      "numTotalTestSuites": 10,
+      "numPassedTestSuites": 10,
+      "numFailedTestSuites": 0,
+      "numPassedTests": 50,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "failed_suites": []
+    }
+  ],
+  "backend_test_totals": {
+    "numPassedTestSuites": 145,
+    "numPassedTests": 1491,
+    "numFailedTests": 0
+  },
+  "flutter_full_suite": {
+    "command": "flutter test --no-pub --reporter json",
+    "exit_code": 1,
+    "nonhidden_test_results": {
+      "success": 1454,
+      "error": 36
+    },
+    "failed_tests": [
+      {
+        "test": "each tier has its own icon and property posts have a separate icon",
+        "path": "test/features/admin/admin_income_test.dart"
+      },
+      {
+        "test": "admin profile retains editing and security without customer settings",
+        "path": "test/features/admin/admin_profile_test.dart"
+      },
+      {
+        "test": "every metric and tier card opens its matching scrollable detail list",
+        "path": "test/features/admin/admin_dashboard_details_test.dart"
+      },
+      {
+        "test": "users have avatars, accurate badges and icons on account fields",
+        "path": "test/features/admin/admin_record_icons_test.dart"
+      },
+      {
+        "test": "LoginPage shows error state for invalid email and password",
+        "path": "test/features/auth/login_page_test.dart"
+      },
+      {
+        "test": "LoginPage toggles password visibility",
+        "path": "test/features/auth/login_page_test.dart"
+      },
+      {
+        "test": "the flag switches the language and the icon switches the theme",
+        "path": "test/features/auth/welcome_preference_bar_test.dart"
+      },
+      {
+        "test": "avatar and name are centered together with glass=false",
+        "path": "test/features/chat/chat_conversation_app_bar_test.dart"
+      },
+      {
+        "test": "avatar and name are centered together with glass=true",
+        "path": "test/features/chat/chat_conversation_app_bar_test.dart"
+      },
+      {
+        "test": "with glass, back and call are round glass and call calls",
+        "path": "test/features/chat/chat_conversation_app_bar_test.dart"
+      },
+      {
+        "test": "without glass, the bar keeps its plain buttons",
+        "path": "test/features/chat/chat_conversation_app_bar_test.dart"
+      },
+      {
+        "test": "in the conversation emojis are typed from the panel and sent",
+        "path": "test/features/chat/chat_attachments_test.dart"
+      },
+      {
+        "test": "in the conversation the emoji panel gives way to the keyboard",
+        "path": "test/features/chat/chat_attachments_test.dart"
+      },
+      {
+        "test": "a message I send appears once, on the right",
+        "path": "test/features/chat/chat_conversation_page_test.dart"
+      },
+      {
+        "test": "a message that failed to send says so and can be retried",
+        "path": "test/features/chat/chat_conversation_page_test.dart"
+      },
+      {
+        "test": "tapping the header opens the profile with its safety menu at top right",
+        "path": "test/features/chat/chat_profile_link_test.dart"
+      },
+      {
+        "test": "blocked a message refused for a block asks again and hides the bar",
+        "path": "test/features/chat/chat_conversation_page_test.dart"
+      },
+      {
+        "test": "message bar typing swaps the microphone for the send button",
+        "path": "test/features/chat/chat_conversation_page_test.dart"
+      },
+      {
+        "test": "message bar a tap beside the send icon still sends",
+        "path": "test/features/chat/chat_conversation_page_test.dart"
+      },
+      {
+        "test": "in the conversation a received voice message shows its length and plays",
+        "path": "test/features/chat/voice_messages_test.dart"
+      },
+      {
+        "test": "filters apply to page one and later pages; Reset restores the feed",
+        "path": "test/features/feed/feed_page_test.dart"
+      },
+      {
+        "test": "dismissing filters keeps the selection and makes no request",
+        "path": "test/features/feed/feed_page_test.dart"
+      },
+      {
+        "test": "each saved photo can be taken off",
+        "path": "test/features/property/existing_property_photos_test.dart"
+      },
+      {
+        "test": "Draft saved cards stay visible, fade, and allow unsaving only",
+        "path": "test/features/property/property_card_hero_flight_test.dart"
+      },
+      {
+        "test": "Sold saved cards stay visible, fade, and allow unsaving only",
+        "path": "test/features/property/property_card_hero_flight_test.dart"
+      },
+      {
+        "test": "PropertyNearbySection tapping a place opens its route, with or without a road",
+        "path": "test/features/property/property_nearby_test.dart"
+      },
+      {
+        "test": "opens under the field, as wide, leaving the value readable",
+        "path": "test/features/property/property_select_field_test.dart"
+      },
+      {
+        "test": "new sign-in alert tells the user about a device that signed in",
+        "path": "test/features/security/device_trust_test.dart"
+      },
+      {
+        "test": "logged-in devices lists each device with its place and last use",
+        "path": "test/features/security/security_screens_test.dart"
+      },
+      {
+        "test": "AppTextField renders error message with info icon when errorText is provided",
+        "path": "test/shared/widgets/app_text_field_test.dart"
+      },
+      {
+        "test": "page header keeps the plain arrow without glass",
+        "path": "test/shared/widgets/glass_scope_test.dart"
+      },
+      {
+        "test": "settings values keep arrows aligned at 390.0 px, text 1.0",
+        "path": "test/shared/widgets/settings_row_test.dart"
+      },
+      {
+        "test": "settings values keep arrows aligned at 280.0 px, text 1.0",
+        "path": "test/shared/widgets/settings_row_test.dart"
+      },
+      {
+        "test": "settings values keep arrows aligned at 280.0 px, text 2.0",
+        "path": "test/shared/widgets/settings_row_test.dart"
+      },
+      {
+        "test": "tab headers align at 320.0 wide, glass: false",
+        "path": "test/shared/widgets/tab_headers_test.dart"
+      },
+      {
+        "test": "tab headers align at 800.0 wide, glass: false",
+        "path": "test/shared/widgets/tab_headers_test.dart"
+      }
+    ]
+  },
+  "dependency_checks": {
+    "npm_production_packages": 564,
+    "npm_name_version_pairs": 592,
+    "npm_advisories": {
+      "fast-xml-parser": [
+        {
+          "id": 1246029,
+          "url": "https://github.com/advisories/GHSA-474x-hrwr-fgx4",
+          "title": "fast-xml-parser: Quadratic CPU consumption scanning unterminated stop-node tags",
+          "severity": "low",
+          "vulnerable_versions": "<=5.11.2",
+          "cwe": [
+            "CWE-407"
+          ],
+          "cvss": {
+            "score": 3.7,
+            "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+          }
+        }
+      ]
+    },
+    "pub_hosted_packages": 262,
+    "pub_advisory_matches": 0
+  },
+  "limits": [
+    "No production or staging endpoints tested.",
+    "No existing credentials used.",
+    "No cloud configuration read or changed.",
+    "No database or broker integration tests executed.",
+    "No real Android or iOS device testing.",
+    "Source fingerprints describe tracked source/config files including working-tree edits; audit documents excluded."
+  ]
+}

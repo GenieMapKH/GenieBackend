@@ -1,0 +1,25 @@
+
+> tilomnov-backend@1.0.0 test:security:integration
+> node qa/security/run.cjs
+
+✔ F09 PostgreSQL: logout-all serializes with consume-and-insert and wins permanently (301.4385ms)
+✔ F09 PostgreSQL: device-revoke serializes with consume-and-insert and wins permanently (146.7786ms)
+✔ F09 PostgreSQL: password-reset serializes with consume-and-insert and wins permanently (157.4642ms)
+✔ F09: logging out with an older rotated token terminates its entire device, not another device (43.7654ms)
+✔ F02: deleting every Redis marker does not restore durable revoked sessions; subject is bound too (30.8715ms)
+✔ F01/F02: genuine signed tokens lose contacts on both public HTTP routes after every termination path (1138.9413ms)
+✔ F05: concurrent first-password writes have one winner and never replace it (18.2238ms)
+✔ F08: concurrent reservations count unconfirmed objects; cleanup frees slots only after deletion (367.1854ms)
+✔ F08: failed cleanup retains its charge and attached photos are never deleted (111.5079ms)
+✔ F08: daily issuance counters survive concurrency without overspending (59.6719ms)
+✔ H02: every non-auth role is denied password hashes and auth-state writes, while required profile reads work (49.1467ms)
+✔ H01: real RabbitMQ permissions isolate producers, consumers and retry queues (3885.2816ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13274.6684
+Cleanup verified: disposable security database removed; production untouched.

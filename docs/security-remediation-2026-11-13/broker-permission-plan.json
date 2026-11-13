@@ -1,0 +1,59 @@
+{
+  "applied": false,
+  "plan": [
+    {
+      "service": "authentication",
+      "user": "tilomnov_authentication",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.authentication|tilomnov\\.authentication\\.v1\\.dead|tilomnov\\.authentication\\.v1\\.retry\\.0|tilomnov\\.authentication\\.v1\\.retry\\.1|tilomnov\\.authentication\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.authentication\\.v1$"
+      }
+    },
+    {
+      "service": "user",
+      "user": "tilomnov_user",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.user|tilomnov\\.user\\.v1\\.dead|tilomnov\\.user\\.v1\\.retry\\.0|tilomnov\\.user\\.v1\\.retry\\.1|tilomnov\\.user\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.user\\.v1$"
+      }
+    },
+    {
+      "service": "property",
+      "user": "tilomnov_property",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.property|tilomnov\\.property\\.v1\\.dead|tilomnov\\.property\\.v1\\.retry\\.0|tilomnov\\.property\\.v1\\.retry\\.1|tilomnov\\.property\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.property\\.v1$"
+      }
+    },
+    {
+      "service": "chat",
+      "user": "tilomnov_chat",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.chat|tilomnov\\.chat\\.v1\\.dead|tilomnov\\.chat\\.v1\\.retry\\.0|tilomnov\\.chat\\.v1\\.retry\\.1|tilomnov\\.chat\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.chat\\.v1$"
+      }
+    },
+    {
+      "service": "payment",
+      "user": "tilomnov_payment",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.payment|tilomnov\\.payment\\.v1\\.dead|tilomnov\\.payment\\.v1\\.retry\\.0|tilomnov\\.payment\\.v1\\.retry\\.1|tilomnov\\.payment\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.payment\\.v1$"
+      }
+    },
+    {
+      "service": "notification",
+      "user": "tilomnov_notification",
+      "permissions": {
+        "configure": "^$",
+        "write": "^(tilomnov\\.commands\\.v1\\.notification|tilomnov\\.notification\\.v1\\.dead|tilomnov\\.notification\\.v1\\.retry\\.0|tilomnov\\.notification\\.v1\\.retry\\.1|tilomnov\\.notification\\.v1\\.retry\\.2)$",
+        "read": "^tilomnov\\.notification\\.v1$"
+      }
+    }
+  ]
+}

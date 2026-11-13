@@ -20,12 +20,10 @@ describe('verifyAccessToken', () => {
       sessionId: 'session-1',
       expiresAt: expect.any(Number),
     });
-    // A token from before sessions existed.
-    await expect(verifyAccessToken(sign({ typ: 'access' }))).resolves.toEqual({
-      userId: 'user-1',
-      sessionId: null,
-      expiresAt: expect.any(Number),
-    });
+    // Legacy access tokens must renew into a durable, identifiable session.
+    await expect(
+      verifyAccessToken(sign({ typ: 'access', sid: undefined })),
+    ).rejects.toThrow('Sign in again');
   });
 
   it('refuses a refresh token, which lives 30 days and may have been revoked', async () => {
@@ -95,6 +93,23 @@ describe('verifyAccessToken', () => {
       await expect(
         authenticateSocket(socketWith(undefined), revoked()),
       ).rejects.toThrow('No token provided');
+    });
+
+    it('disconnects an idle receiver after durable revocation even when Redis lost the notification', async () => {
+      jest.useFakeTimers();
+      keys.setSessionActive(true);
+      try {
+        const socket = socketWith(sign({ typ: 'access', sid: 'phone' }));
+        await authenticateSocket(socket, revoked());
+        keys.setSessionActive(false);
+        await jest.advanceTimersByTimeAsync(5100);
+        expect(
+          (socket as { disconnect: jest.Mock }).disconnect,
+        ).toHaveBeenCalledWith(true);
+      } finally {
+        keys.setSessionActive(true);
+        jest.useRealTimers();
+      }
     });
 
     it('disconnects an idle socket at token expiry without leaking timers into shared socket data', async () => {

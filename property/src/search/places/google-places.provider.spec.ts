@@ -120,6 +120,27 @@ describe('GooglePlacesProvider', () => {
     ).rejects.toBeInstanceOf(PlacesRequestError);
   });
 
+  it('attaches real boundaries to area selections in either UI language', async () => {
+    fetchMock.mockReturnValue(
+      respond(200, {
+        id: 'kampot',
+        displayName: { text: 'Kampot' },
+        location: { latitude: 10.606, longitude: 104.181 },
+        types: ['locality', 'political'],
+      }),
+    );
+    const result = await new GooglePlacesProvider().area('kampot', {
+      language: 'km',
+      sessionToken: 'session-1',
+    });
+    expect(result?.boundary?.type).toBe('MultiPolygon');
+    expect(result?.boundary?.coordinates[0][0].length).toBeGreaterThan(4);
+    expect(String(fetchMock.mock.calls[0][0])).toContain('languageCode=en');
+    expect(String(fetchMock.mock.calls[0][0])).toContain(
+      'sessionToken=session-1',
+    );
+  });
+
   it('asks nothing without a key', async () => {
     process.env.GOOGLE_PLACES_API_KEY = '';
     const provider = new GooglePlacesProvider();

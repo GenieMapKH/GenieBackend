@@ -1,0 +1,14 @@
+
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [AuthMiddleware] Signing keys could not be loaded from http://localhost:4001/v1/auth/.well-known/jwks.json
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [ServiceProxy] The chat service could not be reached: ECONNREFUSED refused (:)
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [ServiceProxy] The property service could not be reached: ECONNRESET timeout (:)
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [ServiceProxy] The user service could not be reached:  gone (:)
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [ServiceProxy] The chat service could not be reached:  gone (:)
+[Nest] 25780  - 13/11/2026, 13:29:09   ERROR [RateLimit] Rate limit could not be checked: limiter crashed
+
+Test Suites: 10 passed, 10 total
+Tests:       107 passed, 107 total
+Snapshots:   0 total
+Time:        1.912 s, estimated 6 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\api-gateway-tests.json

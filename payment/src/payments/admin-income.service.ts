@@ -21,6 +21,7 @@ export class AdminIncomeService {
         COUNT(*)::int AS count
       FROM payment.payment_transactions
       WHERE status = 'Success' AND currency = 'USD'
+        AND provider <> 'MOCK'
         AND purpose IN ('SUBSCRIPTION', 'LISTING_PUBLISH')
         AND paid_at >= ${since} AND paid_at <= ${now}
       GROUP BY 1 ORDER BY 1

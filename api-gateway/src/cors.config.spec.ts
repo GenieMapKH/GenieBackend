@@ -1,6 +1,21 @@
 import { buildCorsOptions } from './cors.config';
 
 describe('buildCorsOptions', () => {
+  it.each([
+    '*',
+    'null',
+    'https://example.com/',
+    'https://example.com/path',
+    'https://*.example.com',
+    'http://example.com',
+  ])('rejects unsafe production origin configuration: %s', (origin) => {
+    expect(() =>
+      buildCorsOptions({ NODE_ENV: 'production', CORS_ORIGINS: origin }),
+    ).toThrow();
+  });
+  it('does not enable ambient browser credentials for a bearer-token API', () => {
+    expect(buildCorsOptions({}).credentials).toBe(false);
+  });
   it('uses the configured origin list', () => {
     const options = buildCorsOptions({
       CORS_ORIGINS: 'https://a.com, https://b.com',

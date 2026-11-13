@@ -246,7 +246,7 @@ flowchart LR
     U -->|"3b listings by title/description,<br/>publishers by name/username"| DB[("properties, users")]
     U -->|"4 places + properties + people"| C
     C -->|"5 GET /public/search/places/:placeId"| G
-    U -->|"6 viewport (cached 24 h)"| P
+    U -->|"6 viewport and mapped boundary (cached 24 h)"| P
     U -->|"7 published listings inside it, nearest first"| C
     C -->|"8 GET /public/search/people/:userId"| G
 ```
@@ -254,13 +254,16 @@ flowchart LR
 | Endpoint | Query | Answer | Errors |
 |---|---|---|---|
 | `GET /public/search` | `q` (1-200 chars; matched on its first 80, lowercased), `session`?, `lang`? (`en`/`km`), `lat`?, `lng`? | `{ places: [{placeId, primaryText, secondaryText}], properties: [map listing], people: [{id, name, username, avatarUrl, listingCount}] }`; empty lists for a text under 2 characters | 400, 429 |
-| `GET /public/search/places/:placeId` | `session`?, `lang`? | `{ place: {placeId, name, address, center, viewport}, properties: [map listing] }`, at most 100 | 400, 404 unknown place, 429, 503 no key or provider down |
+| `GET /public/search/places/:placeId` | `session`?, `lang`? | `{ place: {placeId, name, address, center, viewport, boundary?}, properties: [map listing] }`, at most 100 | 400, 404 unknown place, 429, 503 no key or provider down |
 | `GET /public/search/people/:userId` | | `{ person, properties }`, newest first, at most 100 | 400, 404, 429 |
 
 - Public, like the map: a token is optional and only changes how the rate limit counts (per account instead of per address): 120 searches a minute.
 - A listing matches when its title or description contains every word of the text, in any order; a person when their name or username does. Only published listings, and only people with at least one, can be found: search is no directory of accounts. A person result never includes email or phone.
 - Places come from Google, called by the server so its key (`GOOGLE_PLACES_API_KEY`) is never in the app. The app makes one `session` token per search, so the suggestions and the place picked are billed as one session. Without a key, or when Google fails, search still answers listings and people.
-- A place's viewport is grown to at least ~500 m, so a single address still finds the listings around it.
+- Matched Cambodian administrative areas return an optional GeoJSON `boundary: {type: "MultiPolygon", coordinates}` with outer rings and holes in longitude/latitude order. Both the English place name (including known Chom Chau transliterations) and the Google center must match the bundled OCHA/WFP COD-AB v01 snapshot (valid 2018-10-04). Province/district/commune types distinguish namesakes. Google place details use English to match the catalog; suggestions and the app's chosen-place title remain localized.
+- For matched boundaries, `viewport` covers the actual rings and listings are tested against the polygon, including holes, before the nearest-100 limit. The existing bounding-box candidate limit of 500 still applies. The native map draws those rings without an outside blur; its source-info control credits OCHA/WFP, the snapshot date and CC BY 3.0 IGO.
+- Unmatched places, POIs and newer subdivisions return no boundary. Their viewport is grown to at least ~500 m for nearby listings; the app frames it without drawing a rectangle. Older app/server combinations tolerate the optional field. The versioned place cache avoids serving pre-boundary entries.
+- Boundary source, license and transformation details: `property/src/search/places/data/README.md`. No runtime boundary service or API key is needed; the Nest build copies the JSON asset into the property service image.
 - Listing results have their own cache version: publishing or hiding any listing outdates them at once; one owner's listings are outdated by that owner's changes only. Trigram indexes (migration `11_search_indexes`) keep the `ILIKE '%word%'` queries off full table scans.
 - A person result carries `memberSince`. `GET /public/search/people/:userId` is the profile page, opened from search or by tapping the other person in a chat. It answers for any active account (404 if missing or deactivated), but only search finds people, and only publishers. It carries `email` and `phone` only for publishers, whose listings already show them, and only to a signed-in caller; someone who has published nothing keeps them private. Result lists never include contact details, so search cannot be used to collect them in bulk. The page has Follow (does nothing yet), Chat and View on map.
 

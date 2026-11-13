@@ -33,6 +33,7 @@ describe('AvatarService', () => {
       { user: userTable } as never,
       storage as never,
       users as never,
+      { take: jest.fn() } as never,
     );
   });
 
@@ -52,6 +53,7 @@ describe('AvatarService', () => {
     expect(userTable.update).toHaveBeenCalledWith({
       where: { id: ME },
       data: { avatarUrl: `${PUBLIC}/${ME}/${FILE}` },
+      select: { id: true },
     });
     expect(users.publicViewChanged).toHaveBeenCalledWith(ME);
   });
@@ -103,6 +105,7 @@ describe('AvatarService', () => {
     expect(userTable.update).toHaveBeenCalledWith({
       where: { id: ME },
       data: { avatarUrl: null },
+      select: { id: true },
     });
     expect(storage.removeFiles).not.toHaveBeenCalled();
   });

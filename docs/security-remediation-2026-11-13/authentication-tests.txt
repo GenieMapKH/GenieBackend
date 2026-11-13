@@ -1,0 +1,32 @@
+[Nest] 6780  - 13/11/2026, 13:27:41    WARN [UserContentClient] Caches of u1 were not cleared: ECONNREFUSED
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Created signing key 8f93a152-c677-4d4a-90d6-3e1c54f30c23 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Created signing key fbe1d4e7-eef6-4bab-9254-94f60b8157d5 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:41     LOG [SigningKeyRotationService] Created signing key c2fc6704-c91e-4bb2-8931-08b69a9bfccf (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key 74f8cbb1-d29b-4e81-a5a7-743ffe9848a9 (signs in 1 hour)
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key 2a5de2fd-70ac-473d-a28b-6ee3d5c53224 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key 22bab10a-b412-4042-b6c5-a1f6a65b96a2 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:42    WARN [SigningKeyRotationService] Signing key 22bab10a-b412-4042-b6c5-a1f6a65b96a2 cannot be decrypted with this JWT_KEY_ENCRYPTION_KEY; it only verifies
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key 44b307d0-cb43-4635-aa9a-0297dbd47ee4 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key e2c63a9f-85bd-448c-8e2b-2026a9a4ac4b (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:42     LOG [SigningKeyRotationService] Created signing key a0954f75-8a7e-4918-b9ed-2a71b3734ff0 (signing now)
+[Nest] 6780  - 13/11/2026, 13:27:49    WARN [SignInService] Sign-in alert not sent: provider down
+
+[Nest] 6780  - 13/11/2026, 13:27:38   ERROR [PasswordResetService] Failed to issue OTP: smtp down
+[Nest] 6780  - 13/11/2026, 13:27:41   ERROR [UserContentClient] Files of u1 were not erased: the user service answered 500
+[Nest] 6780  - 13/11/2026, 13:27:41   ERROR [UserContentClient] Files of u1 were not erased: ECONNREFUSED
+[Nest] 6780  - 13/11/2026, 13:27:49   ERROR [RevokedSessionStore] Session s1 could not be cut off at once: Redis is down
+[Nest] 6780  - 13/11/2026, 13:27:52   ERROR [UserRepository] Failed to create user: Unique constraint failed
+[Nest] 6780  - 13/11/2026, 13:27:52   ERROR [UserRepository] Failed to create user: connection lost
+
+Test Suites: 21 passed, 21 total
+Tests:       260 passed, 260 total
+Snapshots:   0 total
+Time:        23.744 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\authentication-tests.json

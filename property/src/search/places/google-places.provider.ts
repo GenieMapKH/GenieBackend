@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { cambodiaBoundary } from './cambodia-boundaries';
 import {
   PlaceArea,
   PlaceLookupOptions,
@@ -21,7 +22,7 @@ const SUGGEST_FIELDS = [
   'suggestions.placePrediction.text',
   'suggestions.placePrediction.structuredFormat',
 ].join(',');
-const AREA_FIELDS = 'id,displayName,formattedAddress,location,viewport';
+const AREA_FIELDS = 'id,displayName,formattedAddress,location,viewport,types';
 
 interface LatLngJson {
   latitude: number;
@@ -47,6 +48,7 @@ interface PlaceResponse {
   formattedAddress?: string;
   location?: LatLngJson;
   viewport?: { low: LatLngJson; high: LatLngJson };
+  types?: string[];
 }
 
 /** The provider answered with an error status. */
@@ -143,7 +145,8 @@ export class GooglePlacesProvider extends PlaceProvider {
     if (!this.isConfigured) return null;
 
     const url = new URL(`${API_URL}/places/${encodeURIComponent(placeId)}`);
-    url.searchParams.set('languageCode', options.language);
+    // The boundary catalog uses English names; the app displays the localized suggestion.
+    url.searchParams.set('languageCode', 'en');
     if (options.sessionToken)
       url.searchParams.set('sessionToken', options.sessionToken);
 
@@ -181,13 +184,15 @@ export class GooglePlacesProvider extends PlaceProvider {
           maxLng: center.lng,
         };
 
-    return {
+    const area: PlaceArea = {
       placeId: place.id,
       name: place.displayName?.text ?? place.formattedAddress ?? '',
       address: place.formattedAddress ?? null,
       center,
       viewport,
     };
+    const boundary = cambodiaBoundary(area, place.types ?? []);
+    return boundary ? { ...area, boundary } : area;
   }
 
   private async request<T>(url: string, init: RequestInit): Promise<T> {

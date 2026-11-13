@@ -13,6 +13,7 @@ import {
   deadQueueName,
   RETRY_DELAYS_MS,
   retryQueueName,
+  sourceExchange,
 } from './rabbit-transport';
 
 class Payload {
@@ -98,6 +99,10 @@ describe('message delivery', () => {
   const receive = (instance: MessageBus, delivery: unknown) =>
     (instance as any).receive(channel, delivery);
   const delivery = (message = envelope(), headers = {}) => ({
+    fields: {
+      exchange: sourceExchange(message.source),
+      routingKey: message.destination,
+    },
     content: Buffer.from(JSON.stringify(message)),
     properties: { messageId: message.id, headers },
   });
@@ -111,6 +116,28 @@ describe('message delivery', () => {
       disabled.enqueue('notification.chat-message.v1', {}),
     ).rejects.toThrow('not configured');
     await disabled.onModuleDestroy();
+  });
+  it('refuses shared bootstrap broker identity in production', () => {
+    const saved = {
+      NODE_ENV: process.env.NODE_ENV,
+      RABBITMQ_MANAGED_TOPOLOGY: process.env.RABBITMQ_MANAGED_TOPOLOGY,
+    };
+    try {
+      process.env.NODE_ENV = 'production';
+      process.env.RABBITMQ_URL = 'amqp://shared:fixture-password@localhost';
+      process.env.RABBITMQ_MANAGED_TOPOLOGY = 'true';
+      expect(() => new MessageBus({} as never, 'chat')).toThrow(
+        'per-service credentials',
+      );
+      process.env.RABBITMQ_URL =
+        'amqp://tilomnov_chat:fixture-password@localhost';
+      expect(() => new MessageBus({} as never, 'chat')).not.toThrow();
+    } finally {
+      for (const [key, value] of Object.entries(saved)) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
   });
   it.each([
     'https://private:password@example.com',

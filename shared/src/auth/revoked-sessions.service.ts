@@ -10,13 +10,8 @@ import {
 const KEY_PREFIX = 'sessions:revoked:';
 const CHANNEL = 'sessions:revoked';
 
-/**
- * The sessions that were signed out while their access token had not expired.
- * A token is valid on its signature alone, so this is what makes a sign-out
- * immediate: such a token is refused, and its open connections are closed.
- *
- * While Redis is unavailable nothing is refused here, and a signed-out device
- * keeps working until its token expires (at most 15 minutes).
+/** Best-effort revocation notifications, never the authority for accepting a token.
+ * `verifySignedToken` also requires the authentication service's durable check.
  */
 @Injectable()
 export class RevokedSessions implements OnModuleInit, OnModuleDestroy {
