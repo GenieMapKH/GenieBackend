@@ -72,6 +72,7 @@ export class AuthMiddleware implements NestMiddleware {
       };
     } catch (error) {
       // Our outage, not a bad token: a 401 would make the app sign out.
+      if (error instanceof ServiceUnavailableException) throw error;
       if (error instanceof KeySetUnavailableError) {
         this.logger.error(error.message);
         throw new ServiceUnavailableException('Please try again in a moment');

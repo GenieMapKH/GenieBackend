@@ -8,7 +8,12 @@ import { PropertyQueryService } from '../properties/services/property-query.serv
 import { PropertySearchService } from '../properties/services/property-search.service';
 import { JsonCache } from '@tilomnov/shared';
 import { PeopleSearchService } from './people-search.service';
-import { nearestFirst, withMinimumSpan } from './area-geometry';
+import {
+  boundaryBounds,
+  boundaryContains,
+  nearestFirst,
+  withMinimumSpan,
+} from './area-geometry';
 import { PlaceSessionQuery, SearchQuery } from './dto/search.query';
 import { PlaceArea, PlaceProvider } from './places/place-provider';
 import { TextSearchService } from './text-search.service';
@@ -73,7 +78,7 @@ export class SearchService {
 
     const language = query.lang ?? 'en';
     const place = await this.cache.remember<PlaceArea | null>(
-      `search:place:${language}:${placeId}`,
+      `search:place:v2:${language}:${placeId}`,
       PLACE_TTL_SECONDS,
       () => this.lookUpPlace(placeId, language, query.session),
     );
@@ -81,11 +86,16 @@ export class SearchService {
       throw new NotFoundException('Place not found');
     }
 
-    const area = withMinimumSpan(place.viewport, place.center);
+    const area = place.boundary
+      ? boundaryBounds(place.boundary)
+      : withMinimumSpan(place.viewport, place.center);
     const inside = await this.propertyQuery.searchMap(area, viewerId);
+    const matches = place.boundary
+      ? inside.filter((property) => boundaryContains(place.boundary!, property))
+      : inside;
     return {
       place: { ...place, viewport: area },
-      properties: nearestFirst(inside, place.center, AREA_PROPERTY_LIMIT),
+      properties: nearestFirst(matches, place.center, AREA_PROPERTY_LIMIT),
     };
   }
 

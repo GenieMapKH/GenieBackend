@@ -27,6 +27,9 @@ jobs:
       - name: Build (generates Prisma client, compiles every service)
         run: npm run build
 
+      - name: Lint
+        run: npm run lint
+
       - name: Test
         run: npm test
 
@@ -35,6 +38,7 @@ jobs:
           docker compose -f qa/messaging/docker-compose.yml up -d --wait
           npm run test:messaging:integration
           npm run test:messaging:flows
+          npm run test:security:integration
 
       - name: Remove messaging test containers
         if: always()
@@ -60,6 +64,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build --build-arg SERVICE=${{ matrix.service }} -t tilomnov-${{ matrix.service }}:ci .
+
+      - name: Broker bootstrap image builds
+        if: matrix.service == 'api-gateway'
+        run: docker build --target broker-bootstrap -t tilomnov-broker-bootstrap:ci .
 
   deploy-staging:
     name: Deploy branch to staging

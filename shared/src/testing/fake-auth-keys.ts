@@ -14,6 +14,8 @@ export interface FakeAuthKeys {
   sign(claims: object, options?: jwt.SignOptions): string;
   /** Makes the JWKS endpoint fail, as if the authentication service were down. */
   setDown(down: boolean): void;
+  /** Models the durable authentication endpoint, independently of Redis. */
+  setSessionActive(active: boolean): void;
   /** Puts the real `fetch` back. */
   restore(): void;
 }
@@ -30,6 +32,7 @@ export function fakeAuthKeys(options: { legacy?: boolean } = {}): FakeAuthKeys {
   const kid = options.legacy ? LEGACY_SIGNING_KEY_ID : 'test-key';
   const realFetch = globalThis.fetch;
   let down = false;
+  let sessionActive = true;
 
   resetAuthKeySet();
   globalThis.fetch = (input: string | URL | Request, init?: RequestInit) => {
@@ -39,6 +42,12 @@ export function fakeAuthKeys(options: { legacy?: boolean } = {}): FakeAuthKeys {
         : input instanceof URL
           ? input.href
           : input.url;
+    if (url.endsWith('/internal/sessions/verify')) {
+      if (down) return Promise.reject(new Error('connect ECONNREFUSED'));
+      return Promise.resolve(
+        new Response(null, { status: sessionActive ? 204 : 401 }),
+      );
+    }
     if (!url.endsWith(JWKS_PATH)) return realFetch(input, init);
     if (down) return Promise.reject(new Error('connect ECONNREFUSED'));
     const jwk = {
@@ -55,13 +64,14 @@ export function fakeAuthKeys(options: { legacy?: boolean } = {}): FakeAuthKeys {
     privateKey,
     publicKey,
     sign: (claims, signOptions = {}) =>
-      jwt.sign({ sub: 'user-1', ...claims }, privateKey, {
+      jwt.sign({ sub: 'user-1', sid: 'test-session', ...claims }, privateKey, {
         algorithm: 'RS256',
         expiresIn: '5m',
         ...(options.legacy ? {} : { keyid: kid }),
         ...signOptions,
       }),
     setDown: (value) => (down = value),
+    setSessionActive: (value) => (sessionActive = value),
     restore: () => {
       globalThis.fetch = realFetch;
       resetAuthKeySet();

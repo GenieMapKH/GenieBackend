@@ -9,6 +9,7 @@ const row = {
   createdAt: new Date('2025-03-01T00:00:00Z'),
   email: 'sokha@example.com',
   phone: '+85512345678',
+  properties: [{ contactPhone: '+85599999999' }],
   _count: { properties: 2 },
 };
 
@@ -30,7 +31,7 @@ describe('PeopleSearchService', () => {
     expect(found).not.toHaveProperty('phone');
   });
 
-  it("includes email and phone on a publisher's own profile", async () => {
+  it('uses only an explicitly published listing contact', async () => {
     users.findFirst.mockResolvedValue(row);
 
     expect(await people.findProfile('u-1')).toEqual({
@@ -41,8 +42,8 @@ describe('PeopleSearchService', () => {
       avatarUrl: null,
       listingCount: 2,
       memberSince: row.createdAt,
-      email: 'sokha@example.com',
-      phone: '+85512345678',
+      email: null,
+      phone: '+85599999999',
     });
   });
 

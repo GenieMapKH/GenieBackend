@@ -12,6 +12,7 @@ export {
 } from './redis/redis-connection';
 
 export { SupabaseModule } from './supabase/supabase.module';
+export { UploadBudgets } from './supabase/upload-budgets';
 export {
   PUBLIC_IMAGE_TYPES,
   SupabaseService,

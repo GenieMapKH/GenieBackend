@@ -1,0 +1,52 @@
+
+> tilomnov-backend@1.0.0 test:messaging:integration
+> npm run build --workspace=shared && npm run build --workspace=notification && npm run build --workspace=authentication && node --test --test-concurrency=1 qa/messaging/*.test.js
+
+
+> @tilomnov/shared@0.0.1 build
+> tsc -p tsconfig.build.json
+
+
+> notification@0.0.1 build
+> nest build
+
+
+> build
+> tsc -p tsconfig.build.json
+
+✔ migration grants only owning service roles access to each outbox (1583.7299ms)
+✔ outbox commits and rolls back with its business write, and deduplicates keys (995.7826ms)
+✔ all notification command types use the existing validated handlers (282.3085ms)
+✔ order confirmations and security emails are consumed by authentication (774.1255ms)
+✔ a burst of 100 accepted jobs drains without lost or duplicated handler effects (5717.243ms)
+✔ concurrent duplicate deliveries across receiver replicas run a handler once (7215.3911ms)
+✔ partial push retries retain successful device receipts in PostgreSQL (14.2822ms)
+✔ transient failure retries after a delay and then succeeds (5112.3196ms)
+[Nest] 31008  - 13/11/2026, 13:18:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (invalid-message)
+[Nest] 31008  - 13/11/2026, 13:18:25   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (invalid-message)
+✔ invalid payloads and malformed JSON go to the dead-letter queue without handler effects (152.3113ms)
+✔ expired messages never trigger a delayed notification (774.1834ms)
+✔ mandatory publishing rejects unroutable work instead of treating a broker confirm as delivery (4.4823ms)
+✔ failed outbox publication stays pending and concurrent dispatchers skip locked rows (308.1817ms)
+[Nest] 31008  - 13/11/2026, 13:18:26    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+✔ channel closure reconnects the receiver and subsequent jobs still arrive (438.0343ms)
+✔ a channel protocol error is handled and consumption recovers (427.0553ms)
+✔ shutdown waits for an active delivery and commits its receipt before closing (276.849ms)
+[Nest] 31008  - 13/11/2026, 13:18:28    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:28    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:28    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:28    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:28    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:30    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+[Nest] 31008  - 13/11/2026, 13:18:36    WARN [MessageBus] Messaging unavailable; accepted jobs remain in the database or broker for retry.
+✔ broker restart preserves queued messages and drains jobs accepted while it was offline (14636.2898ms)
+[Nest] 31008  - 13/11/2026, 13:21:17   ERROR [MessageBus] Message moved to tilomnov.notification.v1.dead (retry-exhausted)
+✔ exhausted retries preserve the message in the dead-letter queue (155442.5393ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 204773.3377

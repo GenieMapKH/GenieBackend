@@ -69,9 +69,26 @@ export class RefreshTokenRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async insert(token: NewRefreshToken): Promise<void> {
+  /** Every rotation and termination locks the same durable account row until commit. */
+  withUserLock<T>(
+    userId: string,
+    work: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM account.users WHERE id = ${userId}::uuid FOR UPDATE`;
+        return work(tx);
+      },
+      { maxWait: 10000, timeout: 10000 },
+    );
+  }
+
+  async insert(
+    token: NewRefreshToken,
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<void> {
     await databaseCall(this.logger, 'Failed to store refresh token', () =>
-      this.prisma.refreshToken.create({
+      tx.refreshToken.create({
         data: {
           id: token.id,
           userId: token.userId,
@@ -89,9 +106,12 @@ export class RefreshTokenRepository {
     );
   }
 
-  async findById(id: string): Promise<RefreshTokenRecord | null> {
+  async findById(
+    id: string,
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<RefreshTokenRecord | null> {
     const row = await databaseCall(this.logger, 'Failed to read token', () =>
-      this.prisma.refreshToken.findUnique({
+      tx.refreshToken.findUnique({
         where: { id },
         select: RECORD_COLUMNS,
       }),
@@ -103,12 +123,15 @@ export class RefreshTokenRepository {
    * Revokes a token only if it is still active.
    * Returns false when someone else already revoked it (a concurrent or replayed use).
    */
-  async revokeIfActive(id: string): Promise<boolean> {
+  async revokeIfActive(
+    id: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<boolean> {
     const { count } = await databaseCall(
       this.logger,
       'Failed to revoke token',
       () =>
-        this.prisma.refreshToken.updateMany({
+        tx.refreshToken.updateMany({
           where: { id, revoked: false },
           data: { revoked: true },
         }),
@@ -118,14 +141,23 @@ export class RefreshTokenRepository {
 
   /** Revokes one token and returns the session it belonged to, if it had one. */
   async revokeById(id: string): Promise<string | null> {
-    const rows = await databaseCall(this.logger, 'Failed to revoke token', () =>
-      this.prisma.refreshToken.updateManyAndReturn({
-        where: { id },
-        data: { revoked: true },
-        select: { sessionId: true },
-      }),
-    );
-    return rows[0]?.sessionId ?? null;
+    const token = await this.findById(id);
+    if (!token) return null;
+    return this.withUserLock(token.user_id, async (tx) => {
+      const rows = await databaseCall(
+        this.logger,
+        'Failed to revoke token',
+        () =>
+          tx.refreshToken.updateManyAndReturn({
+            where: token.session_id
+              ? { userId: token.user_id, sessionId: token.session_id }
+              : { id },
+            data: { revoked: true },
+            select: { sessionId: true },
+          }),
+      );
+      return rows[0]?.sessionId ?? null;
+    });
   }
 
   /**
@@ -135,7 +167,12 @@ export class RefreshTokenRepository {
   async revokeAllForUser(
     userId: string,
     exceptSessionId?: string | null,
+    tx?: Prisma.TransactionClient,
   ): Promise<string[]> {
+    if (!tx)
+      return this.withUserLock(userId, (locked) =>
+        this.revokeAllForUser(userId, exceptSessionId, locked),
+      );
     const where: Prisma.RefreshTokenWhereInput = { userId, revoked: false };
     if (exceptSessionId) {
       // Spelled out because `not` alone would skip the tokens that have no session.
@@ -145,7 +182,7 @@ export class RefreshTokenRepository {
       this.logger,
       'Failed to revoke all sessions',
       () =>
-        this.prisma.refreshToken.updateManyAndReturn({
+        tx.refreshToken.updateManyAndReturn({
           where,
           data: { revoked: true },
           select: { sessionId: true },
@@ -155,12 +192,20 @@ export class RefreshTokenRepository {
   }
 
   /** Ends one session of the user. Returns false if they have no such active session. */
-  async revokeSession(userId: string, sessionId: string): Promise<boolean> {
+  async revokeSession(
+    userId: string,
+    sessionId: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<boolean> {
+    if (!tx)
+      return this.withUserLock(userId, (locked) =>
+        this.revokeSession(userId, sessionId, locked),
+      );
     const { count } = await databaseCall(
       this.logger,
       'Failed to revoke session',
       () =>
-        this.prisma.refreshToken.updateMany({
+        tx.refreshToken.updateMany({
           where: { userId, sessionId, revoked: false },
           data: { revoked: true },
         }),

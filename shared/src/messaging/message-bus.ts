@@ -32,6 +32,7 @@ import {
   RabbitTransport,
   RETRY_DELAYS_MS,
   retryQueueName,
+  sourceExchange,
 } from './rabbit-transport';
 
 export const MESSAGE_SERVICE = Symbol('MESSAGE_SERVICE');
@@ -72,8 +73,16 @@ export class MessageBus implements OnApplicationBootstrap, OnModuleDestroy {
         const address = new URL(this.url);
         if (!/^amqps?:$/.test(address.protocol) || !address.hostname)
           throw new Error();
+        if (
+          process.env.NODE_ENV === 'production' &&
+          (process.env.RABBITMQ_MANAGED_TOPOLOGY !== 'true' ||
+            decodeURIComponent(address.username) !== `tilomnov_${service}`)
+        )
+          throw new Error('isolated');
       } catch {
-        throw new Error('RABBITMQ_URL must be a valid amqp or amqps URL');
+        throw new Error(
+          'RABBITMQ_URL must be a valid amqp or amqps URL; production requires per-service credentials and managed topology',
+        );
       }
     }
     this.store = new MessageStore(prisma, service);
@@ -183,6 +192,7 @@ export class MessageBus implements OnApplicationBootstrap, OnModuleDestroy {
         this.consumer = { channel, tag: consumerTag };
       },
       () => this.warn(),
+      process.env.RABBITMQ_MANAGED_TOPOLOGY === 'true',
     );
     this.schedule();
   }
@@ -229,6 +239,23 @@ export class MessageBus implements OnApplicationBootstrap, OnModuleDestroy {
       let invalid = false;
       try {
         const message = decodeMessage(delivery.content, this.service);
+        const exchange = delivery.fields.exchange;
+        const retried =
+          exchange === '' &&
+          delivery.fields.routingKey === queueName(this.service) &&
+          Array.isArray(delivery.properties.headers?.['x-death']) &&
+          delivery.properties.headers['x-death'].some(
+            (death: { queue?: string; reason?: string }) =>
+              death.reason === 'expired' &&
+              RETRY_DELAYS_MS.some(
+                (_, index) =>
+                  death.queue === retryQueueName(this.service, index),
+              ),
+          );
+        if (exchange !== sourceExchange(message.source) && !retried)
+          throw new InvalidMessageError(
+            'Producer exchange does not match source',
+          );
         if (Date.parse(message.expiresAt) > Date.now()) {
           const handler = this.handlers.get(message.type);
           if (!handler) throw new InvalidMessageError('Unknown handler');

@@ -33,6 +33,10 @@ COPY shared ./shared
 RUN npm run build --workspace=shared
 
 # --- Service build: only this service's source and compiled output ---
+FROM shared-builder AS broker-bootstrap
+COPY scripts/security/provision-rabbitmq.cjs ./scripts/security/
+ENTRYPOINT ["node", "scripts/security/provision-rabbitmq.cjs", "--apply"]
+
 FROM shared-builder AS builder
 ARG SERVICE
 ARG RAILWAY_SERVICE_NAME

@@ -44,7 +44,7 @@ Signup requires the phone and labels email optional, with a recovery explanation
 
 Liquid Glass is the default on every device; Minimalistic is the saved alternative. System reduced-transparency and high-contrast preferences retain solid surfaces.
 
-Place searches show a red outline, blur/dim the outside, and frame the whole search region. Google Places supplies a viewport, not an administrative polygon, so the UI labels this an approximate search area. Official or informal neighborhood extents cannot be inferred from that viewport. Drawing hides the search mask, and clearing the search removes it. The drawing pin is 34 logical pixels wide and rasterized at 3x resolution with its original aspect ratio and anchor.
+Place searches draw the real mapped border with a light fill when a Cambodian administrative area can be matched by name, type and location to the bundled OCHA/WFP COD-AB snapshot (valid 2018-10-04). Disconnected polygons and holes are retained; the camera and listing results use that shape. The source-info button gives attribution and the snapshot date. Nearby listings remain clear, without the old rectangular blur/dim mask. Unmatched places and newer subdivisions keep nearby results and camera framing without a fabricated outline. This is published boundary data, not guaranteed current legal geography. Drawing hides the area border, and clearing the search removes it. The drawing pin is 34 logical pixels wide and rasterized at 3x resolution with its original aspect ratio and anchor.
 
 ## Verification
 

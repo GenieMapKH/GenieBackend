@@ -1,5 +1,7 @@
 import * as jwt from 'jsonwebtoken';
 import { AuthKeySet, authKeySet } from './auth-key-set';
+import { requireActiveSession } from './active-session';
+import { UnauthorizedException } from '@nestjs/common';
 
 /** `typ` claims of the tokens the authentication service signs. */
 export const ACCESS_TOKEN = 'access';
@@ -27,6 +29,15 @@ export async function verifySignedToken(
   }
   if (payload.typ !== type) {
     throw new Error(`Not a token of type "${type}"`);
+  }
+  if (type === ACCESS_TOKEN) {
+    if (typeof payload.sid !== 'string' || !payload.sid)
+      throw new UnauthorizedException('Sign in again');
+    if (payload.role === 'admin' && payload.adminMfa !== true)
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    await requireActiveSession(token);
   }
   return payload as jwt.JwtPayload & { sub: string };
 }

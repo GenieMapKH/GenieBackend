@@ -1,0 +1,97 @@
+[
+  {
+    "path": "docs/SECURITY_REMEDIATION_2026-11-13.md",
+    "bytes": 22122,
+    "sha256": "af2200a75b7cf3ca7885ee0b8a7135a03ef54af87aea94f374922813ba34ce02"
+  },
+  {
+    "path": "../genie/docs/SECURITY_REMEDIATION_2026-11-13.md",
+    "bytes": 1751,
+    "sha256": "48af9cccb967b7dfdd71cb4d6719118d412739af897e98f7b2fe3ea146ca3208"
+  },
+  {
+    "path": "../genie/docs/full_test_verified_2026_11_13.jsonl",
+    "bytes": 1025614,
+    "sha256": "ff76e1fdf9bc9d49f5c1d3719958cf13853587dc0a2e049efea5659f29893fd0"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/verification.json",
+    "bytes": 1041,
+    "sha256": "b23374a2d0ab0f41eca5914102d8cd2f11bb6dbb41f61c04b934f877b993d538"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/unit-summary.json",
+    "bytes": 1052,
+    "sha256": "7eba3e69fe162eb05a9b3c8e230acfebe9b6ef47aafb869fffeec15dbb5cdbf7"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/integration-tests.txt",
+    "bytes": 1370,
+    "sha256": "fa7e5b86a09c275f9987fcb4eb99de76dce864508f4e6860aab755bf4b1ae928"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/integration-run.txt",
+    "bytes": 1577,
+    "sha256": "8e6735774954cb6ec337c8cf2f3191485b4665ddb5857e0e838df51c56f0d096"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/messaging-tests.txt",
+    "bytes": 3617,
+    "sha256": "4517d5eaa7551726726ce5d80a3a344ea7f45029b74108a223efeb3f7037e9c5"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/messaging-flows.txt",
+    "bytes": 9390,
+    "sha256": "39c7f36a4880949398b0eff3dbd13d7c7af5281619c7cbb0b332831a8c97ea90"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/script-tests.txt",
+    "bytes": 3641,
+    "sha256": "6df81fbe44026c0fbbce9be089c4f6be424bbbd9b4a22f34c9dbfaf5e0b0b128"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/build.txt",
+    "bytes": 1233,
+    "sha256": "ced74233864f623fdb7ad2bab1debbe1215fb2d23b70ea28a02437a9700b0fb7"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/lint.txt",
+    "bytes": 668,
+    "sha256": "dc01b1c975a7e1194f1be2c5760842b5d2343a51dea5e4812177f2429acb811e"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/prisma-validate.txt",
+    "bytes": 498,
+    "sha256": "b2aef0237c33a0e71f7512f0f263096468cfa53f18a35376898b8ee7d5b42292"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/npm-audit.json",
+    "bytes": 412,
+    "sha256": "dc9840c2e0148e6de3dd75f0a6d9cc4b9dadb083902d4f1026ed4fc7528aaa7e"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/docker-bootstrap.txt",
+    "bytes": 5665,
+    "sha256": "7611c927e325eaadd49fd9442dbb4d429c5396c56b13aa3dac4bb029fceca259"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/broker-permission-plan.json",
+    "bytes": 2463,
+    "sha256": "bd2c124814cd4c7242f0b7c966d1f5aade21771d79a7385dccd5dd641fcf9bb6"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/provider-inspection.json",
+    "bytes": 7304,
+    "sha256": "4d70d4474ba116b9bcc4a11655cf3447c784c5c073b819043f7bc35e55e71e4a"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/cleanup.json",
+    "bytes": 316,
+    "sha256": "fae9555a9994181c268d7638127391ea322724b75a7ecf5a7d5fc176bb661292"
+  },
+  {
+    "path": "docs/security-remediation-2026-11-13/fixture-final-state.jsonl",
+    "bytes": 2632,
+    "sha256": "c6570ec9d25e62bdf5ba00416877dc33230ef8c5b1ca1195a324ea6503d6ee99"
+  }
+]

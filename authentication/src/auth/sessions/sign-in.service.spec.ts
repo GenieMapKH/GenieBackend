@@ -19,14 +19,28 @@ const CLIENT = {
 describe('SignInService', () => {
   const account = { reactivate: jest.fn() };
   const tokens = { issue: jest.fn() };
-  const refreshTokens = { listSessionTokens: jest.fn() };
+  const tx = { user: { findUnique: jest.fn() } };
+  const refreshTokens = {
+    listSessionTokens: jest.fn(),
+    withUserLock: jest.fn(),
+  };
   const mail = { deliver: jest.fn() };
   const notifications = { signIn: jest.fn() };
-  const user = { id: 'u1', role: 'user', email: 'owner@example.com' };
+  const user = {
+    id: 'u1',
+    role: 'user',
+    email: 'owner@example.com',
+    password_hash: 'original',
+  };
   let service: SignInService;
 
   beforeEach(() => {
     jest.resetAllMocks();
+    tx.user.findUnique.mockResolvedValue({
+      role: 'user',
+      passwordHash: 'original',
+    });
+    refreshTokens.withUserLock.mockImplementation((_id, work) => work(tx));
     refreshTokens.listSessionTokens.mockResolvedValue([]);
     tokens.issue.mockResolvedValue({
       accessToken: 'a',
@@ -56,6 +70,7 @@ describe('SignInService', () => {
       CLIENT,
       undefined,
       false,
+      tx,
     );
   });
 
@@ -64,6 +79,10 @@ describe('SignInService', () => {
       service.complete({ ...user, role: 'admin' } as never, CLIENT),
     ).rejects.toThrow(UnauthorizedException);
     expect(tokens.issue).not.toHaveBeenCalled();
+    tx.user.findUnique.mockResolvedValue({
+      role: 'admin',
+      passwordHash: 'original',
+    });
     await service.complete({ ...user, role: 'admin' } as never, CLIENT, {
       adminEmailVerified: true,
     });
@@ -73,7 +92,23 @@ describe('SignInService', () => {
       CLIENT,
       undefined,
       true,
+      tx,
     );
+  });
+
+  it('cannot issue a delayed password login after the password or account state changed', async () => {
+    for (const current of [
+      null,
+      { role: 'user', passwordHash: 'changed' },
+      { role: 'user', passwordHash: 'original', bannedAt: 'now' },
+      { role: 'user', passwordHash: 'original', deactivatedAt: 'now' },
+    ]) {
+      tx.user.findUnique.mockResolvedValue(current);
+      await expect(service.complete(user as never, CLIENT)).rejects.toThrow(
+        UnauthorizedException,
+      );
+    }
+    expect(tokens.issue).not.toHaveBeenCalled();
   });
 
   it('tells the owner when the account was already in use on another device', async () => {
@@ -191,7 +226,11 @@ describe('RevokedSessionStore', () => {
       },
     },
   };
-  const store = new RevokedSessionStore(redis as never);
+  const tokens = { findFirst: jest.fn() };
+  const store = new RevokedSessionStore(
+    redis as never,
+    { refreshToken: tokens } as never,
+  );
 
   beforeEach(() => {
     redis.keys.clear();
@@ -211,7 +250,9 @@ describe('RevokedSessionStore', () => {
       ['sessions:revoked', 's1'],
       ['sessions:revoked', 's2'],
     ]);
+    tokens.findFirst.mockResolvedValue(null);
     expect(await store.has('s1')).toBe(true);
+    tokens.findFirst.mockResolvedValue({ id: 'active' });
     expect(await store.has('s3')).toBe(false);
   });
 
@@ -219,7 +260,8 @@ describe('RevokedSessionStore', () => {
     redis.down = true;
 
     await expect(store.add(['s1'])).resolves.toBeUndefined();
-    expect(await store.has('s1')).toBe(false);
+    tokens.findFirst.mockResolvedValue(null);
+    expect(await store.has('s1')).toBe(true);
   });
 });
 

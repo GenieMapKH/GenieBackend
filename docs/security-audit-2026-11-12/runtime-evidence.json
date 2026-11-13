@@ -1,0 +1,118 @@
+{
+  "run_id": "run-f3cf80eef36248655d2fa92e895b04f1",
+  "status": "completed",
+  "terminal": {
+    "terminal": true,
+    "success": true,
+    "reason": "goal_contract_satisfied",
+    "satisfied": [
+      "workflow_actions_complete:required",
+      "artifact_verified:reproduction_artifact",
+      "artifact_verified:impact_proof",
+      "artifact_verified:cleanup_proof",
+      "artifact_verified:final_report"
+    ],
+    "missing": []
+  },
+  "scope": "Local source audit of genie-backend and genie; no production verification",
+  "evidence": [
+    {
+      "evidence_id": "evidence-32af49d75f158c8b2d093e40771d7194",
+      "action_id": "build-hypotheses",
+      "artifact_type": "hypothesis_queue",
+      "tool": "builtin:evidence-hypothesis-builder",
+      "content_hash": "a3ad9eb8784f2829126031ccb68fde3192aee61e2e1955737ef29db3ea2c4ce8",
+      "parent_ids": [
+        "evidence-70f04bb61270956b7e3a044fe1ec0d40"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:25:23+00:00"
+    },
+    {
+      "evidence_id": "evidence-70f04bb61270956b7e3a044fe1ec0d40",
+      "action_id": "map-surface",
+      "artifact_type": "surface_map",
+      "tool": "builtin:local-target-inspector",
+      "content_hash": "618c47eea88380ca9a1e03461aec46a27b126649388110ee7762fe30d2991b7c",
+      "parent_ids": [],
+      "verified": true,
+      "created_at": "2026-11-12T16:25:23+00:00"
+    },
+    {
+      "evidence_id": "evidence-6ef088670c8443a36811c89c390eefd2",
+      "action_id": "validate-path",
+      "artifact_type": "reproduction_artifact",
+      "tool": "host-agent:local-jest-and-flutter",
+      "content_hash": "cd2ff6fdd47a955adb6c4aa318564cf6665693611573b296bd40df12dd36f4ee",
+      "parent_ids": [
+        "evidence-32af49d75f158c8b2d093e40771d7194",
+        "evidence-70f04bb61270956b7e3a044fe1ec0d40"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:42:08+00:00"
+    },
+    {
+      "evidence_id": "evidence-25e74249cdb6cae81f9a48bcd2f94648",
+      "action_id": "prove-impact",
+      "artifact_type": "impact_proof",
+      "tool": "host-agent:verified-local-probes",
+      "content_hash": "aff8a1980b23200e9cc1832f295dad1b746d3588d5d9ea2dbed02a74f580e565",
+      "parent_ids": [
+        "evidence-6ef088670c8443a36811c89c390eefd2"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:52:24+00:00"
+    },
+    {
+      "evidence_id": "evidence-ddf55d617ab7e23ca9ee74d8751b0b54",
+      "action_id": "review-coverage",
+      "artifact_type": "coverage_report",
+      "tool": "builtin:evidence-coverage-builder",
+      "content_hash": "d17a268b580f89724763711eced23a8471cd066b372f9fe023f3be96b40828b2",
+      "parent_ids": [
+        "evidence-32af49d75f158c8b2d093e40771d7194",
+        "evidence-70f04bb61270956b7e3a044fe1ec0d40",
+        "evidence-6ef088670c8443a36811c89c390eefd2",
+        "evidence-25e74249cdb6cae81f9a48bcd2f94648"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:52:24+00:00"
+    },
+    {
+      "evidence_id": "evidence-13d57334b4e8a8c2d1d20e93388ab119",
+      "action_id": "cleanup",
+      "artifact_type": "cleanup_proof",
+      "tool": "host-agent:git-snapshot-and-local-validation",
+      "content_hash": "3641cd0a72da4f2b0ebe1071f8573d4bd5a188d856e847a43552523df6a64dcd",
+      "parent_ids": [
+        "evidence-6ef088670c8443a36811c89c390eefd2",
+        "evidence-25e74249cdb6cae81f9a48bcd2f94648",
+        "evidence-ddf55d617ab7e23ca9ee74d8751b0b54"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:53:24+00:00"
+    },
+    {
+      "evidence_id": "evidence-69d02aebeebb3e5e74be5f70d4000b26",
+      "action_id": "report",
+      "artifact_type": "final_report",
+      "tool": "builtin:evidence-report-builder",
+      "content_hash": "2b979b849b6a767d49034236044346a2b10df5bb501cf45dca639d78ee0b54ec",
+      "parent_ids": [
+        "evidence-32af49d75f158c8b2d093e40771d7194",
+        "evidence-70f04bb61270956b7e3a044fe1ec0d40",
+        "evidence-6ef088670c8443a36811c89c390eefd2",
+        "evidence-25e74249cdb6cae81f9a48bcd2f94648",
+        "evidence-ddf55d617ab7e23ca9ee74d8751b0b54",
+        "evidence-13d57334b4e8a8c2d1d20e93388ab119"
+      ],
+      "verified": true,
+      "created_at": "2026-11-12T16:53:24+00:00"
+    }
+  ],
+  "user_deliverables": [
+    "genie-backend/docs/SECURITY_AUDIT_2026-11-12.md",
+    "genie/docs/SECURITY_AUDIT_2026-11-12.md"
+  ],
+  "limitations": "The runtime verifies its local artifact contract. It does not certify cloud settings, live exploitability, or absence of additional vulnerabilities."
+}

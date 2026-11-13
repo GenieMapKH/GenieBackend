@@ -1,0 +1,50 @@
+
+> tilomnov-backend@1.0.0 test:scripts
+> node --test "scripts/test/*.test.js" "scripts/secret-rotation/test/*.test.js"
+
+✔ bootstrap gives both logins a password and switches the service to the first (16.4164ms)
+✔ bootstrap replaces a postgres pooler URL and preserves its tenant and connection settings (8.7206ms)
+✔ bootstrap leaves a service that already rotates alone, unless forced (10.3972ms)
+✔ bootstrap asks for migration 36 when the logins do not exist (0.8424ms)
+✔ dashboard bootstrap initializes a legacy login and waits for deployment before rotation (6.8522ms)
+✔ dashboard bootstrap skips initialized logins without an admin credential or any writes (4.7017ms)
+✔ dashboard bootstrap fails before writes when the admin credential is missing (0.6329ms)
+✔ dashboard bootstrap propagates failed deployment handover (6.4747ms)
+✔ shared rotation keeps the old internal secret as _PREVIOUS and replaces the encryption key (1.5906ms)
+✔ a failed service-folder delivery stops before changing the signing secret (1.8806ms)
+✔ handover waits for every active container, not only the newest deployment (51.215ms)
+✔ redacted snapshots and GraphQL errors cannot approve a handover (2.1061ms)
+✔ stalled shared-secret delivery leaves the signing secret and JWT encryption key intact (1.7021ms)
+✔ switches the service to its other login, with a new password that works (22.9035ms)
+✔ alternates between the two logins (24.7569ms)
+✔ never sends the plain password to the database (9.6672ms)
+✔ stops, changing nothing, while a service still runs on the login it would change (9.8918ms)
+✔ refuses a service that was never switched to its rotating logins (5.3447ms)
+✔ does not switch the service while the new password is not accepted yet, and recovers next run (25.5177ms)
+✔ finishes after a run that changed the password but stopped before saving it (11.0261ms)
+✔ a login is only ever changed by itself (7.5496ms)
+✔ the SCRAM verifier is the one Postgres itself computes (2431.3386ms)
+✔ Infisical: logs in, then reads a secret without expanding references (28.6425ms)
+✔ Infisical: a missing secret reads as null, and setting it creates it (1.9412ms)
+✔ Infisical: other errors are reported with status, never with the value sent (0.9296ms)
+✔ default command applies staging migrations in order and commits (33.5099ms)
+✔ default command preserves an explicitly exported DATABASE_URL (8.4792ms)
+✔ production flag selects only production credentials: 37_subscriptions --prod (10.4008ms)
+✔ production flag selects only production credentials: --prod 37_subscriptions (9.5166ms)
+✔ production never falls back when its admin URL is missing: null (8.5875ms)
+✔ production never falls back when its admin URL is missing:  (7.9694ms)
+✔ production never falls back when its admin URL is missing: PAYMENT_DATABASE_URL=postgresql://localhost/service (8.264ms)
+✔ invalid flags and migration names stop before connecting (25.6967ms)
+✔ a failed production migration rolls back and closes the connection (7.8698ms)
+✔ containers receive only their own credentials, never the complete env file (44.1104ms)
+✔ broker bootstrap is the only operational script sent to Docker (0.9289ms)
+✔ migration CLI forces hostname and CA verification on remote databases without logging credentials (10.7553ms)
+✔ migration CLI keeps the disposable loopback database usable without TLS (1.5645ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2650.1024

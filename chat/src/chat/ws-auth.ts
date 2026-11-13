@@ -14,7 +14,7 @@ export interface SocketUser {
 
 const expiryTimers = new WeakMap<
   Socket,
-  { expiresAt: number; timer: NodeJS.Timeout }
+  { expiresAt: number; timer: NodeJS.Timeout; recheck: NodeJS.Timeout }
 >();
 
 /** Bearer token from the `Authorization` header, or the socket.io `auth.token` field. */
@@ -63,15 +63,29 @@ export async function authenticateSocket(
   const previous = expiryTimers.get(client);
   if (previous?.expiresAt !== expiresAt) {
     clearTimeout(previous?.timer);
+    clearInterval(previous?.recheck);
     const timer = setTimeout(
       () => client.disconnect(true),
       Math.max(0, expiresAt - Date.now()),
     );
     timer.unref();
-    expiryTimers.set(client, { expiresAt, timer });
+    // Pub/sub is best-effort. Recheck idle receivers too after a missed sign-out notification.
+    let checking = false;
+    const recheck = setInterval(() => {
+      if (checking) return;
+      checking = true;
+      void verifySignedToken(token, ACCESS_TOKEN)
+        .catch(() => client.disconnect(true))
+        .finally(() => {
+          checking = false;
+        });
+    }, 5000);
+    recheck.unref();
+    expiryTimers.set(client, { expiresAt, timer, recheck });
     if (!previous)
       client.once('disconnect', () => {
         clearTimeout(expiryTimers.get(client)?.timer);
+        clearInterval(expiryTimers.get(client)?.recheck);
         expiryTimers.delete(client);
       });
   }

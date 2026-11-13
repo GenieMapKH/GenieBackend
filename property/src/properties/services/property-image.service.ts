@@ -4,6 +4,7 @@ import { PropertyPhotoStorage } from '../storage/property-photo-storage';
 import { PropertyQueryService } from './property-query.service';
 import { ListingChanges } from './listing-changes.service';
 import { PropertyThumbnailService } from './property-thumbnail.service';
+import { PropertyUploadReservations } from './property-upload-reservations';
 
 /** The most photos one listing can have. The app stops at the same number. */
 export const MAX_PROPERTY_IMAGES = 30;
@@ -22,6 +23,7 @@ export class PropertyImageService {
     private readonly storage: PropertyPhotoStorage,
     private readonly listingChanges: ListingChanges,
     private readonly thumbnails: PropertyThumbnailService,
+    private readonly reservations: PropertyUploadReservations,
   ) {}
 
   /** One upload URL per name, in the same order, inside this listing's own folder. */
@@ -32,10 +34,11 @@ export class PropertyImageService {
   ) {
     const property = await this.query.findOwned(userId, propertyId);
     this.ensureRoomFor(property.images.length, fileNames.length);
-    return this.storage.createPresignedUrls(
-      uploadFolder(userId, propertyId),
-      fileNames,
+    const paths = fileNames.map((name) =>
+      this.storage.newFileName(uploadFolder(userId, propertyId), name),
     );
+    await this.reservations.reserve(userId, propertyId, paths);
+    return this.storage.signUploadPaths(paths);
   }
 
   /**
@@ -79,6 +82,7 @@ export class PropertyImageService {
         const fresh = added.filter(
           (fileName) => !attachedNow.has(this.storage.getPublicUrl(fileName)),
         );
+        await this.reservations.confirm(tx, userId, propertyId, fresh);
         this.ensureRoomFor(current.images.length, fresh.length);
         const lastOrder = Math.max(
           0,

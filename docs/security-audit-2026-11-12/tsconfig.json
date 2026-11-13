@@ -1,0 +1,11 @@
+{
+  "extends": "../../shared/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "strictPropertyInitialization": false,
+    "typeRoots": [
+      "../../shared/node_modules/@types",
+      "../../node_modules/@types"
+    ]
+  }
+}

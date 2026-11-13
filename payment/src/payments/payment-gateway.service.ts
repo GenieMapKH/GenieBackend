@@ -159,6 +159,8 @@ export class PaymentGatewayService {
         } else if (current.purpose !== 'SUBSCRIPTION') {
           throw new BadRequestException('Unknown payment purpose');
         }
+        // A simulation grants test access, not a real purchase receipt.
+        if (current.provider === 'MOCK') confirmation = undefined;
         if (confirmation && this.email.queued)
           await this.email.send(confirmation, tx);
         return tx.paymentTransaction.update({

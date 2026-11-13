@@ -64,7 +64,12 @@ export class IdentityProofService {
       const token = await this.firebase.verifyIdToken(idToken);
       const ageSeconds = Date.now() / 1000 - token.auth_time;
       return (
-        token.uid === user.firebase_uid && ageSeconds <= MAX_SIGN_IN_AGE_SECONDS
+        token.uid === user.firebase_uid &&
+        token.firebase?.sign_in_provider === 'google.com' &&
+        token.email_verified === true &&
+        Number.isFinite(ageSeconds) &&
+        ageSeconds >= 0 &&
+        ageSeconds <= MAX_SIGN_IN_AGE_SECONDS
       );
     } catch {
       return false;

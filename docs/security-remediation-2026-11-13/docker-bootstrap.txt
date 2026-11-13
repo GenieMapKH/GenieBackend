@@ -1,0 +1,141 @@
+docker : #0 building with "desktop-linux" instance using docker driver
+At line:21 char:1
++ docker build --target broker-bootstrap -t tilomnov-security-broker-bo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (#0 building wit...g docker driver:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 4.19kB 0.0s done
+#1 DONE 0.1s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 ...
+
+#3 [auth] docker/dockerfile:pull token for registry-1.docker.io
+#3 DONE 0.0s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 DONE 2.2s
+
+#4 docker-image://docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+#4 resolve docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e 0.0s 
+done
+#4 CACHED
+
+#5 [internal] load metadata for docker.io/library/node:22-alpine
+#5 ...
+
+#6 [auth] library/node:pull token for registry-1.docker.io
+#6 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/node:22-alpine
+#5 DONE 1.5s
+
+#7 [internal] load .dockerignore
+#7 transferring context: 334B done
+#7 DONE 0.0s
+
+#8 [internal] load build context
+#8 transferring context: 728.33kB 0.1s done
+#8 DONE 0.1s
+
+#9 [shared-builder  1/17] FROM 
+docker.io/library/node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
+#9 resolve docker.io/library/node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a 
+0.0s done
+#9 DONE 0.0s
+
+#10 [shared-builder  2/17] WORKDIR /app
+#10 CACHED
+
+#11 [shared-builder  3/17] COPY package.json package-lock.json ./
+#11 DONE 0.1s
+
+#12 [shared-builder  4/17] COPY shared/package.json shared/
+#12 DONE 0.1s
+
+#13 [shared-builder  5/17] COPY authentication/package.json authentication/
+#13 DONE 0.1s
+
+#14 [shared-builder  6/17] COPY user/package.json user/
+#14 DONE 0.1s
+
+#15 [shared-builder  7/17] COPY property/package.json property/
+#15 DONE 0.1s
+
+#16 [shared-builder  8/17] COPY chat/package.json chat/
+#16 DONE 0.1s
+
+#17 [shared-builder  9/17] COPY payment/package.json payment/
+#17 DONE 0.1s
+
+#18 [shared-builder 10/17] COPY notification/package.json notification/
+#18 DONE 0.1s
+
+#19 [shared-builder 11/17] COPY api-gateway/package.json api-gateway/
+#19 DONE 0.1s
+
+#20 [shared-builder 12/17] RUN npm ci --prefer-offline --no-audit --no-fund     --fetch-retries=5 
+--fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000
+#20 8.371 npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+#20 23.86 npm warn deprecated eslint@9.39.5: This version is no longer supported. Please see 
+https://eslint.org/version-support for other options.
+#20 24.86 npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized 
+security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be 
+purchased (at exorbitant rates) by contacting i@izs.me
+#20 51.97 
+#20 51.97 added 1128 packages in 51s
+#20 51.97 npm notice
+#20 51.97 npm notice New major version of npm available! 10.9.9 -> 12.2.2
+#20 51.97 npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.2
+#20 51.97 npm notice To update run: npm install -g npm@12.2.2
+#20 51.97 npm notice
+#20 DONE 53.4s
+
+#21 [shared-builder 13/17] COPY prisma/schema.prisma ./prisma/schema.prisma
+#21 DONE 0.6s
+
+#22 [shared-builder 14/17] COPY prisma.config.ts ./
+#22 DONE 0.1s
+
+#23 [shared-builder 15/17] RUN npx prisma generate
+#23 1.614 Loaded Prisma config from prisma.config.ts.
+#23 1.614 
+#23 1.778 Prisma schema loaded from prisma/schema.prisma.
+#23 2.520 
+#23 2.520 ✔ Generated Prisma Client (v7.10.1) to ./node_modules/@tilomnov/prisma-client in 522ms
+#23 2.520 
+#23 2.520 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#23 2.520 
+#23 2.520 
+#23 DONE 2.6s
+
+#24 [shared-builder 16/17] COPY shared ./shared
+#24 DONE 0.1s
+
+#25 [shared-builder 17/17] RUN npm run build --workspace=shared
+#25 0.469 
+#25 0.469 > @tilomnov/shared@0.0.1 build
+#25 0.469 > tsc -p tsconfig.build.json
+#25 0.469 
+#25 DONE 9.5s
+
+#26 [broker-bootstrap 1/1] COPY scripts/security/provision-rabbitmq.cjs ./scripts/security/
+#26 DONE 0.1s
+
+#27 exporting to image
+#27 exporting layers
+#27 exporting layers 44.3s done
+#27 exporting manifest sha256:cb59129991eb9bde61b10065f055b218dbe4d4db5c54c066d01533313abdeb30 0.0s done
+#27 exporting config sha256:9accbe553b8bd82c603c843d389fa775e1cd1ee3cd6af77d807334b650bf1068 0.0s done
+#27 exporting attestation manifest sha256:2c52c1eb4d046fff1471197cc03d9327e5b9891ddfd4a6086e09a664d91fa95f 0.0s done
+#27 exporting manifest list sha256:08242e10e1bd262205668b167e48ca5029d59f966a3898df2cf30f20d2f2642f
+#27 exporting manifest list sha256:08242e10e1bd262205668b167e48ca5029d59f966a3898df2cf30f20d2f2642f 0.0s done
+#27 naming to docker.io/library/tilomnov-security-broker-bootstrap:local done
+#27 unpacking to docker.io/library/tilomnov-security-broker-bootstrap:local
+#27 unpacking to docker.io/library/tilomnov-security-broker-bootstrap:local 24.6s done
+#27 DONE 69.1s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/5n66j7n82xjgl0md8pymvny28

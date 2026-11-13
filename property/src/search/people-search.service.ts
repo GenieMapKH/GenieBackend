@@ -45,8 +45,12 @@ const PUBLISHER_SELECT = {
 const PROFILE_SELECT = {
   ...PUBLISHER_SELECT,
   role: true,
-  email: true,
-  phone: true,
+  properties: {
+    where: { status: 'Active', contactPhone: { not: null } },
+    select: { contactPhone: true },
+    orderBy: { publishedAt: 'desc' },
+    take: 1,
+  },
 } as const;
 
 type PublisherRow = {
@@ -120,8 +124,8 @@ export class PeopleSearchService {
     return {
       ...summary,
       isAdmin: row.role === 'admin',
-      email: publishes ? row.email : null,
-      phone: publishes ? row.phone : null,
+      email: null,
+      phone: publishes ? (row.properties[0]?.contactPhone ?? null) : null,
     };
   }
 }

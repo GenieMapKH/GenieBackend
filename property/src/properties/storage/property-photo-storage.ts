@@ -44,6 +44,7 @@ export class PropertyPhotoStorage implements OnModuleInit {
       });
     } catch (error) {
       this.logger.error('Error initializing Supabase storage buckets', error);
+      throw new Error('Property storage limits could not be verified');
     }
   }
 
@@ -105,12 +106,23 @@ export class PropertyPhotoStorage implements OnModuleInit {
     folder: string,
     fileNames: string[],
   ): Promise<{ fileName: string; signedUrl: string }[]> {
+    return this.signUploadPaths(
+      fileNames.map((name) => this.newFileName(folder, name)),
+    );
+  }
+
+  newFileName(folder: string, originalName: string): string {
+    const readable = originalName
+      .replace(/[^a-zA-Z0-9.-]/g, '_')
+      .slice(-MAX_NAME_PART);
+    return `${folder}/${randomUUID()}-${readable || 'image'}`;
+  }
+
+  signUploadPaths(
+    fileNames: string[],
+  ): Promise<{ fileName: string; signedUrl: string }[]> {
     return Promise.all(
-      fileNames.map(async (originalName) => {
-        const readable = originalName
-          .replace(/[^a-zA-Z0-9.-]/g, '_')
-          .slice(-MAX_NAME_PART);
-        const fileName = `${folder}/${randomUUID()}-${readable || 'image'}`;
+      fileNames.map(async (fileName) => {
         const signedUrl = await this.storage.createSignedUploadUrl(
           BUCKET,
           fileName,

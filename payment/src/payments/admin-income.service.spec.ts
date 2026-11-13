@@ -49,6 +49,9 @@ describe('admin income', () => {
       subscriptionUsd: 5.9,
       listingUsd: 1,
     });
+    expect(prisma.$queryRaw.mock.calls[0][0].join('?')).toContain(
+      "provider <> 'MOCK'",
+    );
     const [sql, since, end] = prisma.$queryRaw.mock.calls[0];
     expect(sql.join('?')).toContain("status = 'Success' AND currency = 'USD'");
     expect(sql.join('?')).toContain(

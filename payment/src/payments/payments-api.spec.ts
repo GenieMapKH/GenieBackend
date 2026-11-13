@@ -20,7 +20,7 @@ describe('payment API trust boundaries', () => {
   const bob = randomUUID();
   const keys = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const token = jwt.sign(
-    { sub: alice, typ: 'access', role: 'user' },
+    { sub: alice, sid: 'test-session', typ: 'access', role: 'user' },
     keys.privateKey,
     { algorithm: 'RS256', keyid: 'payment-test', expiresIn: 60 },
   );
@@ -49,7 +49,9 @@ describe('payment API trust boundaries', () => {
       }),
     );
     await authKeySet().refresh();
-    fetchKeys.mockRestore();
+    fetchKeys.mockImplementation(
+      async () => new Response(null, { status: 204 }),
+    );
     const module = await Test.createTestingModule({
       controllers: [
         PaymentsController,
@@ -74,7 +76,10 @@ describe('payment API trust boundaries', () => {
     await app.init();
   });
   beforeEach(() => jest.clearAllMocks());
-  afterAll(async () => app?.close());
+  afterAll(async () => {
+    await app?.close();
+    jest.restoreAllMocks();
+  });
 
   it('rejects guests and forged access tokens', async () => {
     await request(app.getHttpServer())

@@ -10,13 +10,11 @@ export const OWNER_CARD_SELECT = {
 } as const;
 
 /**
- * Who posted a listing, on the listing itself: the card plus the phone to
- * call. Never the account email, which the owner never chose to publish, and
- * never the password hash.
+ * Who posted a listing, without recovery contacts. Only the listing's own
+ * explicitly published contact fields may be revealed.
  */
 export const OWNER_SUMMARY_SELECT = {
   ...OWNER_CARD_SELECT,
-  phone: true,
 } as const;
 
 /**

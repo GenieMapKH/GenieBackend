@@ -1,0 +1,21 @@
+[Nest] 1412  - 13/11/2026, 13:29:02    WARN [OrderEmailClient] Order email for tx-1 was not sent: unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder alice will retry: outbox unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder listing-payment will retry: outbox unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder alice will retry: notification unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder listing-payment will retry: notification unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder user-0 will retry: first user unavailable
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder alice will retry: Reminder delivery failed
+[Nest] 1412  - 10/11/2026, 07:00:00    WARN [ExpiryRemindersService] Reminder listing-payment will retry: Reminder delivery failed
+
+[Nest] 1412  - 16/11/2026, 07:00:00   ERROR [PaymentGatewayService] Refund required for deleted payment target tx-1
+[Nest] 1412  - 16/11/2026, 07:00:00   ERROR [PaymentGatewayService] Refund required for deleted payment target tx-1
+[Nest] 1412  - 16/11/2026, 07:00:00   ERROR [PaymentGatewayService] Refund required for expired subscription upgrade tx-1
+[Nest] 1412  - 16/11/2026, 07:00:00   ERROR [PaymentGatewayService] Refund required for expired subscription upgrade tx-1
+[Nest] 1412  - 13/11/2026, 13:29:02   ERROR [PaymentCheckoutService] Listing 33333333-3333-4333-8333-333333333333 stayed Pending after a failed checkout: property down
+
+Test Suites: 13 passed, 13 total
+Tests:       109 passed, 109 total
+Snapshots:   0 total
+Time:        6.551 s, estimated 23 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\payment-tests.json

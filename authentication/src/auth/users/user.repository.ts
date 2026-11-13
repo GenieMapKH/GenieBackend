@@ -74,8 +74,11 @@ export class UserRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  findById(id: string): Promise<UserRecord | null> {
-    return this.findOne({ id });
+  findById(
+    id: string,
+    tx?: Prisma.TransactionClient,
+  ): Promise<UserRecord | null> {
+    return this.findOne({ id }, tx);
   }
 
   /**
@@ -150,6 +153,33 @@ export class UserRepository {
     }
   }
 
+  /** The condition is in the write: concurrent first-password requests cannot replace a password. */
+  async createInitialPassword(
+    id: string,
+    firebaseUid: string,
+    passwordHash: string,
+  ): Promise<void> {
+    const { count } = await databaseCall(
+      this.logger,
+      'Failed to create password',
+      () =>
+        this.prisma.user.updateMany({
+          where: {
+            id,
+            firebaseUid,
+            hasPassword: false,
+            bannedAt: null,
+            deactivatedAt: null,
+          },
+          data: { passwordHash, hasPassword: true },
+        }),
+    );
+    if (count !== 1)
+      throw new ConflictException(
+        'Use change password or password reset for an existing password',
+      );
+  }
+
   /**
    * Removes the account for good. The database deletes everything that belongs
    * to it with the row: sessions, listings, favourites, chat messages and keys.
@@ -191,9 +221,10 @@ export class UserRepository {
 
   private async findOne(
     where: Prisma.UserWhereInput,
+    tx: Prisma.TransactionClient = this.prisma,
   ): Promise<UserRecord | null> {
     const row = await databaseCall(this.logger, 'Failed to look up user', () =>
-      this.prisma.user.findFirst({ where, select: USER_COLUMNS }),
+      tx.user.findFirst({ where, select: USER_COLUMNS }),
     );
     return row ? toUserRecord(row) : null;
   }

@@ -27,6 +27,8 @@ async function run(args, { production = `DATABASE_URL=${productionUrl}`, inherit
     await vm.runInNewContext(script, {
       __dirname: path.join(root, 'scripts'),
       require(name) {
+        if (name === '../shared/dist/prisma/database-connection-options')
+          return require('../../shared/dist/prisma/database-connection-options');
         if (name !== 'pg') return require(name);
         return {
           Client: class {

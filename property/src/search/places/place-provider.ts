@@ -16,6 +16,14 @@ export interface PlaceArea {
   address: string | null;
   center: { lat: number; lng: number };
   viewport: MapBounds;
+  /** Real mapped rings in GeoJSON longitude/latitude order, never a viewport box. */
+  boundary?: PlaceBoundary;
+}
+
+export interface PlaceBoundary {
+  type: 'MultiPolygon';
+  /** Polygons, each with an outer ring followed by any holes. */
+  coordinates: number[][][][];
 }
 
 export interface PlaceLookupOptions {

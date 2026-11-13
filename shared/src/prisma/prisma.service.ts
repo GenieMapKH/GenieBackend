@@ -8,6 +8,7 @@ import { PrismaClient } from '@tilomnov/prisma-client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { poolOptions } from './pool-options';
+import { databaseConnectionOptions } from './database-connection-options';
 
 @Injectable()
 export class PrismaService
@@ -26,7 +27,12 @@ export class PrismaService
     // database's connection limit.
     const options = poolOptions();
     super({
-      adapter: new PrismaPg(new Pool({ connectionString, ...options })),
+      adapter: new PrismaPg(
+        new Pool({
+          ...databaseConnectionOptions(connectionString),
+          ...options,
+        }),
+      ),
     });
     this.keepsConnectionsOpen = options.min > 0;
   }

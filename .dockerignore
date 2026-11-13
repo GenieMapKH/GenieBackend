@@ -17,5 +17,8 @@ dist
 .vscode
 qa
 docs
-scripts
+scripts/*
+!scripts/security
+scripts/security/*
+!scripts/security/provision-rabbitmq.cjs
 railway

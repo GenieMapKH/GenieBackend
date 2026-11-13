@@ -9,6 +9,8 @@ import { ServiceName } from '../internal/service-token';
 import { SERVICES, ServiceMessage } from './message-contracts';
 
 export const MESSAGE_EXCHANGE = 'tilomnov.commands.v1';
+export const sourceExchange = (source: ServiceName) =>
+  `${MESSAGE_EXCHANGE}.${source}`;
 export const RETRY_DELAYS_MS = [5000, 30000, 120000];
 export const queueName = (service: ServiceName) => `tilomnov.${service}.v1`;
 export const deadQueueName = (service: ServiceName) =>
@@ -19,7 +21,10 @@ export const retryQueueName = (service: ServiceName, attempt: number) =>
 export async function setupMessageTopology(
   channel: ConfirmChannel,
 ): Promise<void> {
-  await channel.assertExchange(MESSAGE_EXCHANGE, 'direct', { durable: true });
+  for (const source of SERVICES)
+    await channel.assertExchange(sourceExchange(source), 'direct', {
+      durable: true,
+    });
   for (const service of SERVICES) {
     const queue = queueName(service);
     await channel.assertQueue(deadQueueName(service), {
@@ -37,7 +42,8 @@ export async function setupMessageTopology(
         'x-overflow': 'reject-publish',
       },
     });
-    await channel.bindQueue(queue, MESSAGE_EXCHANGE, service);
+    for (const source of SERVICES)
+      await channel.bindQueue(queue, sourceExchange(source), service);
     for (let index = 0; index < RETRY_DELAYS_MS.length; index++) {
       await channel.assertQueue(retryQueueName(service, index), {
         durable: true,
@@ -65,6 +71,7 @@ export class RabbitTransport {
     url: string,
     setupConsumer: (channel: ConfirmChannel) => Promise<void>,
     onError: () => void,
+    managedTopology = false,
   ) {
     this.connection = connect([url], {
       heartbeatIntervalInSeconds: 10,
@@ -90,7 +97,7 @@ export class RabbitTransport {
           if (typeof id === 'string' && this.returned.has(id))
             this.returned.set(id, true);
         });
-        await setupMessageTopology(channel);
+        if (!managedTopology) await setupMessageTopology(channel);
         await setupConsumer(channel);
       },
     });
@@ -99,7 +106,7 @@ export class RabbitTransport {
 
   publish(message: ServiceMessage): Promise<void> {
     return this.send(
-      MESSAGE_EXCHANGE,
+      sourceExchange(message.source),
       message.destination,
       Buffer.from(JSON.stringify(message)),
       { messageId: message.id },

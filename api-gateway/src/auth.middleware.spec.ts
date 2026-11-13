@@ -36,7 +36,7 @@ describe('AuthMiddleware', () => {
     key: KeyObject = privateKey,
     claims: object = { typ: 'access' },
   ) =>
-    jwt.sign({ sub: 'user-1', ...claims }, key, {
+    jwt.sign({ sub: 'user-1', sid: 'test-session', ...claims }, key, {
       algorithm: 'RS256',
       expiresIn: '5m',
       keyid: keys.kid,

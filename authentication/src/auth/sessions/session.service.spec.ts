@@ -39,6 +39,7 @@ describe('SessionService', () => {
   const jwt = { verifyRefreshToken: jest.fn() };
   const refreshTokens = {
     findById: jest.fn(),
+    withUserLock: jest.fn(),
     revokeIfActive: jest.fn(),
     revokeById: jest.fn(),
     revokeAllForUser: jest.fn(),
@@ -54,6 +55,9 @@ describe('SessionService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    refreshTokens.withUserLock.mockImplementation((_id, work) =>
+      work(undefined),
+    );
     refreshTokens.revokeAllForUser.mockResolvedValue([]);
     service = new SessionService(
       jwt as never,
@@ -96,13 +100,17 @@ describe('SessionService', () => {
 
       const result = await service.refresh(REFRESH_TOKEN, CLIENT);
 
-      expect(refreshTokens.revokeIfActive).toHaveBeenCalledWith('t1');
+      expect(refreshTokens.revokeIfActive).toHaveBeenCalledWith(
+        't1',
+        undefined,
+      );
       expect(issuer.issue).toHaveBeenCalledWith(
         'u1',
         'agent',
         CLIENT,
         used,
         false,
+        undefined,
       );
       expect(result).toEqual({ accessToken: 'new-a', refreshToken: 'new-r' });
     });
@@ -129,6 +137,7 @@ describe('SessionService', () => {
         CLIENT,
         used,
         true,
+        undefined,
       );
     });
 

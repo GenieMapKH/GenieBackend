@@ -4,6 +4,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { KeyObject } from 'crypto';
 import { authKeySet } from './auth-key-set';
 import { tokenKeyId } from './signed-token';
+import { requireActiveSession } from './active-session';
 
 interface AccessTokenPayload {
   sub: string;
@@ -28,6 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
+      passReqToCallback: true,
       // The key named by the token's `kid`, from the authentication service's JWKS.
       secretOrKeyProvider: (
         _request: unknown,
@@ -45,11 +47,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: AccessTokenPayload): AuthenticatedUser {
+  async validate(
+    request: { headers: { authorization?: string } },
+    payload: AccessTokenPayload,
+  ): Promise<AuthenticatedUser> {
     // Refresh tokens are signed with the same key and must not open the API.
     if (payload.typ !== 'access') {
       throw new UnauthorizedException('Not an access token');
     }
+    if (!payload.sid || !payload.sub)
+      throw new UnauthorizedException('Sign in again');
+    if (payload.role === 'admin' && payload.adminMfa !== true)
+      throw new UnauthorizedException(
+        'Administrator email verification required',
+      );
+    const token = request.headers.authorization?.match(/^Bearer +(\S+)$/i)?.[1];
+    if (!token) throw new UnauthorizedException('Sign-in required');
+    await requireActiveSession(token);
     return {
       userId: payload.sub,
       role: payload.role,

@@ -4,6 +4,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 import { poolOptions } from './pool-options';
 import { PrismaService } from './prisma.service';
+import { databaseConnectionOptions } from './database-connection-options';
 
 /**
  * The client for reads that may be a moment old: what every visitor sees
@@ -25,7 +26,12 @@ class ReplicaPrismaClient
 
   constructor(connectionString: string) {
     super({
-      adapter: new PrismaPg(new Pool({ connectionString, ...poolOptions() })),
+      adapter: new PrismaPg(
+        new Pool({
+          ...databaseConnectionOptions(connectionString),
+          ...poolOptions(),
+        }),
+      ),
     });
   }
 

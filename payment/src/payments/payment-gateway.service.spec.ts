@@ -48,6 +48,7 @@ describe('provider-independent payment settlement', () => {
   let row = { ...initial };
   beforeEach(() => {
     jest.clearAllMocks();
+    provider.name = 'BANK';
     delete (email as { queued?: boolean }).queued;
     jest.useFakeTimers().setSystemTime(now);
     row = { ...initial };
@@ -84,6 +85,16 @@ describe('provider-independent payment settlement', () => {
     expect(email.send).toHaveBeenCalledTimes(1);
     await gateway.reconcile('tx-1');
     expect(email.send).toHaveBeenCalledTimes(1);
+  });
+
+  it('labels mock settlement as simulation and never sends a real receipt', async () => {
+    provider.name = 'MOCK';
+    row.provider = 'MOCK';
+    await expect(gateway.reconcile('tx-1')).resolves.toMatchObject({
+      status: 'Success',
+      isSimulation: true,
+    });
+    expect(email.send).not.toHaveBeenCalled();
   });
 
   it('keeps payment settlement retryable if its outbox write fails', async () => {

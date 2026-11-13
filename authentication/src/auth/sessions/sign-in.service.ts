@@ -53,12 +53,37 @@ export class SignInService {
 
     const alreadySignedInElsewhere =
       (await this.refreshTokens.listSessionTokens(user.id)).length > 0;
-    const { sessionId, ...tokens } = await this.tokens.issue(
+    const { sessionId, ...tokens } = await this.refreshTokens.withUserLock(
       user.id,
-      user.role,
-      client,
-      undefined,
-      adminEmailVerified,
+      async (tx) => {
+        const current = await tx.user.findUnique({
+          where: { id: user.id },
+          select: {
+            role: true,
+            passwordHash: true,
+            bannedAt: true,
+            deactivatedAt: true,
+          },
+        });
+        if (
+          !current ||
+          current.bannedAt ||
+          current.deactivatedAt ||
+          current.role !== user.role ||
+          current.passwordHash !== user.password_hash
+        )
+          throw new UnauthorizedException(
+            'Account changed. Please sign in again.',
+          );
+        return this.tokens.issue(
+          user.id,
+          current.role,
+          client,
+          undefined,
+          adminEmailVerified,
+          tx,
+        );
+      },
     );
     if (alreadySignedInElsewhere)
       await this.alertOwner(user, client, sessionId);

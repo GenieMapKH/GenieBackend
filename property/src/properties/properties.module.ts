@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PropertyUploadReservations } from './services/property-upload-reservations';
 import { SupabaseModule } from '@tilomnov/shared';
 import { InternalAccountsController } from './internal/internal-accounts.controller';
 import { InternalAdminPropertiesController } from './internal/internal-admin-properties.controller';
@@ -53,6 +54,7 @@ import { AdminListingRecordsService } from './services/admin-listing-records.ser
     InternalAdminDashboardController,
   ],
   providers: [
+    PropertyUploadReservations,
     AdminPropertiesService,
     AdminListingRecordsService,
     ExpiredPublishingService,

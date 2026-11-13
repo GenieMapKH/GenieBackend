@@ -1,0 +1,75 @@
+[Nest] 25328  - 13/11/2026, 12:25:57    WARN [OptionalJwtAuthGuard] Token rejected: This device was signed out
+node : FAIL shared/src/messaging/message-bus.spec.ts
+At line:8 char:35
++ ... ace=shared; node node_modules/jest/bin/jest.js --config shared/packag ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (FAIL shared/src...age-bus.spec.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  ● Test suite failed to run
+
+    [96mshared/src/messaging/message-bus.spec.ts[0m:[93m20[0m:[93m13[0m - [91merror[0m[90m TS2564: 
+[0mProperty 'userId' has no initializer and is not definitely assigned in the constructor.
+
+    [7m20[0m   @IsUUID() userId: string;
+    [7m  [0m [91m            ~~~~~~[0m
+
+FAIL shared/src/observability/sentry-logger.spec.ts
+  ● Sentry application logs › preserves stdout and sends message text, without serializing request objects
+
+    TypeError: Cannot redefine property: getClient
+        at Object.defineProperty (<anonymous>)
+
+      30 |       )
+      31 |       .mockImplementation(() => undefined);
+    > 32 |     jest.spyOn(Sentry, 'getClient').mockReturnValue({
+         |          ^
+      33 |       getOptions: () => ({ enableLogs: true }),
+      34 |     } as unknown as ReturnType<typeof Sentry.getClient>);
+      35 |     const info = jest
+
+      at ModuleMocker.spyOn (../../node_modules/jest-mock/build/index.js:725:16)
+      at Object.<anonymous> (observability/sentry-logger.spec.ts:32:10)
+
+  ● Sentry application logs › does not send logs when collection is disabled
+
+    TypeError: Cannot redefine property: getClient
+        at Object.defineProperty (<anonymous>)
+
+      55 |       )
+      56 |       .mockImplementation(() => undefined);
+    > 57 |     jest.spyOn(Sentry, 'getClient').mockReturnValue(undefined);
+         |          ^
+      58 |     const info = jest.spyOn(Sentry.logger, 'info');
+      59 |     new SentryLogger().log('local only');
+      60 |     expect(info).not.toHaveBeenCalled();
+
+      at ModuleMocker.spyOn (../../node_modules/jest-mock/build/index.js:725:16)
+      at Object.<anonymous> (observability/sentry-logger.spec.ts:57:10)
+
+FAIL shared/src/observability/sentry.spec.ts
+  ● initSentry › starts nothing without a DSN
+
+    TypeError: Cannot redefine property: init
+        at Object.defineProperty (<anonymous>)
+
+       9 |
+      10 |   it('starts nothing without a DSN', () => {
+    > 11 |     const init = jest.spyOn(Sentry, 'init');
+         |                       ^
+      12 |     delete process.env.SENTRY_DSN;
+      13 |
+      14 |     expect(initSentry('property')).toBe(false);
+
+      at ModuleMocker.spyOn (../../node_modules/jest-mock/build/index.js:725:16)
+      at Object.<anonymous> (observability/sentry.spec.ts:11:23)
+
+[Nest] 25328  - 13/11/2026, 12:25:59     LOG [SupabaseService] Bucket avatars not found, creating it...
+[Nest] 25328  - 13/11/2026, 12:25:59     LOG [SupabaseService] Bucket avatars created successfully.
+[Nest] 25328  - 13/11/2026, 12:25:59     LOG [SupabaseService] Bucket avatars already exists; limits applied.
+
+Test Suites: 3 failed, 11 passed, 14 total
+Tests:       3 failed, 103 passed, 106 total
+Snapshots:   0 total
+Time:        7.12 s
+Ran all test suites.

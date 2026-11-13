@@ -1,0 +1,217 @@
+
+> chat@0.0.1 test
+> jest --runInBand --json --outputFile=../docs/security-remediation-2026-11-13/chat-tests.json
+
+node.exe : ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\index.js). To fix this:
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ts-jest[ts-comp...). To fix this::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\prisma\prisma.module.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\prisma\prisma.service.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\prisma\database-connection-options.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\prisma\supabase-ca.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\prisma\read-prisma.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\supabase\supabase.module.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\supabase\upload-budgets.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\auth\admin.guard.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\auth\signed-token.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\auth\active-session.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\auth\current-user-id.decorator.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\auth\jwt.strategy.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\messaging\message-bus.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\messaging\rabbit-transport.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\messaging\expiry-reminder.dto.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\messaging\messaging.module.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+[Nest] 2660  - 13/11/2026, 13:29:28   ERROR [ChatAttachmentService] Could not prepare the chat-attachments bucket: 
+storage down
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\testing.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-compiler] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: 
+C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\shared\dist\testing\fake-auth-keys.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually 
+tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which 
+value is `ts-jest` so that it does not match `.js` files anymore
+[Nest] 2660  - 13/11/2026, 13:29:28    WARN [ChatGateway] Connection rejected: This device was signed out
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket socket-11111111-1111-4111-8111-111111111111)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket tablet)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket tablet)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Disconnected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Disconnected: user 11111111-1111-4111-8111-111111111111 (socket phone)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Disconnected: user 11111111-1111-4111-8111-111111111111 (socket socket-11111111-1111-4111-8111-111111111111)
+[Nest] 2660  - 13/11/2026, 13:29:28   ERROR [ChatGateway] Failed to record last seen: connection lost
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 22222222-2222-4222-8222-222222222222 (socket socket-22222222-2222-4222-8222-222222222222)
+[Nest] 2660  - 13/11/2026, 13:29:28     LOG [ChatGateway] Connected: user 22222222-2222-4222-8222-222222222222 (socket socket-22222222-2222-4222-8222-222222222222)
+[Nest] 2660  - 13/11/2026, 13:29:28   ERROR [ChatGateway] Failed to read last seen: column does not exist
+[Nest] 2660  - 13/11/2026, 13:29:28   ERROR [ChatGateway] Failed to send message: password authentication failed for 
+user "postgres"
+[Nest] 2660  - 13/11/2026, 13:29:29    WARN [BlockChecker] Could not check blocks between 11111111-1111-4111-8111-111111111111 and 22222222-2222-4222-8222-222222222222: the user service is unreachable: connect ECONNREFUSED
+[Nest] 2660  - 13/11/2026, 13:29:29    WARN [BlockChecker] Could not check blocks between 11111111-1111-4111-8111-111111111111 and 22222222-2222-4222-8222-222222222222: boom
+[Nest] 2660  - 13/11/2026, 13:29:30   ERROR [MessageActionsService] Could not delete the file of a deleted message
+[Nest] 2660  - 13/11/2026, 13:29:30   ERROR [MessageActionsService] Error: storage down
+    at Object.<anonymous> 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\chat\src\chat\message-actions.service.spec.ts:167:48)
+    at Promise.finally.completed 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1834:28)
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1774:10)
+    at _callCircusTest 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1167:40)
+    at _runTestInContext 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1103:3)
+    at runTestWithContext 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:996:5)
+    at _runTestsForDescribeBlockOnce 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1008:11)
+    at _runTestsForDescribeBlock 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:824:5)
+    at run (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:789:3)
+    at runAndTransformResultsToJestFormat 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:2300:21)
+    at jestAdapter (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\runner.js:111:19)
+    at runTestInternal 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-runner\build\index.js:247:16)
+    at runTest (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-runner\build\index.js:315:7)
+[Nest] 2660  - 13/11/2026, 13:29:30   ERROR [ConversationStateService] Could not delete the files of a deleted 
+conversation
+[Nest] 2660  - 13/11/2026, 13:29:30   ERROR [ConversationStateService] Error: storage down
+    at Object.<anonymous> 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\chat\src\chat\conversation-state.service.spec.ts:95:7)
+    at Promise.finally.completed 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1834:28)
+    at new Promise (<anonymous>)
+    at callAsyncCircusFn 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1774:10)
+    at _callCircusTest 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1167:40)
+    at _runTestInContext 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1103:3)
+    at runTestWithContext 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:996:5)
+    at _runTestsForDescribeBlockOnce 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1008:11)
+    at _runTestsForDescribeBlock 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:824:5)
+    at _runTestsForDescribeBlockOnce 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:1003:11)
+    at _runTestsForDescribeBlock 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:824:5)
+    at run (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:789:3)
+    at runAndTransformResultsToJestFormat 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\jestAdapterInit.js:2300:21)
+    at jestAdapter (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-circus\build\runner.js:111:19)
+    at runTestInternal 
+(C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-runner\build\index.js:247:16)
+    at runTest (C:\Users\SengPooPoo\Desktop\Tilomnov\genie-backend\node_modules\jest-runner\build\index.js:315:7)
+
+Test Suites: 15 passed, 15 total
+Tests:       154 passed, 154 total
+Snapshots:   0 total
+Time:        7.872 s, estimated 9 s
+Ran all test suites.
+Test results written to: ..\docs\security-remediation-2026-11-13\chat-tests.json

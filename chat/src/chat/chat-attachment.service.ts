@@ -7,7 +7,11 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { PrismaService, SupabaseService } from '@tilomnov/shared';
+import {
+  PrismaService,
+  SupabaseService,
+  UploadBudgets,
+} from '@tilomnov/shared';
 
 /** Private bucket: nothing in it is readable without a signed URL from this service. */
 const BUCKET = 'chat-attachments';
@@ -39,6 +43,7 @@ export class ChatAttachmentService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: SupabaseService,
+    private readonly budgets: UploadBudgets,
   ) {}
 
   async onModuleInit() {
@@ -51,6 +56,7 @@ export class ChatAttachmentService implements OnModuleInit {
       this.logger.error(
         `Could not prepare the ${BUCKET} bucket: ${(error as Error).message}`,
       );
+      throw new Error('Chat storage privacy and limits could not be verified');
     }
   }
 
@@ -68,6 +74,7 @@ export class ChatAttachmentService implements OnModuleInit {
     }
 
     const location = { senderId, recipientId, fileId: randomUUID() };
+    await this.budgets.take(senderId, 'attachment');
     return {
       path: this.pathOf(location),
       uploadUrl: await this.storage.createSignedUploadUrl(

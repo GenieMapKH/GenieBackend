@@ -1,0 +1,38 @@
+node : [Nest] 8572  - 13/11/2026, 12:10:17   ERROR [UserContentClient] Files of u1 were not erased: the user service 
+answered 500
+At line:19 char:1
++ node node_modules/jest/bin/jest.js --config authentication/package.js ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([Nest] 8572  - ...ce answered 500:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+[Nest] 8572  - 13/11/2026, 12:10:17   ERROR [UserContentClient] Files of u1 were not erased: ECONNREFUSED
+[Nest] 8572  - 13/11/2026, 12:10:17    WARN [UserContentClient] Caches of u1 were not cleared: ECONNREFUSED
+[Nest] 8572  - 13/11/2026, 12:10:19   ERROR [PasswordResetService] Failed to issue OTP: smtp down
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Created signing key 42b0d30e-76eb-4056-8dc6-82351101d525 (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Created signing key b5b9bb74-bad3-4c1d-9f67-bc3acbae2439 (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Created signing key 1ea22057-420f-4ccf-be32-0fd3a45209f6 (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Created signing key bd5aab73-ba59-4923-92bf-ddb2e36b013b (signs in 1 hour)
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:19     LOG [SigningKeyRotationService] Created signing key 5751899d-7f2a-43bc-a1ce-12df5444371b (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Created signing key 20acadfc-9f85-4c4f-a65e-a051f98b6327 (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:20    WARN [SigningKeyRotationService] Signing key 20acadfc-9f85-4c4f-a65e-a051f98b6327 cannot be decrypted with this JWT_KEY_ENCRYPTION_KEY; it only verifies
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Created signing key d04a98ba-a5fc-43a6-95ab-06ec85330ac1 (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Imported JWT_PUBLIC_KEY to verify tokens from before rotation
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Created signing key 2b77294e-9fd0-4437-a361-96d85867145b (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:20     LOG [SigningKeyRotationService] Created signing key f8fae3ff-d63f-45c2-9a34-551d29ce5c1d (signing now)
+[Nest] 8572  - 13/11/2026, 12:10:23    WARN [SignInService] Sign-in alert not sent: provider down
+[Nest] 8572  - 13/11/2026, 12:10:23   ERROR [RevokedSessionStore] Session s1 could not be cut off at once: Redis is 
+down
+[Nest] 8572  - 13/11/2026, 12:10:23   ERROR [UserRepository] Failed to create user: Unique constraint failed
+[Nest] 8572  - 13/11/2026, 12:10:23   ERROR [UserRepository] Failed to create user: connection lost
+
+Test Suites: 21 passed, 21 total
+Tests:       256 passed, 256 total
+Snapshots:   0 total
+Time:        9.93 s, estimated 10 s
+Ran all test suites.
