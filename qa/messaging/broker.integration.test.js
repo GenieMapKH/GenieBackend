@@ -25,6 +25,7 @@ const {
 } = require("../../notification/dist/notifications/delivery/push-delivery.service");
 const {
   RabbitTransport,
+  sourceExchange,
   queueName,
   deadQueueName,
   retryQueueName,
@@ -465,7 +466,7 @@ test("expired messages never trigger a delayed notification", async () => {
 test("mandatory publishing rejects unroutable work instead of treating a broker confirm as delivery", async () => {
   await assert.rejects(
     transport.send(
-      "tilomnov.commands.v1",
+      sourceExchange("chat"),
       "missing-consumer",
       Buffer.from("{}"),
       { messageId: randomUUID() },

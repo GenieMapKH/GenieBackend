@@ -47,3 +47,73 @@ test('stalled shared-secret delivery leaves the signing secret and JWT encryptio
   assert.equal(secrets.value('/authentication', 'JWT_KEY_ENCRYPTION_KEY'), 'existing-encryption-key');
   assert.equal(secrets.value('/rotation', 'SHARED_ROTATED_AT'), null);
 });
+
+function recoveryFixture() {
+  const shared = 'working'.repeat(6);
+  const handover = new RailwayHandover({ token: 't', projectId: 'p', environmentId: 'prod',
+    serviceIds: Object.fromEntries(SERVICES.map((s) => [s, s])) });
+  const live = Object.fromEntries(SERVICES.map((s) => [s, {
+    DATABASE_URL: `postgres://live-${s}`, INTERNAL_SERVICE_SECRET: shared,
+    ...(s === 'authentication' ? { JWT_KEY_ENCRYPTION_KEY: 'live-encryption-key' } : {}),
+  }]));
+  handover.request = async (query, variables) => query.includes('serviceInstance(')
+    ? { serviceInstance: { latestDeployment: { id: variables.serviceId, status: 'SUCCESS' },
+      activeDeployments: [{ id: variables.serviceId, status: 'SUCCESS', projectId: 'p' }] } }
+    : { deploymentSnapshot: { variables: live[variables.id], variablesRedacted: false } };
+  const secrets = new FakeSecrets({ '/:INTERNAL_SERVICE_SECRET': 'unrelated-store-value' });
+  return { handover, secrets, live, shared };
+}
+
+test('bootstrap reconciles drift to verified live credentials and is idempotent', async () => {
+  const { handover, secrets, live, shared } = recoveryFixture();
+  await handover.reconcile(secrets);
+  assert.equal(secrets.value('/', 'INTERNAL_SERVICE_SECRET'), shared);
+  for (const service of SERVICES) {
+    for (const [key, value] of Object.entries(live[service])) assert.equal(secrets.value(`/${service}`, key), value);
+  }
+  await handover.preflight(secrets);
+  secrets.writes.length = 0;
+  await handover.reconcile(secrets);
+  assert.deepEqual(secrets.writes, []);
+});
+
+test('bootstrap refuses inconsistent active services before any secret write', async () => {
+  const { handover, secrets, live } = recoveryFixture();
+  live.notification.INTERNAL_SERVICE_SECRET = 'different'.repeat(6);
+  await assert.rejects(handover.reconcile(secrets), /do not share/);
+  assert.deepEqual(secrets.writes, []);
+});
+
+test('bootstrap refuses unresolved snapshot references before writes', async () => {
+  const { handover, secrets, live } = recoveryFixture();
+  live.notification.INTERNAL_SERVICE_SECRET = '${{shared.INTERNAL_SERVICE_SECRET}}';
+  await assert.rejects(handover.reconcile(secrets), /missing or inconsistent/);
+  assert.deepEqual(secrets.writes, []);
+});
+
+test('bootstrap refuses invalid database URLs before writes', async () => {
+  const { handover, secrets, live } = recoveryFixture();
+  live.notification.DATABASE_URL = 'https://not-a-database.example';
+  await assert.rejects(handover.reconcile(secrets), /DATABASE_URL is invalid/);
+  assert.deepEqual(secrets.writes, []);
+});
+
+test('bootstrap reports failed healthchecks without writing or hiding the failure', async () => {
+  const { handover, secrets } = recoveryFixture();
+  handover.request = async () => ({ serviceInstance: { latestDeployment: { status: 'FAILED' }, activeDeployments: [] } });
+  await assert.rejects(handover.reconcile(secrets), /FAILED; repair service startup\/healthchecks/);
+  assert.deepEqual(secrets.writes, []);
+});
+
+test('bootstrap refuses redacted credentials and deployment changes before writes', async () => {
+  const { handover, secrets } = recoveryFixture();
+  const request = handover.request;
+  handover.request = async (query, variables) => query.includes('serviceInstance(')
+    ? request(query, variables) : { deploymentSnapshot: { variablesRedacted: true } };
+  await assert.rejects(handover.reconcile(secrets), /redacted/);
+  assert.deepEqual(secrets.writes, []);
+  handover.request = request;
+  handover.matches = async () => false;
+  await assert.rejects(handover.reconcile(secrets), /deployment changed/);
+  assert.deepEqual(secrets.writes, []);
+});
