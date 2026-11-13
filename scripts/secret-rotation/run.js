@@ -38,6 +38,7 @@ async function main() {
   const now = new Date();
   const secrets = await infisicalFromEnv();
   const handover = dryRun ? null : railwayHandoverFromEnv();
+  if (handover && process.argv.includes('--bootstrap')) await handover.reconcile(secrets);
   if (handover) await handover.preflight(secrets);
 
   const tasks = [

@@ -153,6 +153,18 @@ stored private keys, so it creates a new signing key (section 1). Nobody is sign
 
 ### When the job fails
 
+- **"latest deployment is FAILED; repair service startup/healthchecks"**: the application
+  did not start. Inspect runtime logs, not just the healthcheck timeout. In production the
+  broker URL must use its own `tilomnov_<service>` account with scoped broker permissions and
+  `RABBITMQ_MANAGED_TOPOLOGY=true`. Provision topology/accounts with the operator script
+  `scripts/security/provision-rabbitmq.cjs --apply` before delivering those URLs through
+  each Infisical service-folder sync. Increasing the healthcheck timeout or bypassing rotation
+  preflight does not fix a startup crash.
+- **Credentials differ from Infisical**: dashboard force runs now reconcile the store to
+  verified, healthy live deployment credentials before preflight. Conflicting live replicas,
+  different shared secrets across services, redacted snapshots and unhealthy deployments
+  require repair before retrying. A dry run never reconciles or writes credentials.
+
 - **"runs as postgres, not one of its rotating logins"**: the service's Infisical
   `DATABASE_URL` has not been bootstrapped (or was overwritten by an import).
   Repeating the nightly job or using *force* alone cannot initialize it. Dashboard force
