@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-11-14T14:03:13.897Z",
+  "service": "property",
+  "contactProjection": "PASS",
+  "passwordProjection": "DENIED 42501",
+  "transaction": "READ ONLY then ROLLBACK",
+  "rowsRetained": 0
+}

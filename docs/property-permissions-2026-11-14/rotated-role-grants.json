@@ -1,0 +1,21 @@
+{
+  "checkedAt": "2026-11-14T13:08:32.261Z",
+  "roles": [
+    {
+      "role": "property_service_1",
+      "email": true,
+      "email_verified": true,
+      "phone_verified": true,
+      "reads_password": false,
+      "writes_role": false
+    },
+    {
+      "role": "property_service_2",
+      "email": true,
+      "email_verified": true,
+      "phone_verified": true,
+      "reads_password": false,
+      "writes_role": false
+    }
+  ]
+}

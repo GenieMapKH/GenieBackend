@@ -21,6 +21,7 @@
     "test:scripts": "node --test \"scripts/test/*.test.js\" \"scripts/secret-rotation/test/*.test.js\"",
     "test:messaging:integration": "npm run build --workspace=shared && npm run build --workspace=notification && npm run build --workspace=authentication && node --test --test-concurrency=1 qa/messaging/*.test.js",
     "test:security:integration": "node qa/security/run.cjs",
+    "test:app:flows": "node qa/app-flow/run.cjs",
     "test:messaging:flows": "node qa/messaging/service-flows.js",
     "lint": "npm run lint:check --workspaces --if-present",
     "db:migrate:deploy": "node scripts/security/prisma-cli.cjs migrate deploy",

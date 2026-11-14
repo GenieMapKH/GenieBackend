@@ -1,0 +1,7 @@
+{
+  "checkedAt": "2026-11-14T13:57:20.323Z",
+  "stoppedChildren": true,
+  "disposableDatabaseRemoved": true,
+  "redisContainerRemoved": true,
+  "fixtureStorageClosed": true
+}

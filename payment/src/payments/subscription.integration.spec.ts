@@ -1,4 +1,6 @@
 import { randomUUID } from 'crypto';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@tilomnov/prisma-client';
@@ -15,6 +17,8 @@ import { ExpiredPublishingService } from '../../../property/src/properties/servi
 import { PropertyPublicationService } from '../../../property/src/properties/services/property-publication.service';
 import { PaymentCheckoutService } from './payment-checkout.service';
 import { AdminIncomeService } from './admin-income.service';
+import { PropertyQueryService } from '../../../property/src/properties/services/property-query.service';
+import { PropertyEngagementCounts } from '../../../property/src/properties/services/property-engagement-counts.service';
 
 // Opt in only against a disposable local DB with baseline + all later migrations.
 const databaseTests = process.env.TEST_DATABASE_URL ? describe : describe.skip;
@@ -78,10 +82,13 @@ function persistedServiceFlows(queued: boolean) {
     if (queued)
       process.env.RABBITMQ_URL =
         'amqp://messaging_test:messaging_test@127.0.0.1:5679/tilomnov-test';
-    const query = {
-      findOwned: (userId: string, id: string) =>
-        property.property.findFirstOrThrow({ where: { id, userId } }),
-    };
+    // Use the API's real relation projections: a bare property read hides account grant failures.
+    const query = new PropertyQueryService(
+      property as never,
+      {} as never,
+      new PropertyEngagementCounts(property as never),
+      property,
+    );
     const changes = queued
       ? new ListingChanges(
           { changed: async () => {} } as never,
@@ -97,7 +104,7 @@ function persistedServiceFlows(queued: boolean) {
     }
     const publication = new PropertyPublicationService(
       property as never,
-      query as never,
+      query,
       new PropertyStatusService(),
       changes as never,
       new PublishingAllowanceService(property as never),
@@ -138,7 +145,7 @@ function persistedServiceFlows(queued: boolean) {
     allowance = new PublishingAllowanceService(property as never);
     lifecycle = new PropertyLifecycleService(
       property as never,
-      query as never,
+      query,
       new PropertyStatusService(),
       changes as never,
       {} as never,
@@ -165,6 +172,86 @@ function persistedServiceFlows(queued: boolean) {
     ]);
     await Promise.all([payment?.$disconnect(), property?.$disconnect()]);
     await owner?.end();
+  });
+
+  it('reproduces missing contact grants and restores publishing with migration 51', async () => {
+    const userId = randomUUID();
+    const migration = readFileSync(
+      resolve(
+        __dirname,
+        '../../../prisma/migrations/51_listing_contact_identity/migration.sql',
+      ),
+      'utf8',
+    );
+    await owner.query(
+      "INSERT INTO account.users(id,password_hash,phone) VALUES($1,'test-only','+855887650002')",
+      [userId],
+    );
+    try {
+      const draft = await lifecycle.create(userId, {
+        ...input,
+        status: 'Draft',
+      });
+      await owner.query(
+        'REVOKE SELECT (email, email_verified, phone_verified) ON account.users FROM property_service',
+      );
+      await expect(lifecycle.publish(userId, draft.id)).rejects.toThrow(
+        'permission denied for table users',
+      );
+      expect(
+        await property.property.findUnique({ where: { id: draft.id } }),
+      ).toMatchObject({ status: 'Draft' });
+      await owner.query(migration);
+      await expect(lifecycle.publish(userId, draft.id)).resolves.toMatchObject({
+        status: 'Active',
+      });
+      const grants = await owner.query(
+        "SELECT has_column_privilege('property_service','account.users','password_hash','SELECT') AS reads_password, has_column_privilege('property_service','account.users','role','UPDATE') AS writes_role",
+      );
+      expect(grants.rows[0]).toEqual({
+        reads_password: false,
+        writes_role: false,
+      });
+    } finally {
+      await owner.query(migration);
+      await owner.query('DELETE FROM account.users WHERE id=$1', [userId]);
+    }
+  });
+
+  it('posts, archives and republishes through the real owner query without losing its free slot', async () => {
+    const userId = randomUUID();
+    await owner.query(
+      "INSERT INTO account.users(id,password_hash,phone) VALUES($1,'test-only','+855887650003')",
+      [userId],
+    );
+    try {
+      const listing = await lifecycle.create(userId, input);
+      expect(await allowance.usage(userId)).toEqual({
+        used: 1,
+        listingLimit: 1,
+      });
+      await expect(
+        lifecycle.unpublish(userId, listing.id),
+      ).resolves.toMatchObject({ status: 'Draft' });
+      expect(await allowance.usage(userId)).toEqual({
+        used: 0,
+        listingLimit: 1,
+      });
+      await expect(
+        lifecycle.publish(userId, listing.id),
+      ).resolves.toMatchObject({
+        status: 'Active',
+        publishedAt: listing.publishedAt,
+      });
+      await expect(lifecycle.unpublish(bob, listing.id)).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(lifecycle.create(userId, input)).rejects.toMatchObject({
+        status: 402,
+      });
+    } finally {
+      await owner.query('DELETE FROM account.users WHERE id=$1', [userId]);
+    }
   });
 
   if (queued)

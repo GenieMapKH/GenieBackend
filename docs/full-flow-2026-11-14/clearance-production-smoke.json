@@ -1,0 +1,85 @@
+{
+  "checkedAt": "2026-11-14T14:00:34.561Z",
+  "requests": "GET only; no customer data retained",
+  "results": [
+    {
+      "path": "/health",
+      "expected": 200,
+      "status": 200,
+      "passed": true,
+      "ms": 531,
+      "bodyShape": [
+        "status"
+      ]
+    },
+    {
+      "path": "/v1/feed?limit=1",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "ms": 198,
+      "bodyShape": [
+        "message",
+        "error",
+        "statusCode"
+      ]
+    },
+    {
+      "path": "/v1/public/ads",
+      "expected": 200,
+      "status": 200,
+      "passed": true,
+      "ms": 203,
+      "bodyShape": [
+        "non-object"
+      ]
+    },
+    {
+      "path": "/v1/users/me",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "ms": 110,
+      "bodyShape": [
+        "message",
+        "error",
+        "statusCode"
+      ]
+    },
+    {
+      "path": "/v1/properties",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "ms": 97,
+      "bodyShape": [
+        "message",
+        "error",
+        "statusCode"
+      ]
+    },
+    {
+      "path": "/v1/auth/sessions",
+      "expected": 401,
+      "status": 401,
+      "passed": true,
+      "ms": 114,
+      "bodyShape": [
+        "message",
+        "statusCode"
+      ]
+    },
+    {
+      "path": "/v1/internal/admin/dashboard",
+      "expected": 404,
+      "status": 404,
+      "passed": true,
+      "ms": 88,
+      "bodyShape": [
+        "message",
+        "error",
+        "statusCode"
+      ]
+    }
+  ]
+}

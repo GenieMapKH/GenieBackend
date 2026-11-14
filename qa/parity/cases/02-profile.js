@@ -122,7 +122,7 @@ module.exports = [
 
       const used = await t.call('seller', 'PUT', '/users/me/avatar', { body: { path: slot.body.path }, expect: 200 });
       const avatarUrl = used.body.avatarUrl;
-      t.check(typeof avatarUrl === 'string' && avatarUrl.startsWith('https://'), `avatarUrl is ${avatarUrl}`);
+      t.check(typeof avatarUrl === 'string' && (avatarUrl.startsWith('https://') || (t.env.name === 'local' && avatarUrl.startsWith('http://127.0.0.1:'))), `avatarUrl is ${avatarUrl}`);
       const image = await fetch(avatarUrl);
       t.record('download avatar', 'guest', image.status, null);
       t.check(image.ok, `avatar URL answers ${image.status}`);

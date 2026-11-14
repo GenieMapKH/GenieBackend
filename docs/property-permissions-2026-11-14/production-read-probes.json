@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-11-14T13:05:57.362Z",
+  "productionWrites": false,
+  "ownerLookup": {
+    "result": "PASS",
+    "contactFlagsSelected": true,
+    "engagementCountsLoaded": true
+  },
+  "paymentEntitlements": {
+    "result": "PASS",
+    "validLimit": true,
+    "protectedIdsArray": true
+  }
+}
