@@ -15,7 +15,6 @@ import { ClientContext } from '../sessions/client-context';
 import { SignInService } from '../sessions/sign-in.service';
 import { TokenPair } from '../sessions/token-issuer.service';
 import { UserRecord, UserRepository } from '../users/user.repository';
-import { EmailVerificationService } from '../verification/email-verification.service';
 
 /** Email/phone + password registration and login. */
 @Injectable()
@@ -23,23 +22,18 @@ export class CredentialsAuthService {
   constructor(
     @Inject(UserRepository) private readonly users: UserRepository,
     @Inject(SignInService) private readonly signIn: SignInService,
-    private readonly emails: EmailVerificationService,
     private readonly adminLogin: AdminLoginService,
     private readonly phones: PhoneVerificationService,
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
-    if (dto.phone) {
+    if (!dto.phone) throw new BadRequestException('Phone number is required');
+    if (dto.phoneProof)
       await this.phones.requireProof(dto.phone, dto.phoneProof);
-    } else if (dto.email) {
-      this.emails.requireProof(dto.email, dto.emailProof);
-    } else {
-      throw new BadRequestException('Email or phone is required');
-    }
     // The database refuses an exact repeat; these also catch an older account
     // that holds capitals in its email or another spelling of the number.
     if (
-      (dto.phone && (await this.users.findByPhone(dto.phone))) ||
+      (await this.users.findByPhone(dto.phone)) ||
       (dto.email && (await this.users.findByEmail(dto.email)))
     ) {
       throw new ConflictException('Email or phone already exists');
@@ -49,14 +43,14 @@ export class CredentialsAuthService {
 
     // Self-registration never grants elevated roles.
     await this.users.create({
-      phone: dto.phone ?? null,
+      phone: dto.phone,
       email: dto.email ?? null,
       name: dto.name ?? null,
       password_hash: passwordHash,
       has_password: true,
       role: DEFAULT_USER_ROLE,
-      phone_verified: !!dto.phone,
-      email_verified: !dto.phone && !!dto.email,
+      phone_verified: !!dto.phoneProof,
+      email_verified: false,
     });
   }
 

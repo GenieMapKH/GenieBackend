@@ -1,82 +1,62 @@
-# Signup and publishing contact verification
+# Contact verification ? optional identity signals
 
-Implemented locally, 2026-11-13. No deployment or live SMS test performed.
+Updated policy: signup, listing creation/editing/publication, and subscriptions
+must not depend on successful SMS delivery. A valid phone is still required for
+password signup and a callable contact for public listings. Google login still
+requires a valid, verified Google token; it verifies email, not phone.
 
-## Rules
+Password signup without phoneProof stores phone_verified=false and
+email_verified=false. An optional supplied phoneProof is strictly validated;
+invalid proofs are rejected, never silently converted to verified contacts.
+Existing password and admin email-link login remain unchanged. OTP remains
+available from account/contact verification controls; failures do not gate posting.
 
-| Signup contacts | Required before account creation | Stored verification |
-| --- | --- | --- |
-| Phone only | Firebase SMS OTP | Phone verified |
-| Email only | Existing email OTP | Email verified; phone absent |
-| Phone and email | Firebase SMS OTP only | Phone verified; email unverified |
-| Google OAuth | Existing verified Google sign-in | Email verified; phone not automatically verified |
+Individual property details carry owner email, phone, emailVerified and
+phoneVerified. Buyers see each contact with Verified or Not verified. Different
+listing contact numbers do not inherit the account number's badge. Guests and
+rate-limited contact reveals retain the existing privacy filtering; bulk feed/map
+cards do not expose account contacts. Verification is not a seller endorsement.
 
-Verification happens during signup, not on every later password login. Existing
-accounts remain able to log in. Admin email-link login remains unchanged.
+Publishing still enforces valid contact formatting, ownership, publishing quota,
+listing status, takeover validation, and actual payment state. Active listings
+continue to appear in the feed regardless of verification. Pending/Draft listings
+are not made public just by bypassing verification. Paid settlement no longer
+rechecks SMS, so existing Pending payments are not stranded by OTP failure.
 
-Unverified signup email can be verified under Account Settings -> Personal Info ->
-Verify email, using the existing email OTP, password confirmation and established
-device protection. Until then it cannot receive password-reset codes or be used
-to auto-link Google into a phone-verified account.
+## Mock subscriptions
 
-## API contracts
+PAYMENT_MODE=enabled or mock explicitly selects mock testing, including a
+production-runtime test deployment. Missing, disabled and unknown values deny
+mock checkout. PAYMENT_MODE=live retains the live-provider path. Mock settlement
+and idempotency checks remain server-owned. Never use test mode for real billing:
+mock subscriptions confer benefits without a real charge.
 
-- `POST /auth/register`: optional `phone` and `email`, at least one required;
-  existing `password` and optional `name`. When `phone` exists, `phoneProof` must
-  be a Firebase ID token from a phone sign-in for that exact normalized E.164
-  number, authenticated within 5 minutes. Otherwise `emailProof` is required.
-  A supplied email proof never substitutes for phone proof.
-- `POST /auth/account/phone/verify`: authenticated app session, body
-  `{ "phone": "E164_NUMBER", "phoneProof": "FIREBASE_ID_TOKEN" }`. Verifies and
-  saves the first/current account number. A different existing account number
-  must be changed using the existing protected Account Settings flow first.
-  Duplicate phone ownership is rejected. A conditional write rejects a phone
-  changed while verification was in flight.
-- Firebase proof is checked server-side, including revocation. SMS credentials
-  cannot be exchanged through the Google login endpoint for an app session.
+## Rollout
 
-## Create Property
+Apply migration 51_listing_contact_identity before deploying the Property detail
+select. It grants only email and verification-column reads to property_service;
+password hashes remain inaccessible. Deploy Authentication, Property and Payment
+changes together with an updated Flutter build. Existing applied migration 50
+is unchanged. No production database grant, environment update or deployment was
+performed as part of local implementation. Real device OTP and payment delivery
+remain separate checks.
 
-The contact section has **Verify phone by SMS**. Pressing Publish also opens that
-verification when the account has no verified phone, before upload/payment begins.
-After verification the account profile refreshes; subsequent listings do not
-need another OTP while that account phone stays verified. Changing the account
-phone clears verification as before. Private drafts do not require verification.
+## Local verification for this implementation
 
-The property backend enforces `phoneVerified`, independently of Flutter, on
-direct Active creation, publishing/relisting, live/pending edits, payment start
-and paid settlement. Ordinary contact formatting and optional extra listing
-numbers remain unchanged: this verifies the account, not every listing contact.
+- Property: 451 passed; 17 pre-existing skipped.
+- Authentication: 286 passed.
+- Payment: 110 passed; 21 pre-existing skipped.
+- Flutter auth/contact/identity/payment regression selection: 45 passed.
+- Property, Authentication and Payment builds and lints passed.
+- Flutter analysis passed.
+- Database security integration could not start: the isolated PostgreSQL fixture
+  at 127.0.0.1:55439 refused the connection. Migration 51 is therefore prepared,
+  not live-applied or database-integration verified.
+- Logs: docs/optional-verification-*.txt in each repository.
 
-## Rollout and checks still required
-
-- No schema migration added: nullable phone/email and verification flags already
-  exist in the Prisma schema. No database changes were applied by this task.
-- Coordinate the new Flutter release with authentication and property services.
-  Older clients cannot satisfy phone signup proof or the new publishing gate.
-- Review/drain existing Pending publication payments before enabling the gate:
-  settlement rechecks verification, so an old unverified account may need SMS
-  verification before its paid listing can go live. Do not drop payment records
-  or blindly retry charges. No production payment state was inspected here.
-- Real-device staging checks: phone-only signup, email-only signup, both contacts,
-  incorrect/expired code, resend, Android automatic verification, cancellation,
-  later email verification, and Google signup -> first property verification.
-- Confirm Firebase Phone provider, SMS regions/quota/billing and correct app
-  signing fingerprints (including Play App Signing and the staging package).
-  iOS additionally needs its Firebase/APNs/reCAPTCHA setup verified on a device.
-  No SMS-reading permission is added.
-
-References: [Flutter phone authentication](https://firebase.google.com/docs/auth/flutter/phone-auth),
-[Admin ID token verification](https://firebase.google.com/docs/auth/admin/verify-id-tokens).
-
-## Local checks
-
-- Authentication workspace: 21 suites / 284 tests passed.
-- Property workspace: 49 suites / 448 tests passed, 17 existing tests skipped.
-- Flutter targeted auth/security/property checks: 63 tests passed.
-- `flutter analyze --no-pub`: no issues.
-- Authentication and property builds passed.
-- Authentication lint and targeted Prettier checks passed.
-- New English/Khmer strings passed key-presence and Khmer Unicode checks.
-
-These are local automated checks, not production delivery verification.
+Release sequence: apply migration 51, deploy the three backend services, set
+PAYMENT_MODE=enabled or mock only on the intended test deployment, then distribute
+an updated Flutter build. Verify an unverified user can sign up, create an Active
+listing visible in Feed, edit it, and complete a mock subscription. Verify contact
+badges with a signed-in buyer and that guests still receive no contact values.
+Do not republish Draft/Pending listings or create new charges to repair old payments.

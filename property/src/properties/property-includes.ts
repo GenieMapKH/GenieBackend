@@ -43,6 +43,21 @@ export const PROPERTY_WITH_RELATIONS = {
   user: { select: { ...OWNER_SUMMARY_SELECT, createdAt: true } },
 } as const;
 
+/** Contact identity is available only on individual details, not feed/map cards. */
+export const PROPERTY_DETAIL_WITH_RELATIONS = {
+  ...PROPERTY_WITH_RELATIONS,
+  user: {
+    select: {
+      ...OWNER_SUMMARY_SELECT,
+      createdAt: true,
+      email: true,
+      phone: true,
+      emailVerified: true,
+      phoneVerified: true,
+    },
+  },
+} as const;
+
 /**
  * What the map shows of a listing, besides its `_count`. The same for every
  * visitor, so it can be cached.

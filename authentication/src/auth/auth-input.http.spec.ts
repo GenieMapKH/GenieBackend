@@ -105,19 +105,18 @@ describe('sign-up and sign-in input (HTTP)', () => {
     });
   });
 
-  it('accepts email-only signup and normalizes a blank optional phone', async () => {
-    await register({
-      phone: '  ',
-      email: ' Dara@Gmail.com ',
-      emailProof: 'email-proof',
-      password: 'password123',
-    }).expect(201);
-    expect(credentials.register).toHaveBeenCalledWith({
-      email: 'dara@gmail.com',
-      emailProof: 'email-proof',
-      password: 'password123',
-    });
-  });
+  it.each([undefined, '', '  ', null])(
+    'rejects a missing phone %j even with email proof',
+    async (phone) => {
+      await register({
+        phone,
+        email: 'dara@gmail.com',
+        emailProof: 'email-proof',
+        password: 'password123',
+      }).expect(400);
+      expect(credentials.register).not.toHaveBeenCalled();
+    },
+  );
 
   it('passes the optional email and name through, cleaned', async () => {
     await register({

@@ -16,7 +16,6 @@ describe('CredentialsAuthService', () => {
   };
   const signIn = { complete: jest.fn() };
   const adminLogin = { start: jest.fn() };
-  const emails = { requireProof: jest.fn() };
   const firebase = { verifyIdToken: jest.fn() };
   const phoneToken = () => ({
     auth_time: Date.now() / 1000,
@@ -36,7 +35,6 @@ describe('CredentialsAuthService', () => {
     service = new CredentialsAuthService(
       users as never,
       signIn as never,
-      emails as never,
       adminLogin as never,
       new PhoneVerificationService(firebase as never),
     );
@@ -59,16 +57,20 @@ describe('CredentialsAuthService', () => {
       );
     });
 
-    it('rejects a missing SMS proof even with a valid email proof', async () => {
-      await expect(
-        service.register({
-          phone: '+85512345678',
-          email: 'a@b.com',
-          emailProof: 'email-proof',
-          password: 'password123',
+    it('registers unverified when SMS is skipped without trusting email proof', async () => {
+      await service.register({
+        phone: '+85512345678',
+        email: 'a@b.com',
+        emailProof: 'email-proof',
+        password: 'password123',
+      });
+      expect(users.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phone_verified: false,
+          email_verified: false,
         }),
-      ).rejects.toThrow(BadRequestException);
-      expect(users.create).not.toHaveBeenCalled();
+      );
+      expect(firebase.verifyIdToken).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -110,7 +112,6 @@ describe('CredentialsAuthService', () => {
         emailProof: 'ignored',
         password: 'password123',
       });
-      expect(emails.requireProof).not.toHaveBeenCalled();
       expect(users.create).toHaveBeenCalledWith(
         expect.objectContaining({
           phone_verified: true,
@@ -120,43 +121,19 @@ describe('CredentialsAuthService', () => {
       );
     });
 
-    it('requires email proof and no SMS for email-only signup', async () => {
-      await service.register({
-        email: 'a@b.com',
-        emailProof: 'email-proof',
-        password: 'password123',
-      });
-      expect(emails.requireProof).toHaveBeenCalledWith(
-        'a@b.com',
-        'email-proof',
-      );
-      expect(firebase.verifyIdToken).not.toHaveBeenCalled();
-      expect(users.findByPhone).not.toHaveBeenCalled();
-      expect(users.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          phone: null,
-          phone_verified: false,
-          email_verified: true,
-        }),
-      );
-    });
-
-    it('does not create an email-only account when email proof fails', async () => {
-      emails.requireProof.mockImplementationOnce(() => {
-        throw new BadRequestException();
-      });
-      await expect(
-        service.register({ email: 'a@b.com', password: 'password123' }),
-      ).rejects.toThrow(BadRequestException);
-      expect(users.create).not.toHaveBeenCalled();
-    });
-
-    it('rejects signup without either contact', async () => {
-      await expect(
-        service.register({ password: 'password123' }),
-      ).rejects.toThrow(BadRequestException);
-      expect(users.create).not.toHaveBeenCalled();
-    });
+    it.each([
+      { email: 'a@b.com', emailProof: 'email-proof', password: 'password123' },
+      { password: 'password123' },
+    ])(
+      'rejects signup without a phone even with email proof',
+      async (input) => {
+        await expect(service.register(input as never)).rejects.toThrow(
+          BadRequestException,
+        );
+        expect(users.create).not.toHaveBeenCalled();
+        expect(firebase.verifyIdToken).not.toHaveBeenCalled();
+      },
+    );
 
     it('hashes the password and always creates a plain "user"', async () => {
       await service.register({

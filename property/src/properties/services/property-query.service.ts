@@ -6,7 +6,7 @@ import {
 import { PrismaService, ReadPrisma } from '@tilomnov/shared';
 import {
   MAP_SELECT,
-  PROPERTY_WITH_RELATIONS,
+  PROPERTY_DETAIL_WITH_RELATIONS,
   PUBLISHED,
 } from '../property-includes';
 import {
@@ -41,7 +41,7 @@ export class PropertyQueryService {
     const [property, counts] = await Promise.all([
       this.prisma.property.findFirst({
         where: { id, userId, status: { not: 'Deleted' } },
-        include: PROPERTY_WITH_RELATIONS,
+        include: PROPERTY_DETAIL_WITH_RELATIONS,
       }),
       this.counts.of([id]),
     ]);
@@ -57,7 +57,7 @@ export class PropertyQueryService {
       const [property, counts] = await Promise.all([
         this.publicReads.property.findFirst({
           where: { id, ...PUBLISHED },
-          include: PROPERTY_WITH_RELATIONS,
+          include: PROPERTY_DETAIL_WITH_RELATIONS,
         }),
         this.counts.of([id]),
       ]);

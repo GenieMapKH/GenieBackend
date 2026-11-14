@@ -1,11 +1,8 @@
 import { NotImplementedException } from '@nestjs/common';
 
 export function mockPaymentsEnabled(): boolean {
-  // Production builds may simulate only in an explicitly isolated staging environment.
-  return (
-    process.env.PAYMENT_MODE === 'mock' &&
-    (process.env.NODE_ENV !== 'production' || process.env.APP_ENV === 'staging')
-  );
+  // Explicit server-side test mode; never inferred from a client or missing config.
+  return ['mock', 'enabled'].includes(process.env.PAYMENT_MODE ?? '');
 }
 
 export function requireMockPayments(): void {

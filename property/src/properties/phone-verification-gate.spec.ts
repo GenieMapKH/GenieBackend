@@ -2,7 +2,7 @@ import { PropertyLifecycleService } from './services/property-lifecycle.service'
 import { PropertyPublicationService } from './services/property-publication.service';
 import { PropertyStatusService } from './property-status.service';
 
-describe('server-side phone verification publication gate', () => {
+describe('server-side listing contact validation', () => {
   it.each([
     'create',
     'publish',
@@ -16,7 +16,7 @@ describe('server-side phone verification publication gate', () => {
       const listing = {
         id: 'p1',
         userId: 'u1',
-        contactPhone: '+85512345678',
+        contactPhone: 'invalid',
         status:
           action === 'relist'
             ? 'Sold'
@@ -37,7 +37,7 @@ describe('server-side phone verification publication gate', () => {
         user: {
           findUnique: jest
             .fn()
-            .mockResolvedValue({ phone: '+85512345678', phoneVerified: false }),
+            .mockResolvedValue({ phone: 'invalid', phoneVerified: false }),
         },
       };
       const query = { findOwned: jest.fn().mockResolvedValue(listing) };
@@ -66,7 +66,7 @@ describe('server-side phone verification publication gate', () => {
               price: 100,
               propertyType: 'Land',
               status: 'Active',
-              contactPhone: '+85512345678',
+              contactPhone: 'invalid',
             });
           case 'publish':
             return lifecycle.publish('u1', 'p1');
@@ -74,7 +74,7 @@ describe('server-side phone verification publication gate', () => {
             return lifecycle.relist('u1', 'p1');
           case 'update':
             return lifecycle.update('u1', 'p1', {
-              contactPhone: '+85512345678',
+              contactPhone: 'invalid',
             });
           case 'beginPublish':
             return publication.beginPublish('u1', 'p1');
@@ -84,7 +84,6 @@ describe('server-side phone verification publication gate', () => {
       };
       await expect(run()).rejects.toMatchObject({
         status: 400,
-        response: { code: 'PHONE_VERIFICATION_REQUIRED' },
       });
       expect(property.create).not.toHaveBeenCalled();
       expect(property.update).not.toHaveBeenCalled();

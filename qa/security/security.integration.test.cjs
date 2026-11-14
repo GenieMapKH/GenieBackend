@@ -222,6 +222,7 @@ test('H02: every non-auth role is denied password hashes and auth-state writes, 
       await assert.rejects(db.query("UPDATE account.users SET role='admin' WHERE false"), { code: '42501' });
       await assert.rejects(db.query("UPDATE account.users SET password_hash='forged' WHERE false"), { code: '42501' });
       await db.query('SELECT id, username, name, role, avatar_url, deactivated_at, banned_at FROM account.users LIMIT 1');
+      if (role === 'property_service') await db.query('SELECT email, phone, email_verified, phone_verified FROM account.users LIMIT 1');
       await db.query('RESET ROLE');
     }
     await prisma.$transaction(async (tx) => {
