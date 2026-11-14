@@ -12,7 +12,7 @@ describe('payment environment gate', () => {
       else process.env[key] = value;
     }
   });
-  it.each([undefined, '', 'unknown', 'disabled', 'mock'])(
+  it.each([undefined, '', 'unknown', 'disabled'])(
     'production cannot simulate with mode %p',
     (mode) => {
       process.env.NODE_ENV = 'production';
@@ -33,6 +33,16 @@ describe('payment environment gate', () => {
     process.env.APP_ENV = 'staging';
     expect(mockPaymentsEnabled()).toBe(true);
     process.env.APP_ENV = 'production';
-    expect(mockPaymentsEnabled()).toBe(false);
+    expect(mockPaymentsEnabled()).toBe(true);
   });
+  it.each(['enabled', 'mock'])(
+    'explicit %s enables mock testing in production',
+    (mode) => {
+      process.env.NODE_ENV = 'production';
+      process.env.APP_ENV = 'production';
+      process.env.PAYMENT_MODE = mode;
+      expect(mockPaymentsEnabled()).toBe(true);
+      expect(requireMockPayments).not.toThrow();
+    },
+  );
 });

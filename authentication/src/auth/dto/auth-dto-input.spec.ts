@@ -49,10 +49,10 @@ describe('RegisterDto', () => {
     ).toEqual(['password']);
   });
 
-  it('accepts email-only registration but requires at least one contact', () => {
+  it('requires phone even when an email is supplied', () => {
     expect(
       parse(RegisterDto, { email: 'a@b.com', password: 'password123' }).errors,
-    ).toEqual([]);
+    ).toEqual(['phone']);
     expect(parse(RegisterDto, { password: 'password123' }).errors).toEqual([
       'phone',
     ]);

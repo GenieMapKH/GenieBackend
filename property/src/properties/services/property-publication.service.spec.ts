@@ -31,7 +31,7 @@ describe('PropertyPublicationService', () => {
         user: {
           findUnique: jest
             .fn()
-            .mockResolvedValue({ phone: '+85512345678', phoneVerified: true }),
+            .mockResolvedValue({ phone: '+85512345678', phoneVerified: false }),
         },
       } as never,
       query as never,
