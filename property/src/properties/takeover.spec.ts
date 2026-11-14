@@ -177,7 +177,9 @@ describe('takeover publication paths', () => {
     {
       property: table,
       user: {
-        findUnique: jest.fn().mockResolvedValue({ phone: '+85512345678' }),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ phone: '+85512345678', phoneVerified: true }),
       },
     } as never,
     query as never,

@@ -41,6 +41,15 @@ scheduled jobs never receive it. The dashboard displays recent workflow status; 
 workflow status** to follow the run. GitHub workflow concurrency serializes scheduled and
 manual jobs. Redis prevents duplicate clicks and overlapping dashboard operation requests.
 
+Bootstrap first reconciles Infisical's baseline to the credentials verified in **all active
+Railway deployment snapshots**. All replicas must agree on each service's database URL and
+Authentication's JWT encryption key, and all six services must share the same internal secret.
+It validates every service before writing anything, updates only drifted values, waits for
+delivery, then performs the normal preflight/bootstrap/rotation. This repairs a stale Infisical
+baseline without replacing working live credentials. Redacted/unresolved snapshots, inconsistent
+replicas, and failed/unhealthy deployments still stop the job; bootstrap cannot repair a service
+that crashes during startup. Scheduled jobs do not reconcile the baseline.
+
 Managed credentials are the six service database logins, `INTERNAL_SERVICE_SECRET` and
 `JWT_KEY_ENCRYPTION_KEY`. Changing the latter creates a fresh JWT signing key on Authentication
 startup while retaining the old public keys. Existing access/refresh tokens are not revoked,
@@ -81,10 +90,11 @@ sync alone does not redeploy containers. Dashboard force runs bootstrap legacy l
 scheduled runs require the alternating logins to be initialized already. Timestamp records
 show when the job changed credentials, not an independent proof that containers received them.
 
-Before the first forced run, compare all six active deployment snapshots with Infisical.
+Before the first forced run, verify all six services deploy successfully.
 If the database URLs and JWT encryption key match but the root internal secret differs from
 the identical value already running in every service, preserve those working service values
-and initialize the root canonical `INTERNAL_SERVICE_SECRET` to that verified running value.
+and initialize the root canonical `INTERNAL_SERVICE_SECRET` to that verified running value
+(the dashboard bootstrap now performs this reconciliation automatically).
 Do not push the unrelated root value over live services or bypass preflight. Deploy the
 service-folder delivery workflow before reconciling the root, then verify preflight without
 performing rotation. Subsequent rotations stage `_PREVIOUS` in every service before switching.

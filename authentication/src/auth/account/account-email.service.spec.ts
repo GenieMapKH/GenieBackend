@@ -35,6 +35,20 @@ describe('AccountEmailService', () => {
     });
   });
 
+  it('verifies the email saved during phone-first signup later', async () => {
+    proofs.verify.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      email_verified: false,
+    });
+    users.findByEmail.mockResolvedValue({ id: 'u1' });
+    await service.addEmail(caller, 'a@b.com', 'pw', 'email-proof');
+    expect(users.update).toHaveBeenCalledWith('u1', {
+      email: 'a@b.com',
+      email_verified: true,
+    });
+  });
+
   it('is refused on a device signed in less than a day ago, before the password is checked', async () => {
     devices.require.mockRejectedValue(new ForbiddenException());
 

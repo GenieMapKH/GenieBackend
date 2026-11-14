@@ -56,9 +56,15 @@ export class FirebaseService {
     }
   }
 
-  async verifyIdToken(idToken: string): Promise<DecodedIdToken> {
+  async verifyIdToken(
+    idToken: string,
+    checkRevoked = false,
+  ): Promise<DecodedIdToken> {
     try {
-      return await getAuth(this.firebaseApp).verifyIdToken(idToken);
+      return await getAuth(this.firebaseApp).verifyIdToken(
+        idToken,
+        checkRevoked,
+      );
     } catch {
       throw new UnauthorizedException('Invalid Firebase token');
     }

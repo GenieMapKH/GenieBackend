@@ -92,13 +92,29 @@ describe('sign-up and sign-in input (HTTP)', () => {
     });
   });
 
-  it('accepts registration without an SMS ownership proof', async () => {
+  it('passes the SMS ownership proof to the service', async () => {
     await register({
       phone: '012345678',
       password: 'password123',
+      phoneProof: 'firebase-id-token',
     }).expect(201);
     expect(credentials.register).toHaveBeenCalledWith({
       phone: '+85512345678',
+      password: 'password123',
+      phoneProof: 'firebase-id-token',
+    });
+  });
+
+  it('accepts email-only signup and normalizes a blank optional phone', async () => {
+    await register({
+      phone: '  ',
+      email: ' Dara@Gmail.com ',
+      emailProof: 'email-proof',
+      password: 'password123',
+    }).expect(201);
+    expect(credentials.register).toHaveBeenCalledWith({
+      email: 'dara@gmail.com',
+      emailProof: 'email-proof',
       password: 'password123',
     });
   });
@@ -120,7 +136,10 @@ describe('sign-up and sign-in input (HTTP)', () => {
   });
 
   it.each([
-    { email: 'a@b.com', password: 'password123' },
+    { password: 'password123' },
+    { phone: '123', email: 'a@b.com', password: 'password123' },
+    { phone: '012345678', email: 'invalid', password: 'password123' },
+    { phone: '012345678', phoneProof: {}, password: 'password123' },
     { phone: "012' OR 1=1 --", password: 'password123' },
     { phone: { $ne: null }, password: 'password123' },
     { phone: '012345678', name: '<script>x</script>', password: 'password123' },

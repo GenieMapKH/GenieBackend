@@ -49,10 +49,13 @@ describe('RegisterDto', () => {
     ).toEqual(['password']);
   });
 
-  it('requires a phone number, even when an email is given', () => {
+  it('accepts email-only registration but requires at least one contact', () => {
     expect(
       parse(RegisterDto, { email: 'a@b.com', password: 'password123' }).errors,
-    ).toEqual(['phone']);
+    ).toEqual([]);
+    expect(parse(RegisterDto, { password: 'password123' }).errors).toEqual([
+      'phone',
+    ]);
   });
 
   it('stores every common spelling of a number as E.164', () => {

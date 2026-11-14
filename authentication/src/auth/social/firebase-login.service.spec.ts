@@ -60,7 +60,7 @@ describe('FirebaseLoginService', () => {
     );
   });
 
-  it('refuses an SMS confirmation: it only resets a password, never signs in', async () => {
+  it('refuses SMS proof as a Google login credential', async () => {
     firebase.verifyIdToken.mockResolvedValue({
       uid: 'fb-phone',
       phone_number: '+85512345678',
@@ -94,6 +94,20 @@ describe('FirebaseLoginService', () => {
     );
     expect(signIn.complete).not.toHaveBeenCalled();
     expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it('does not link through an optional unverified email on a phone-verified account', async () => {
+    firebase.verifyIdToken.mockResolvedValue(googleToken);
+    users.findByEmail.mockResolvedValue({
+      ...existingUser,
+      phone_verified: true,
+      email_verified: false,
+    });
+    await expect(service.login('id-token', client)).rejects.toThrow(
+      'Verify your email in account settings first',
+    );
+    expect(users.update).not.toHaveBeenCalled();
+    expect(signIn.complete).not.toHaveBeenCalled();
   });
 
   it('links a verified email to the existing account', async () => {

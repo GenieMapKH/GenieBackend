@@ -10,6 +10,7 @@ const { SessionService } = require('../../authentication/dist/auth/sessions/sess
 const { RevokedSessionStore } = require('../../authentication/dist/auth/sessions/revoked-session.store');
 const { UserRepository } = require('../../authentication/dist/auth/users/user.repository');
 const { PropertyUploadReservations } = require('../../property/dist/properties/services/property-upload-reservations');
+const { DISPLAY_FIELDS, displayName } = require('../../chat/dist/chat/display-name');
 
 assert.equal(new URL(process.env.DATABASE_URL).hostname, '127.0.0.1');
 assert.equal(new URL(process.env.DATABASE_URL).pathname, '/security_remediation_20261113_test');
@@ -223,6 +224,12 @@ test('H02: every non-auth role is denied password hashes and auth-state writes, 
       await db.query('SELECT id, username, name, role, avatar_url, deactivated_at, banned_at FROM account.users LIMIT 1');
       await db.query('RESET ROLE');
     }
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe('SET LOCAL ROLE chat_service');
+      await tx.user.findMany({ select: { id: true, role: true, ...DISPLAY_FIELDS }, take: 1 });
+      const caller = await tx.user.findFirst({ select: DISPLAY_FIELDS });
+      assert.equal(typeof displayName(caller), 'string');
+    });
   } finally { await db.end(); }
 });
 
