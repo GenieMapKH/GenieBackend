@@ -2,7 +2,7 @@
   "checkedAt": "2026-11-14T14:04:29.338268+00:00",
   "verdict": "Automated clearance passed; full production and Play/device clearance NOT granted",
   "counts": {
-    "backendWorkspace": 1585,
+    "backendWorkspace": 1586,
     "backendScripts": 44,
     "flutter": 1520,
     "http": 74,
@@ -23,7 +23,7 @@
   },
   "remaining": [
     "mock production payments; ABA provider is a stub",
-    "Play maximum used version code and upload certificate not verified",
+    "Highest used Play version code unconfirmed; rebuilt code 2 and upload certificate not verified",
     "exact AAB device/upgrade/SMS/OAuth/push/call-media tests not run",
     "staging deployment unconfigured and explicitly skipped; not evidence of staging readiness",
     "CI/merge/deployment verification pending"

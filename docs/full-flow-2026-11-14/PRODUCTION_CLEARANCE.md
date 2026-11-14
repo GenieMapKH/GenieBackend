@@ -22,12 +22,12 @@ Play Console and exact-artifact hardware gates below remain unresolved.
 ## Release artifact
 Signed, obfuscated production AAB built successfully at
 `genie/build/app/outputs/bundle/release/app-release.aab` (99.1 MB), package
-`com.sparkbytekh.tilomnov`, version `1.0.0+1`, target SDK 36.
-SHA-256: `877f1daba4666a6733891d26293aeee4e929bd01c4c91efe207fea1a0beea772`.
-Exact-build symbols: `genie/build/symbols/clearance-20261114-205634/`.
+`com.sparkbytekh.tilomnov`, version `1.0.0+2`, target SDK 36.
+SHA-256: `a962c20fd4a27a1f50a8bf854f071f2a8bb64e4249b804d5846097e210649cec`.
+Exact-build symbols: `genie/build/symbols/1.0.0+2-clearance-20261114-210658/`.
 JAR signature verifies; self-signed certificate warnings do not prove the upload key
 matches Play. Audit includes the merged release manifest, not only its source.
-Version code remains 1 pending confirmation of the highest used Play code.
+Version code incremented to 2; confirm Play has not already consumed code 2.
 
 ## Operational changes
 - Preserve existing regression tests and whole-app local-flow runner; include flow
@@ -60,3 +60,17 @@ are under `genie/build/clearance-2026-11-14/`. No secrets belong in these report
 Disposable HTTP DB/Redis/storage/processes and Meilisearch container were removed.
 Reusable messaging database is retained; test broker/PostgreSQL are restored stopped
 after testing. Existing application containers are untouched. No new schema migration.
+
+## Clearance fixes before merge
+- CI had drifted to a newer Flutter SDK and reported new framework deprecations. Pin
+  setup to the locally validated Flutter 3.47.2; keep all analyzer gates enabled.
+- Live property log showed Sentry streaming lifecycle ignoring beforeSendTransaction.
+  Select static lifecycle so transaction payload redaction stays active; new regression
+  verifies the configuration and strips the payload. All 158 shared tests, build and
+  lint pass (workspace aggregate increases to 1,586).
+- Release hygiene script passes. No Android device is attached to ADB.
+- Latest nightly database backup/restore Action succeeded (2026-11-14T00:09:02Z,
+  run 43532197334). Storage-object backup/restore is NOT covered by this DB check.
+- Final code-2 artifact, merged permission set, checksums and exact symbols are recorded
+  in clearance-aab.json. A local immutable copy plus zipped symbols is under
+  genie/build/releases/1.0.0+2-closed-testing/. No off-machine symbol backup is claimed.
