@@ -34,6 +34,8 @@ export function initSentry(service: string): boolean {
     },
     // Performance tracing is off unless asked for (it is billed per event).
     tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE) || 0,
+    // Streaming traces ignore the transaction redaction hook.
+    traceLifecycle: 'static',
     beforeSend: (event) => withoutSecrets(event),
     beforeSendTransaction: (event) => withoutSecrets(event),
   });

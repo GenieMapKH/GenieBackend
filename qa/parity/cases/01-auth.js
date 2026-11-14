@@ -79,7 +79,7 @@ module.exports = [
   {
     id: 'AUTH-05',
     area: AREA,
-    title: 'Password reset: email OTP and SMS paths refuse bad codes without revealing accounts',
+    title: 'Password reset: bad email OTPs are refused and the retired SMS reset route is unavailable',
     run: async (t) => {
       // A new address each run: reset requests are limited per address (1 a minute, 6 a day).
       const email = `qa-nobody-${randomUUID().slice(0, 8)}@example.com`;
@@ -93,8 +93,8 @@ module.exports = [
       });
       await t.call(null, 'POST', '/auth/reset-password/phone', {
         body: { idToken: 'not-a-firebase-token', newPassword: 'another-password-1' },
-        expect: [400, 401],
-        label: 'reset-password/phone: forged SMS proof',
+        expect: 404,
+        label: 'retired phone password-reset route stays unavailable',
       });
     },
   },

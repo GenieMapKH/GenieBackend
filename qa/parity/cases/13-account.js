@@ -37,7 +37,7 @@ module.exports = [
         t.check(response.body.code === 'DEVICE_TOO_NEW', `${label}: code ${response.body.code}`);
       };
       await tooNew('/auth/change-password', { currentPassword: password, newPassword: `${password}-x` }, 'change password');
-      await tooNew('/auth/account/email', { email: 'qa-seller@example.com', password }, 'add an email');
+      await tooNew('/auth/account/email', { email: 'qa-seller@example.com', password, emailProof: 'invalid-email-proof' }, 'add an email');
       await tooNew('/auth/account/deactivate', { password }, 'deactivate account');
       await tooNew('/auth/account/delete', { password }, 'delete account');
       await t.call('seller', 'POST', '/auth/logout-all', { expect: 403, label: 'sign out all other devices' });

@@ -39,6 +39,8 @@ jobs:
           npm run test:messaging:integration
           npm run test:messaging:flows
           npm run test:security:integration
+          npm ci --prefix qa/parity
+          npm run test:app:flows
 
       - name: Remove messaging test containers
         if: always()
@@ -71,7 +73,8 @@ jobs:
 
   deploy-staging:
     name: Deploy branch to staging
-    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    # Staging is optional until its environment-scoped credentials are configured.
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main' && vars.RAILWAY_PROJECT_ID != '' && vars.RAILWAY_STAGING_ENVIRONMENT != ''
     needs: [build-and-test, docker]
     runs-on: ubuntu-latest
     environment: staging

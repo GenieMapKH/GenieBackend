@@ -1,0 +1,56 @@
+[
+  {
+    "service": "Authentication",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "payment",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "Chat",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "Notification",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "Redis",
+    "status": "SUCCESS",
+    "sha": null,
+    "active": "SUCCESS"
+  },
+  {
+    "service": "property",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "rabbitmq",
+    "status": "SUCCESS",
+    "sha": null,
+    "active": "SUCCESS"
+  },
+  {
+    "service": "Gateway",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  },
+  {
+    "service": "Users",
+    "status": "SUCCESS",
+    "sha": "b6a154a6c2e04fbbb413465bb3246ef17f8d0b8c",
+    "active": "SUCCESS"
+  }
+]

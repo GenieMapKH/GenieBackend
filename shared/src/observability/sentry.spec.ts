@@ -5,6 +5,7 @@ describe('initSentry', () => {
   const saved = process.env.SENTRY_DSN;
   afterEach(() => {
     process.env.SENTRY_DSN = saved;
+    jest.restoreAllMocks();
   });
 
   it('starts nothing without a DSN', () => {
@@ -15,6 +16,23 @@ describe('initSentry', () => {
     process.env.SENTRY_DSN = '   ';
     expect(initSentry('property')).toBe(false);
     expect(init).not.toHaveBeenCalled();
+  });
+
+  it('keeps transaction redaction enabled when a DSN is configured', () => {
+    const init = jest.spyOn(Sentry, 'init').mockImplementation(() => undefined);
+    process.env.SENTRY_DSN = 'https://public@example.com/1';
+
+    expect(initSentry('property')).toBe(true);
+    const options = init.mock.calls[0][0]!;
+    expect(options.traceLifecycle).toBe('static');
+    const event = {
+      type: 'transaction' as const,
+      request: { data: 'private payload' },
+    };
+    expect(options.beforeSendTransaction!(event, {})).toEqual({
+      type: 'transaction',
+      request: {},
+    });
   });
 });
 

@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-11-14T13:48:48.454Z",
+  "verdict": "PASS automated gates; provider/device gates remain",
+  "counts": {
+    "backendWorkspace": 1585,
+    "backendScripts": 44,
+    "flutter": 1520,
+    "httpFlows": 74,
+    "persistedDatabase": 36,
+    "rabbitmq": 17,
+    "security": 12,
+    "meilisearch": 6,
+    "total": 3294
+  },
+  "gates": {
+    "allServiceBuilds": "PASS",
+    "allWorkspaceLint": "PASS",
+    "flutterAnalyze": "PASS",
+    "productionAccess": false
+  },
+  "cleanup": {
+    "http": {
+      "checkedAt": "2026-11-14T13:42:27.630Z",
+      "stoppedChildren": true,
+      "disposableDatabaseRemoved": true,
+      "redisContainerRemoved": true,
+      "fixtureStorageClosed": true
+    },
+    "disposableDatabasesAbsent": true,
+    "temporaryRedisAndMeilisearchContainersAbsent": true,
+    "existingFixtureContainersRestoredStopped": true,
+    "existingFixtureVolumesRetained": true
+  },
+  "limitations": [
+    "Mock bank provider; no live settlement/refund",
+    "Local storage, Places and Firebase boundaries in HTTP fixture",
+    "No real SMS, email, push or OAuth provider delivery",
+    "No real device or audio/video media path",
+    "Local changes uncommitted and unpushed"
+  ]
+}

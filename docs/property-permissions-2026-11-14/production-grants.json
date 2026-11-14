@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-11-14T13:05:10.230Z",
+  "environment": "production",
+  "service": "property",
+  "targetTenantMatched": true,
+  "migration": "51_listing_contact_identity",
+  "sha256": "ab68b78507298ef5bd73af6b5f3253b5be3742e51ad4447baca7e58e1aea6e86",
+  "before": {
+    "owner": "postgres",
+    "email": false,
+    "email_verified": false,
+    "phone_verified": false
+  },
+  "after": {
+    "email": true,
+    "email_verified": true,
+    "phone_verified": true,
+    "reads_password": false,
+    "writes_role": false
+  },
+  "committed": true,
+  "actualRotatedRoleProjection": "PASS",
+  "passwordRead": "DENIED 42501"
+}

@@ -1,0 +1,58 @@
+﻿[
+    {
+        "service":  "Authentication",
+        "queriedAt":  "2026-11-14T14:06:25.8537561Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    },
+    {
+        "service":  "Users",
+        "queriedAt":  "2026-11-14T14:06:28.3255918Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    },
+    {
+        "service":  "property",
+        "queriedAt":  "2026-11-14T14:06:30.9952387Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  1,
+        "cliExit":  0
+    },
+    {
+        "service":  "Chat",
+        "queriedAt":  "2026-11-14T14:06:33.3379684Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    },
+    {
+        "service":  "payment",
+        "queriedAt":  "2026-11-14T14:06:35.5391415Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    },
+    {
+        "service":  "Notification",
+        "queriedAt":  "2026-11-14T14:06:37.7438168Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    },
+    {
+        "service":  "Gateway",
+        "queriedAt":  "2026-11-14T14:06:40.0547327Z",
+        "lookback":  "20m",
+        "maxLines":  100,
+        "errorEntries":  0,
+        "cliExit":  0
+    }
+]
