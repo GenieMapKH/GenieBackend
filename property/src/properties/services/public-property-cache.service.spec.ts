@@ -108,7 +108,10 @@ describe('public property cache', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    prisma.user.findUnique.mockResolvedValue({ phone: '+85512345678' });
+    prisma.user.findUnique.mockResolvedValue({
+      phone: '+85512345678',
+      phoneVerified: true,
+    });
     redis = new FakeRedis();
     publicCache = new PublicPropertyCache(fakeCache(redis));
     const counts = new PropertyEngagementCounts(prisma as never);

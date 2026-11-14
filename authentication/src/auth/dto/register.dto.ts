@@ -6,6 +6,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BCRYPT_MAX_PASSWORD_BYTES, MaxBytes } from './max-bytes';
@@ -30,19 +31,22 @@ function trimToUndefined({ value }: { value: unknown }): unknown {
 }
 
 /**
- * A phone number is required: many people only have one. An email is
- * optional and can be added later (`POST /auth/account/email`).
+ * At least one contact is required. Phone takes priority for ownership proof;
+ * an email supplied with a phone can be verified later in account settings.
  */
 export class RegisterDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
       'Phone number. Without a country code it is read as Cambodian; stored as E.164.',
     example: '012 345 678',
   })
-  @Transform(normalizePhoneInput)
+  @Transform((input: { value: unknown }) =>
+    normalizePhoneInput({ value: trimToUndefined(input) }),
+  )
+  @ValidateIf((o: RegisterDto) => o.phone !== undefined || !o.email)
   @IsString({ message: PHONE_NUMBER_MESSAGE })
   @Matches(PHONE_NUMBER, { message: PHONE_NUMBER_MESSAGE })
-  phone!: string;
+  phone?: string;
 
   @ApiPropertyOptional({
     description: 'Email address. Optional; blank means none.',
@@ -78,4 +82,9 @@ export class RegisterDto {
   @IsString()
   @MaxLength(4096)
   emailProof?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(8192)
+  phoneProof?: string;
 }

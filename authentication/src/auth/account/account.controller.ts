@@ -28,6 +28,7 @@ import { AccountService } from './account.service';
 import { PasswordProofService } from './password-proof.service';
 import { AccountPhoneService } from './account-phone.service';
 import { ChangePhoneDto } from '../dto/change-phone.dto';
+import { VerifyPhoneDto } from '../dto/verify-phone.dto';
 
 /** Account security for the signed-in user: password, email, deactivate, delete. */
 @ApiTags('auth')
@@ -100,6 +101,18 @@ export class AccountController {
       this.accountEmail.addEmail(user, dto.email, dto.password, dto.emailProof),
     );
     return { message: 'Email added' };
+  }
+
+  @Post('account/phone/verify')
+  @HttpCode(HttpStatus.OK)
+  async verifyPhone(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: VerifyPhoneDto,
+  ) {
+    await this.withLimitedTries(user.userId, () =>
+      this.accountPhone.verify(user, dto.phone, dto.phoneProof),
+    );
+    return { message: 'Phone number verified' };
   }
 
   @Post('account/phone')

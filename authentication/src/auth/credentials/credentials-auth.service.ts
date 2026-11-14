@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { PhoneVerificationService } from '../verification/phone-verification.service';
 import { AdminLoginService, AdminLoginPending } from '../admin-login.service';
 import { LoginDto } from '../dto/login.dto';
 import { RegisterDto } from '../dto/register.dto';
@@ -24,14 +25,21 @@ export class CredentialsAuthService {
     @Inject(SignInService) private readonly signIn: SignInService,
     private readonly emails: EmailVerificationService,
     private readonly adminLogin: AdminLoginService,
+    private readonly phones: PhoneVerificationService,
   ) {}
 
   async register(dto: RegisterDto): Promise<void> {
-    if (dto.email) this.emails.requireProof(dto.email, dto.emailProof);
+    if (dto.phone) {
+      await this.phones.requireProof(dto.phone, dto.phoneProof);
+    } else if (dto.email) {
+      this.emails.requireProof(dto.email, dto.emailProof);
+    } else {
+      throw new BadRequestException('Email or phone is required');
+    }
     // The database refuses an exact repeat; these also catch an older account
     // that holds capitals in its email or another spelling of the number.
     if (
-      (await this.users.findByPhone(dto.phone)) ||
+      (dto.phone && (await this.users.findByPhone(dto.phone))) ||
       (dto.email && (await this.users.findByEmail(dto.email)))
     ) {
       throw new ConflictException('Email or phone already exists');
@@ -41,14 +49,14 @@ export class CredentialsAuthService {
 
     // Self-registration never grants elevated roles.
     await this.users.create({
-      phone: dto.phone,
+      phone: dto.phone ?? null,
       email: dto.email ?? null,
       name: dto.name ?? null,
       password_hash: passwordHash,
       has_password: true,
       role: DEFAULT_USER_ROLE,
-      phone_verified: false,
-      email_verified: !!dto.email,
+      phone_verified: !!dto.phone,
+      email_verified: !dto.phone && !!dto.email,
     });
   }
 

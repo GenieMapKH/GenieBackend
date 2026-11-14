@@ -65,8 +65,7 @@ export class FirebaseLoginService {
 
   private async readProfile(idToken: string): Promise<FirebaseProfile> {
     const token = await this.firebase.verifyIdToken(idToken);
-    // An SMS code proves a phone number for a password reset
-    // Phone contacts are unverified and cannot authenticate an account.
+    // SMS proves contact ownership, not a Google identity or an app session.
     if (
       token.firebase?.sign_in_provider !== 'google.com' ||
       token.email_verified !== true ||
@@ -102,6 +101,12 @@ export class FirebaseLoginService {
       existing = await this.users.findByEmail(profile.email);
     }
     if (!existing) return null;
+    // An optional email is not an identity until the phone-account owner verifies it.
+    if (existing.phone_verified && !existing.email_verified) {
+      throw new UnauthorizedException(
+        'Verify your email in account settings first',
+      );
+    }
     if (existing.role === 'admin') {
       throw new UnauthorizedException('Sign in with your email and password');
     }

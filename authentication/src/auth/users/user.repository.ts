@@ -139,6 +139,27 @@ export class UserRepository {
     }
   }
 
+  /** A concurrent phone change must not be overwritten by an older SMS challenge. */
+  async verifyPhone(
+    id: string,
+    previousPhone: string | null,
+    phone: string,
+  ): Promise<void> {
+    try {
+      const result = await this.prisma.user.updateMany({
+        where: { id, phone: previousPhone },
+        data: { phone, phoneVerified: true },
+      });
+      if (result.count !== 1)
+        throw new ConflictException('Account phone changed. Please try again.');
+    } catch (error) {
+      if (error instanceof ConflictException) throw error;
+      if (isUniqueViolation(error))
+        throw new ConflictException('Phone number is already taken');
+      throw databaseFailure(this.logger, 'Failed to verify phone', error);
+    }
+  }
+
   async update(id: string, patch: UserPatch): Promise<void> {
     try {
       await this.prisma.user.updateMany({

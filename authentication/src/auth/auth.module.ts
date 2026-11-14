@@ -41,6 +41,7 @@ import { TokenSigner } from './signing-keys/token-signer.service';
 import { FirebaseLoginService } from './social/firebase-login.service';
 import { UserRepository } from './users/user.repository';
 import { EmailVerificationService } from './verification/email-verification.service';
+import { PhoneVerificationService } from './verification/phone-verification.service';
 import { VerificationController } from './verification/verification.controller';
 import { AccountPhoneService } from './account/account-phone.service';
 import { AdminAccountsController } from './account/admin-accounts.controller';
@@ -59,6 +60,7 @@ import { AdminAccountsController } from './account/admin-accounts.controller';
   providers: [
     SignInEmailConsumer,
     EmailVerificationService,
+    PhoneVerificationService,
     AccountPhoneService,
     SigningKeyRepository,
     SigningKeyStore,

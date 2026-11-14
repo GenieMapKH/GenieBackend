@@ -65,3 +65,57 @@ Do not increase the healthcheck timeout or disable broker isolation to hide this
 
 Workflow publication, a controlled real rotation and temporary-access cleanup are recorded
 in the follow-up outcome below; do not infer those from the observations above alone.
+
+## Verified follow-up outcome
+
+- PR [48](https://github.com/GenieMapKH/GenieBackend/pull/48) was merged normally into
+  `main` as `b288faffaf0f3a028b81bab0a076bd8b26dac425`. The pull-request CI run
+  [43440484312](https://github.com/GenieMapKH/GenieBackend/actions/runs/43440484312)
+  succeeded, including all workspace tests, broker/security integration and seven Docker
+  image builds. The separate branch-push staging job failed before deployment because
+  `RAILWAY_STAGING_TOKEN` is absent; no staging credentials were fabricated or broadened.
+- The real notification-only rotation
+  [43396171399](https://github.com/GenieMapKH/GenieBackend/actions/runs/43396171399)
+  succeeded: `notification: now on notification_service_2`, followed by a verified Railway
+  handover. All six standby database logins were independently checked; unused-login
+  connection counts were zero. Other database/shared credentials were not force-rotated.
+- The published `main` workflow also completed a fresh, non-mutating dry run successfully:
+  [43442367160](https://github.com/GenieMapKH/GenieBackend/actions/runs/43442367160).
+  A dry run does not prove handover; the real rotation and final preflight above are separate.
+- Secret sync initially rebuilt older successful application revisions. HTTP health alone
+  missed their incompatible legacy shared-exchange messaging code. Redeployed the intended
+  security-fixed revision explicitly, then completed the merged-main automatic rollout.
+  Final latest-deployment state for all nine Railway services is `SUCCESS`, `stopped:false`.
+- The real Chat conversation failure was PostgreSQL `42501`: the shared chat/call
+  `DISPLAY_FIELDS` helper selected recovery email and phone, which its restricted role
+  correctly cannot read. Removed those private selections and fallbacks; did not widen grants.
+  Reproduced the denied old query, proved the corrected query works, and proved password-hash
+  access remains denied. The deployed conversation list and two histories load successfully.
+  The operator then confirmed in the app: **Chat loads and sends successfully**.
+- Latest deployed Users reports the merged-main commit. Its real dashboard aggregation,
+  all seven HTTP health probes and rotation history succeed. Final snapshot preflight passes
+  for all six services with root/shared baseline equality. Broker accounts remain scoped,
+  required consumers run, and final main/retry/dead queue message counts were all zero.
+  Users and Payment are producers and correctly have no consumer.
+- Local focused validation also passed: 156 chat tests, 17 broker integration scenarios,
+  12 security integration scenarios and 44 script tests. The H02 integration test now executes
+  the actual Prisma display projection under `SET LOCAL ROLE chat_service`; mandatory
+  publishing tests now use a real source exchange rather than the retired shared exchange.
+- Reviewed the latest deployment logs of Authentication, Users, property, Chat, payment,
+  Notification, Gateway, rabbitmq and Redis. Historical failed-revision errors remain in
+  retained broker logs; the non-blocking Sentry stream/transaction-hook startup warning
+  remains. Log history was not erased to make it appear clean.
+
+Cleanup: the temporary Railway SSH key was revoked and the account key list verified empty;
+the exact recovery-tunnel process was stopped; loopback ports 5673/15673 have no listener;
+the four temporary SSH key/public-key/config/known-host files were removed. The two local
+messaging fixture containers were restored to their original stopped state and their
+existing volumes retained. The guarded security test database was removed by its runner.
+
+Encrypted, Windows-user-bound rollback backups and redacted operational evidence remain in
+`C:\Users\SengPooPoo\.codex\operations\tilomnov-recovery-20261113` outside Git. No user messages,
+financial rows or broker queues were bulk-deleted. No production grants were weakened.
+
+Remaining limits: no real bank settlement/refund, call audio, or deliberate external email/push
+delivery test was performed. Successful healthchecks and chat confirmation are not proof of
+every product flow or immunity to future provider outages.

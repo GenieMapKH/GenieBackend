@@ -187,3 +187,31 @@ describe('UserRepository email handling', () => {
     });
   });
 });
+
+describe('UserRepository.verifyPhone', () => {
+  it('marks only the unchanged account phone verified', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const users = new UserRepository({ user: { updateMany } } as never);
+    await users.verifyPhone('u1', null, '+85512345678');
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { id: 'u1', phone: null },
+      data: { phone: '+85512345678', phoneVerified: true },
+    });
+  });
+
+  it('rejects a phone changed while SMS verification was in flight', async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    const users = new UserRepository({ user: { updateMany } } as never);
+    await expect(users.verifyPhone('u1', null, '+85512345678')).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  it('maps a concurrent phone-ownership conflict without exposing database details', async () => {
+    const updateMany = jest.fn().mockRejectedValue(UNIQUE_VIOLATION);
+    const users = new UserRepository({ user: { updateMany } } as never);
+    await expect(users.verifyPhone('u1', null, '+85512345678')).rejects.toThrow(
+      ConflictException,
+    );
+  });
+});
